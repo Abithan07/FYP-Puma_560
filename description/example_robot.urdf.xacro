@@ -53,7 +53,7 @@
         <parent link="base_link"/>
         <child link="link_1"/>
         <axis xyz="0 0 1"/>
-        <limit lower="0" upper="${8*pi/9}" velocity="0.5" effort="100"/> 
+        <limit lower="0" upper="5.585" velocity="0.5" effort="100"/> 
     </joint>
 
 
@@ -82,11 +82,11 @@
 
     
     <!-- Add properties for shoulder -->
-    <xacro:property name="shoulder_length" value="${0.1686 + 0.07493}" />
+    <xacro:property name="shoulder_length" value="${0.1686 + link_1_radius}" />
     <xacro:property name="shoulder_radius" value="${link_1_radius}" />
     
     <joint name="joint_1_shoulder" type="fixed">
-        <origin xyz="0 0 ${link_1_length}" rpy="-${pi/2} 0 0"/>
+        <origin xyz="0 0 ${link_1_length + shoulder_radius}" rpy="0 0 0"/>
         <parent link="link_1"/>
         <child link="shoulder"/>
     </joint>
@@ -95,55 +95,55 @@
 
     <link name="shoulder">
         <visual>
-            <origin xyz="0 0 ${shoulder_length/2 - 0.07493}" rpy="0 0 ${pi/2}"/>
+            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
             <geometry>
                 <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
             </geometry>
             <material name="blue" />
         </visual>
         <collision>
-            <origin xyz="0 ${shoulder_length/2 - 0.07493} 0" rpy="0 0 ${pi/2}"/>
+            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="0 0 ${pi/2}"/>
             <geometry>
                 <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
             </geometry>
         </collision>
         <xacro:inertial_cylinder mass="0.5" length="${shoulder_length}" radius="${shoulder_radius}">
-            <origin xyz="0 ${shoulder_length/2 - 0.07493} 0" rpy="0 0 ${pi/2}"/>
+            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="0 0 ${pi/2}"/>
         </xacro:inertial_cylinder>
     </link>
 
 
 
-    <xacro:property name="link_2_length" value="${0.4318 + 0.22606}" />
+    <xacro:property name="link_2_length" value="${0.735}" />
     <xacro:property name="link_2_radius" value="0.065278" />
 
 
     <joint name="joint_2" type="revolute">
-        <origin xyz="0 0 ${shoulder_length}" rpy="-${pi/2} 0 0"/>
+        <origin xyz="0 ${shoulder_length} 0" rpy="0 0 0"/>
         <parent link="shoulder"/>
         <child link="link_2"/>
         <axis xyz="0 -1 0"/>
-        <limit lower="0" upper="${25*pi/36}" velocity="0.5" effort="100"/> 
+        <limit lower="-1" upper="3.363" velocity="0.5" effort="100"/> 
     </joint>
 
 
 
     <link name="link_2">
         <visual>
-            <origin xyz="${link_2_length/2 - 0.22606} 0 0" rpy="0 ${pi/2} 0"/>
+            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
             <geometry>
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
             </geometry>
             <material name="orange" />
         </visual>
         <collision>
-            <origin xyz="${link_2_length/2 - 0.22606} 0 0" rpy="0 ${pi/2} 0"/>
+            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
             <geometry>
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
             </geometry>
         </collision>
         <xacro:inertial_cylinder mass="1.0" length="${link_2_length}" radius="${link_2_radius}">
-            <origin xyz="${link_2_length/2 - 0.22606} 0 0" rpy="0 ${pi/2} 0"/>
+            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
         </xacro:inertial_cylinder>
     </link>
 
@@ -153,11 +153,11 @@
 
 
     <joint name="joint_3" type="revolute">
-        <origin xyz="${link_2_length - 0.22606} -${link_2_radius + link_3_radius} 0" rpy="0 0 0"/>
+        <origin xyz="${link_2_length - 0.226 - link_3_radius} -${link_2_radius + link_3_radius} 0" rpy="0 0 0"/>
         <parent link="link_2"/>
         <child link="link_3"/>
         <axis xyz="0 -1 0"/>
-        <limit lower="0" upper="${3*pi/4}" velocity="0.5" effort="100"/> 
+        <limit lower="-0.712" upper="4" velocity="0.5" effort="100"/> 
     </joint>
 
 
