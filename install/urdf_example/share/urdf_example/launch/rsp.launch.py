@@ -1,1 +1,0 @@
-/home/abithan/ros2_ws/urdf_example/launch/rsp.launch.py

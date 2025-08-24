@@ -34,17 +34,17 @@ def generate_launch_description():
 
     gazebo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource([os.path.join(
-            get_package_share_directory('gazebo_ros'), 'launch'), '/gazebo.launch.py']),
+            get_package_share_directory('ros_gz_sim'), 'launch'), '/gz_sim.launch.py']),
         )
 
 
-    spawn_entity = Node(package='gazebo_ros', executable='spawn_entity.py',
+    spawn_entity = Node(package='ros_gz_sim', executable='create',
                     arguments=['-topic', 'robot_description',
-                                '-entity', 'my_bot'],
+                                '-name', 'my_bot'],
                     output='screen')
 
 
-
+# gazebo_ros -> ros_gz_sim
 
 
 
