@@ -1,0 +1,9 @@
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/uninstall.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/arm_bot_uninstall.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/test.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/edit_cache.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/rebuild_cache.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/list_install_components.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/install.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/install/local.dir
+/home/abithan_ubuntu/ros2_ws2/build/arm_bot/CMakeFiles/install/strip.dir

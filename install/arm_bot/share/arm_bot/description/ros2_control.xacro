@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <xacro:if value="$(arg sim_mode)">
+        <ros2_control name="GazeboSystem" type="system">
+            <hardware>
+                <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+            </hardware>
+            <joint name="joint_1">
+                <command_interface name="effort"/>
+                <state_interface name="velocity"/>
+                <state_interface name="position"/>
+                <state_interface name="effort"/>
+            </joint>
+            <joint name="joint_2">
+                <command_interface name="effort"/>
+                <state_interface name="velocity"/>
+                <state_interface name="position"/>
+                <state_interface name="effort"/>
+            </joint>
+            <joint name="joint_3">
+                <command_interface name="effort"/>
+                <state_interface name="velocity"/>
+                <state_interface name="position"/>
+                <state_interface name="effort"/>
+            </joint>
+        </ros2_control>
+    </xacro:if>
+
+    <gazebo>
+        <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+            <parameters>$(find arm_bot)/config/my_controllers.yaml</parameters>
+            <parameters>$(find arm_bot)/config/gaz_ros2_ctl_use_sim.yaml</parameters>
+        </plugin>
+    </gazebo>
+
+</robot>
