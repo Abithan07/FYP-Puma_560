@@ -21,3 +21,9 @@ ros2 launch your_package_name robot_gui.launch.py
 
 # To control your current effort controllers:
 ros2 topic pub /joint_1_controller/commands std_msgs/msg/Float64MultiArray "{data: [1.0]}"
+
+
+colcon build
+source install/setup.bash
+ros2 launch arm_bot robot_gui.launch.py
+python3 /home/abithan_ubuntu/ros2_ws2/arm_bot/scripts/torque_publisher.py

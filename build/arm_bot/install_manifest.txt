@@ -4,7 +4,6 @@
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/config/main.rviz
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/config/gazebo_params.yaml
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/config/my_controllers.yaml
-/home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/config/drive_bot.rviz
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/description/robot_core.xacro
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/description/inertial_macros.xacro
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/description/ros2_control.xacro
@@ -20,9 +19,7 @@
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/worlds/obstacles.world
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/ament_index/resource_index/package_run_dependencies/arm_bot
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/ament_index/resource_index/parent_prefix_path/arm_bot
-/home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/environment/ament_prefix_path.sh
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/environment/ament_prefix_path.dsv
-/home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/environment/path.sh
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/environment/path.dsv
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/local_setup.bash
 /home/abithan_ubuntu/ros2_ws2/install/arm_bot/share/arm_bot/local_setup.sh
