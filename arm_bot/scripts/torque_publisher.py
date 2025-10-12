@@ -9,9 +9,9 @@ class TorquePublisher(Node):
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
         self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
-        self.timer_period = 5.0  # seconds
+        self.timer_period = 10.0  # seconds
         self.values_pos = [10.0, 15.0, 2.0]
-        self.values_neg = [-10.0, -5.0, -2.0]
+        self.values_neg = [-10.0, -15.0, -2.0]
 
     def run(self):
         while rclpy.ok():
