@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro"  name="robot">
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
 
     <xacro:include filename="inertial_macros.xacro" />
 
@@ -11,8 +11,6 @@
         <parent link="world"/>
         <child link="base_link"/>        
     </joint>
-
-
 
     <link name="base_link">
         <visual>
@@ -37,54 +35,48 @@
         </inertial>
     </link>
 
-
-
-    <joint name="joint_1" type="revolute">
+    <joint name="joint_1_shoulder" type="fixed">
         <origin xyz="0 0 0.1" rpy="0 0 0"/>
         <parent link="base_link"/>
         <child link="link_1"/>
+    </joint>
+
+    <xacro:property name="link_1_length" value="0.59817" />
+    <xacro:property name="link_1_radius" value="0.07493" />
+    
+    <link name="link_1">
+        <visual>
+            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="${link_1_length}" radius="${link_1_radius}" />
+            </geometry>
+            <material name="blue" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+            <geometry>
+                <cylinder length="${link_1_length}" radius="${link_1_radius}" />
+            </geometry>
+        </collision>
+        <xacro:inertial_cylinder mass="0.5" length="${link_1_length}" radius="${link_1_radius}">
+            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+    <!-- Add properties for shoulder -->
+    <xacro:property name="shoulder_length" value="${0.1686 + link_1_radius}" />
+    <xacro:property name="shoulder_radius" value="${link_1_radius}" />
+    
+    <joint name="joint_1" type="revolute">
+        <origin xyz="0 0 ${link_1_length + shoulder_radius}" rpy="0 0 0"/>
+        <parent link="link_1"/>
+        <child link="shoulder"/>
         <axis xyz="0 0 1"/>
         <limit lower="0" upper="5.585" velocity="1" effort="100"/> 
         <dynamics damping="1.0" friction="1.0"/>
     </joint>
 
-
-
-    <xacro:property name="link_1_length" value="${0.59817}" />
-    <xacro:property name="link_1_radius" value="0.07493" />
-    <link name="link_1">
-    <visual>
-        <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
-        <geometry>
-            <cylinder length="${link_1_length}" radius="${link_1_radius}" />
-        </geometry>
-        <material name="blue" />
-    </visual>
-    <collision>
-        <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
-        <geometry>
-            <cylinder length="${link_1_length}" radius="${link_1_radius}" />
-        </geometry>
-    </collision>
-    <xacro:inertial_cylinder mass="0.5" length="${link_1_length}" radius="${link_1_radius}">
-        <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
-    </xacro:inertial_cylinder>
-    </link>
-
-
-    
-    <!-- Add properties for shoulder -->
-    <xacro:property name="shoulder_length" value="${0.1686 + link_1_radius}" />
-    <xacro:property name="shoulder_radius" value="${link_1_radius}" />
-    
-    <joint name="joint_1_shoulder" type="fixed">
-        <origin xyz="0 0 ${link_1_length + shoulder_radius}" rpy="0 0 0"/>
-        <parent link="link_1"/>
-        <child link="shoulder"/>
-    </joint>
-
-
-
+    <!-- MATLAB Link 1 = shoulder (m1=0, only Izz=1.49) -->
     <link name="shoulder">
         <visual>
             <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
@@ -94,7 +86,7 @@
             <material name="blue" />
         </visual>
         <collision>
-            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="0 0 ${pi/2}"/>
+            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
             <geometry>
                 <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
             </geometry>
@@ -104,11 +96,8 @@
         </xacro:inertial_cylinder>
     </link>
 
-
-
-    <xacro:property name="link_2_length" value="${0.735}" />
+    <xacro:property name="link_2_length" value="0.432" />
     <xacro:property name="link_2_radius" value="0.065278" />
-
 
     <joint name="joint_2" type="revolute">
         <origin xyz="0 ${shoulder_length} 0" rpy="0 0 0"/>
@@ -119,18 +108,18 @@
         <dynamics damping="1.0" friction="1.0"/>
     </joint>
 
-
-
+    <!-- MATLAB Link 2 = link_2 (m2=17.4 kg) -->
+    <!-- CoG2 = [0.068; 0.006; -0.016] w.r.t. link frame {2} -->
     <link name="link_2">
         <visual>
-            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
+            <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/>
             <geometry>
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
             </geometry>
             <material name="orange" />
         </visual>
         <collision>
-            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
+            <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/>
             <geometry>
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
             </geometry>
@@ -140,13 +129,11 @@
         </xacro:inertial_cylinder>
     </link>
 
-
-    <xacro:property name="link_3_length" value="${0.4318 + 0.13208}" />
+    <xacro:property name="link_3_length" value="0.233" />
     <xacro:property name="link_3_radius" value="0.028702" />
 
-
     <joint name="joint_3" type="revolute">
-        <origin xyz="${link_2_length - 0.226 - link_3_radius} -${link_2_radius + link_3_radius} 0" rpy="0 0 0"/>
+        <origin xyz="${link_2_length} -0.094 0" rpy="0 0 0"/>
         <parent link="link_2"/>
         <child link="link_3"/>
         <axis xyz="0 -1 0"/>
@@ -154,18 +141,18 @@
         <dynamics damping="1.0" friction="1.0"/>
     </joint>
 
-
-
+    <!-- MATLAB Link 3 = link_3 (m3=4.8 kg) -->
+    <!-- CoG3 = [0.000; -0.143; 0.014] w.r.t. link frame {3} -->
     <link name="link_3">
         <visual>
-            <origin xyz="0 0 ${link_3_length/2 - 0.4318}" rpy="0 0 0"/>
+            <origin xyz="0 0 -${link_3_length/2}" rpy="0 0 0"/>
             <geometry>
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
             <material name="yellow" />
         </visual>
         <collision>
-            <origin xyz="0 0 ${link_3_length/2 - 0.4318}" rpy="0 0 0"/>
+            <origin xyz="0 0 -${link_3_length/2}" rpy="0 0 0"/>
             <geometry>
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
