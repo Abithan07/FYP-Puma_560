@@ -3,14 +3,16 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 import csv
 import os
+import sys
 
 class CSVTorquePublisher(Node):
-    def __init__(self):
+    def __init__(self, csv_file=None):
         super().__init__('csv_torque_publisher')
         
-        # Declare parameter for CSV file path
-        self.declare_parameter('csv_file', 'torque_values.csv')
-        csv_file = self.get_parameter('csv_file').get_parameter_value().string_value
+        # Use provided csv_file or declare parameter
+        if csv_file is None:
+            self.declare_parameter('csv_file', 'torque_values.csv')
+            csv_file = self.get_parameter('csv_file').get_parameter_value().string_value
         
         # Publishers for each joint
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
@@ -23,6 +25,7 @@ class CSVTorquePublisher(Node):
         
         # Current row index
         self.current_row = 0
+        self.finished = False
         
         # Timer to publish every 0.01 seconds (100 Hz)
         self.timer_period = 0.01
@@ -46,9 +49,9 @@ class CSVTorquePublisher(Node):
                 for row in csv_reader:
                     try:
                         torques = {
-                            'joint_1': float(row['joint 1']),
-                            'joint_2': float(row['joint 2']),
-                            'joint_3': float(row['joint 3'])
+                            'joint_1': float(row['tau1']),
+                            'joint_2': float(row['tau2']),
+                            'joint_3': float(row['tau3'])
                         }
                         self.torque_data.append(torques)
                     except (ValueError, KeyError) as e:
@@ -65,6 +68,10 @@ class CSVTorquePublisher(Node):
         """Publish torque values from current row"""
         if len(self.torque_data) == 0:
             self.get_logger().warn('No torque data available')
+            self.timer.cancel()
+            return
+        
+        if self.finished:
             return
         
         # Get current row data
@@ -93,25 +100,48 @@ class CSVTorquePublisher(Node):
                 f'J3={current_torques["joint_3"]:.2f}'
             )
         
-        # Move to next row (loop back to start when finished)
-        self.current_row = (self.current_row + 1) % len(self.torque_data)
+        # Move to next row
+        self.current_row += 1
         
-        # Optionally stop when reaching end of data (uncomment if needed)
-        # if self.current_row == 0:
-        #     self.get_logger().info('Reached end of CSV data')
-        #     self.timer.cancel()
+        # Stop when reaching end of data
+        if self.current_row >= len(self.torque_data):
+            self.get_logger().info(f'Finished publishing all {len(self.torque_data)} rows')
+            self.get_logger().info('Publishing complete. Shutting down...')
+            self.finished = True
+            self.timer.cancel()
+            # Shutdown after a brief delay to ensure last messages are sent
+            self.create_timer(0.1, self.shutdown)
+    
+    def shutdown(self):
+        """Shutdown the node"""
+        self.get_logger().info('Node shutting down')
+        rclpy.shutdown()
 
 def main(args=None):
+    # Parse command line arguments
+    csv_file = None
+    if args is None:
+        args = sys.argv[1:]
+    
+    # Check if CSV file path is provided as command line argument
+    if len(args) > 0 and not args[0].startswith('--ros-args'):
+        csv_file = args[0]
+        # Remove the csv file from args so rclpy doesn't try to parse it
+        args = args[1:]
+    
     rclpy.init(args=args)
-    node = CSVTorquePublisher()
+    node = CSVTorquePublisher(csv_file=csv_file)
     
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
         pass
-    
-    node.destroy_node()
-    rclpy.shutdown()
+    except Exception as e:
+        node.get_logger().error(f'Exception: {e}')
+    finally:
+        if rclpy.ok():
+            node.destroy_node()
+            rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
