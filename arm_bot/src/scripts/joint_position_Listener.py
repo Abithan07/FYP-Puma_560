@@ -26,7 +26,7 @@ class PositionListener(Node):
     def listener_callback(self, msg):
         self.latest_msg = msg
         current_time = time.time()
-        if current_time - self.last_print_time >= 5.0:
+        if current_time - self.last_print_time >= 0.5:
             for name, position in zip(msg.name, msg.position):
                 degrees = math.degrees(position)
                 color = COLORS.get(name, COLORS['ENDC'])

@@ -59,4 +59,46 @@
     </xacro:macro>
 
 
+    <!-- PUMA 560 Specific Inertia Macros based on Stanford paper -->
+    <!-- Link 1: Only rotates around Z-axis -->
+    <xacro:macro name="inertial_link1" params="*origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <!-- Use tiny mass to satisfy RViz, negligible effect on dynamics -->
+            <mass value="0.001" />
+            <!-- Motor inertia Im1=1.14 + Link inertia I1zz=0.35 -->
+            <inertia ixx="0.001" ixy="0.0" ixz="0.0"
+                    iyy="0.001" iyz="0.0"
+                    izz="1.49" />
+        </inertial>
+    </xacro:macro>
+
+    <!-- Link 2 (Shoulder/Upper Arm): m2=17.4 kg -->
+    <!-- CoG w.r.t. link frame: [0.068, 0.006, -0.016] meters -->
+    <xacro:macro name="inertial_link2" params="*origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <mass value="17.4" />
+            <!-- I2 = [I2xx, 0, 0; 0, I2yy, 0; 0, 0, I2zz] -->
+            <!-- I2xx=0.130, I2yy=0.524, I2zz=0.539+Im2(4.71)=5.249 -->
+            <inertia ixx="0.130" ixy="0.0" ixz="0.0"
+                    iyy="0.524" iyz="0.0"
+                    izz="5.249" />
+        </inertial>
+    </xacro:macro>
+
+    <!-- Link 3 (Forearm): m3=4.8 kg -->
+    <!-- CoG w.r.t. link frame: [0.000, -0.143, 0.014] meters -->
+    <xacro:macro name="inertial_link3" params="mass *origin">
+        <inertial>
+            <xacro:insert_block name="origin"/>
+            <mass value="${mass}" />
+            <!-- I3 = [I3xx, 0, 0; 0, I3yy, 0; 0, 0, I3zz] -->
+            <!-- I3xx=0.066, I3yy=0.125, I3zz=0.086+Im3(0.83)=0.916 -->
+            <inertia ixx="0.066" ixy="0.0" ixz="0.0"
+                    iyy="0.125" iyz="0.0"
+                    izz="0.916" />
+        </inertial>
+    </xacro:macro>
+
 </robot>

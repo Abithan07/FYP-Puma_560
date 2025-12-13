@@ -91,9 +91,9 @@
                 <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
             </geometry>
         </collision>
-        <xacro:inertial_cylinder mass="0.5" length="${shoulder_length}" radius="${shoulder_radius}">
-            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="0 0 ${pi/2}"/>
-        </xacro:inertial_cylinder>
+        <xacro:inertial_link1>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </xacro:inertial_link1>
     </link>
 
     <xacro:property name="link_2_length" value="0.432" />
@@ -124,9 +124,9 @@
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
             </geometry>
         </collision>
-        <xacro:inertial_cylinder mass="1.0" length="${link_2_length}" radius="${link_2_radius}">
-            <origin xyz="${link_2_length/2 - 0.226} 0 0" rpy="0 ${pi/2} 0"/>
-        </xacro:inertial_cylinder>
+        <xacro:inertial_link2>
+            <origin xyz="0.068 0.006 -0.016" rpy="0 0 0"/>
+        </xacro:inertial_link2>
     </link>
 
     <xacro:property name="link_3_length" value="0.233" />
@@ -157,9 +157,45 @@
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
         </collision>
-        <xacro:inertial_cylinder mass="0.5" length="${link_3_length}" radius="${link_3_radius}">
-            <origin xyz="0 0 ${link_3_length/2 - 0.4318}" rpy="0 0 0"/>
-        </xacro:inertial_cylinder>
+        <xacro:inertial_link3 mass="4.8">
+            <origin xyz="0.0 -0.143 0.014" rpy="0 0 0"/>
+        </xacro:inertial_link3>
     </link>
+
+    <!-- Gazebo-specific properties for links -->
+    <gazebo reference="base_link">
+        <material>Gazebo/Green</material>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_1">
+        <material>Gazebo/Blue</material>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="shoulder">
+        <material>Gazebo/Blue</material>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_2">
+        <material>Gazebo/Orange</material>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_3">
+        <material>Gazebo/Yellow</material>
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
 
 </robot>
