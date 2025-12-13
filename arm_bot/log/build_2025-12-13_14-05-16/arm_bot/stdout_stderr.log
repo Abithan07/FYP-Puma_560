@@ -1,0 +1,66 @@
+-- The C compiler identification is GNU 11.4.0
+-- The CXX compiler identification is GNU 11.4.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Found ament_cmake: 1.3.12 (/home/abithan_ubuntu/ros2_humble/install/ament_cmake/share/ament_cmake/cmake)
+-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+-- Found ament_lint_auto: 0.12.14 (/home/abithan_ubuntu/ros2_humble/install/ament_lint_auto/share/ament_lint_auto/cmake)
+-- Added test 'copyright' to check source files copyright and LICENSE
+-- Added test 'flake8' to check Python code syntax and style conventions
+-- Added test 'lint_cmake' to check CMake code style
+-- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+-- Added test 'xmllint' to check XML markup files
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/abithan_ubuntu/ros2_ws2/arm_bot/build/arm_bot
+-- Install configuration: ""
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config/empty.yaml
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config/gaz_ros2_ctl_use_sim.yaml
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config/main.rviz
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config/gazebo_params.yaml
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/config/my_controllers.yaml
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description/robot_core.xacro
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description/inertial_macros.xacro
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description/ros2_control.xacro
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description/gazebo_control.xacro
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/description/robot.urdf.xacro
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/launch
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/launch/robot_gui.launch.py
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/launch/__pycache__
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/launch/__pycache__/rsp.launch.cpython-310.pyc
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/worlds
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/worlds/empty.world
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/worlds/obstacles.world
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link2.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link1.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link3.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link5.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link7.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link6.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/meshes/puma_link4.stl
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/ament_index/resource_index/package_run_dependencies/arm_bot
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/ament_index/resource_index/parent_prefix_path/arm_bot
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/environment/ament_prefix_path.sh
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/environment/ament_prefix_path.dsv
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/environment/path.sh
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/environment/path.dsv
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/local_setup.bash
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/local_setup.sh
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/local_setup.zsh
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/local_setup.dsv
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/package.dsv
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/ament_index/resource_index/packages/arm_bot
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/cmake/arm_botConfig.cmake
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/cmake/arm_botConfig-version.cmake
+-- Installing: /home/abithan_ubuntu/ros2_ws2/arm_bot/install/arm_bot/share/arm_bot/package.xml

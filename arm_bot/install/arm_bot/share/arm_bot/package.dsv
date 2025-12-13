@@ -1,0 +1,8 @@
+source;share/arm_bot/hook/cmake_prefix_path.ps1
+source;share/arm_bot/hook/cmake_prefix_path.dsv
+source;share/arm_bot/hook/cmake_prefix_path.sh
+source;share/arm_bot/local_setup.bash
+source;share/arm_bot/local_setup.dsv
+source;share/arm_bot/local_setup.ps1
+source;share/arm_bot/local_setup.sh
+source;share/arm_bot/local_setup.zsh
