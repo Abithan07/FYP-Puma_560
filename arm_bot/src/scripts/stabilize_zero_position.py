@@ -22,8 +22,8 @@ class ZeroPositionStabilizer(Node):
             self.joint_state_callback,
             10)
         
-        # Target position: [pi/4, pi/4, pi/4]
-        self.target_pos = [3.14159/4, 3.14159/4, 3.14159/4]
+        # Target position: [0, pi/4, pi/4]
+        self.target_pos = [0, 3.14159/4, 3.14159/4]
         
         # Current joint states
         self.current_joint_pos = [0.0, 0.0, 0.0]

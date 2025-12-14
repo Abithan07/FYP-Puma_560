@@ -73,7 +73,7 @@
         <child link="shoulder"/>
         <axis xyz="0 0 1"/>
         <limit lower="0" upper="5.585" velocity="1" effort="100"/> 
-        <dynamics damping="1.0" friction="1.0"/>
+        <dynamics damping="0" friction="0"/>
     </joint>
 
     <!-- MATLAB Link 1 = shoulder (m1=0, only Izz=1.49) -->
@@ -105,7 +105,7 @@
         <child link="link_2"/>
         <axis xyz="0 1 0"/>
         <limit lower="-1" upper="3.363" velocity="1" effort="100"/> 
-        <dynamics damping="1.0" friction="1.0"/>
+        <dynamics damping="0" friction="0"/>
     </joint>
 
     <!-- MATLAB Link 2 = link_2 (m2=17.4 kg) -->
@@ -138,7 +138,7 @@
         <child link="link_3"/>
         <axis xyz="0 1 0"/>
         <limit lower="-0.712" upper="4" velocity="1" effort="100"/> 
-        <dynamics damping="1.0" friction="1.0"/>
+        <dynamics damping="0" friction="0"/>
     </joint>
 
     <!-- MATLAB Link 3 = link_3 (m3=4.8 kg) -->

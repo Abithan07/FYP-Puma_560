@@ -73,40 +73,50 @@ def generate_launch_description():
             }]
         ),
 
-        # Controller Manager
-        Node(
-            package='controller_manager',
-            executable='ros2_control_node',
-            parameters=[controller_yaml, sim_yaml],
-            output='screen',
+        # Launch Gazebo first
+        gazebo_launch,
+
+        # Wait for Gazebo to start, then spawn the robot
+        TimerAction(
+            period=5.0,
+            actions=[spawn_entity]
         ),
 
-        # Load joint state broadcaster
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=['joint_state_broadcaster'],
-            output='screen',
+        # Wait for gazebo_ros2_control plugin to load, then spawn controllers
+        TimerAction(
+            period=8.0,  # Give Gazebo + plugin time to fully initialize
+            actions=[
+                Node(
+                    package='controller_manager',
+                    executable='spawner',
+                    arguments=['joint_state_broadcaster'],
+                    output='screen',
+                ),
+            ]
         ),
 
-        # Load joint controllers
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=['joint_1_controller'],
-            output='screen',
-        ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=['joint_2_controller'],
-            output='screen',
-        ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=['joint_3_controller'],
-            output='screen',
+        TimerAction(
+            period=10.0,  # Spawn joint controllers after state broadcaster
+            actions=[
+                Node(
+                    package='controller_manager',
+                    executable='spawner',
+                    arguments=['joint_1_controller'],
+                    output='screen',
+                ),
+                Node(
+                    package='controller_manager',
+                    executable='spawner',
+                    arguments=['joint_2_controller'],
+                    output='screen',
+                ),
+                Node(
+                    package='controller_manager',
+                    executable='spawner',
+                    arguments=['joint_3_controller'],
+                    output='screen',
+                ),
+            ]
         ),
 
         # RViz2 with config
@@ -116,14 +126,5 @@ def generate_launch_description():
             name='rviz2',
             output='screen',
             arguments=['-d', rviz_config]
-        ),
-
-        # Launch Gazebo
-        gazebo_launch,
-
-        # Wait for Gazebo to start, then spawn the robot
-        TimerAction(
-            period=5.0,
-            actions=[spawn_entity]
         ),
     ])
