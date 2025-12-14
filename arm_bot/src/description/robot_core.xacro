@@ -103,7 +103,7 @@
         <origin xyz="0 ${shoulder_length} 0" rpy="0 0 0"/>
         <parent link="shoulder"/>
         <child link="link_2"/>
-        <axis xyz="0 -1 0"/>
+        <axis xyz="0 1 0"/>
         <limit lower="-1" upper="3.363" velocity="1" effort="100"/> 
         <dynamics damping="1.0" friction="1.0"/>
     </joint>
@@ -136,7 +136,7 @@
         <origin xyz="${link_2_length} -0.094 0" rpy="0 0 0"/>
         <parent link="link_2"/>
         <child link="link_3"/>
-        <axis xyz="0 -1 0"/>
+        <axis xyz="0 1 0"/>
         <limit lower="-0.712" upper="4" velocity="1" effort="100"/> 
         <dynamics damping="1.0" friction="1.0"/>
     </joint>
@@ -145,7 +145,7 @@
     <!-- CoG3 = [0.000; -0.143; 0.014] w.r.t. link frame {3} -->
     <link name="link_3">
         <visual>
-            <origin xyz="0 0 -${link_3_length/2}" rpy="0 0 0"/>
+            <origin xyz="0 0 ${link_3_length/2}" rpy="0 0 0"/>
             <geometry>
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
