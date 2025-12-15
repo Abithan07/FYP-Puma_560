@@ -7,7 +7,7 @@ from sensor_msgs.msg import JointState
 import time
 
 class ZeroPositionStabilizer(Node):
-    def __init__(self):
+    def __init__(self, target_position=None, position_threshold=None):
         super().__init__('zero_position_stabilizer')
         
         # Publishers for torque commands
@@ -22,8 +22,15 @@ class ZeroPositionStabilizer(Node):
             self.joint_state_callback,
             10)
         
-        # Target position: [0, pi/4, pi/4]
-        self.target_pos = [0, 3.14159/4, 3.14159/4]
+        # Target position: use provided or default to [0, 0, 0]
+        if target_position is not None:
+            self.target_pos = target_position
+        else:
+            self.target_pos = [3.14159/4, 3.14159/4, 3.14159/4]
+        
+        # Position threshold for considering stabilization complete (radians)
+        # Default to 5 degrees = 0.0873 radians
+        self.position_threshold = position_threshold if position_threshold is not None else 0.0873
         
         # Current joint states
         self.current_joint_pos = [0.0, 0.0, 0.0]
@@ -31,8 +38,8 @@ class ZeroPositionStabilizer(Node):
         self.joint_states_received = False
         
         # PID controller parameters
-        self.kp = [30.0, 100.0, 15.0]  # Proportional gains
-        self.ki = [0.5, 1.5, 0.2]      # Integral gains
+        self.kp = [30.0, 150.0, 80.0]  # Proportional gains
+        self.ki = [0.5, 1.5, 0.8]      # Integral gains
         self.kd = [8.0, 25.0, 4.0]      # Derivative gains
         
         # PID state variables
@@ -45,11 +52,17 @@ class ZeroPositionStabilizer(Node):
         self.control_rate = 100  # Hz
         self.dt = 1.0 / self.control_rate
         
+        # Stabilization status
+        self.is_stabilized = False
+        self.stabilization_start_time = None
+        self.min_stabilization_time = 0.5  # Must stay stable for 0.5 seconds
+        
         # Create timer for control loop
         self.timer = self.create_timer(self.dt, self.control_loop)
         
-        self.get_logger().info('Zero Position Stabilizer initialized')
-        self.get_logger().info(f'Target position: {self.target_pos}')
+        self.get_logger().info('Position Stabilizer initialized')
+        self.get_logger().info(f'Target position: [{self.target_pos[0]:.4f}, {self.target_pos[1]:.4f}, {self.target_pos[2]:.4f}] rad')
+        self.get_logger().info(f'Position threshold: {self.position_threshold:.4f} rad ({self.position_threshold * 180 / 3.14159:.2f} deg)')
         self.get_logger().info(f'PID gains - Kp: {self.kp}, Ki: {self.ki}, Kd: {self.kd}')
         self.get_logger().info(f'Control rate: {self.control_rate} Hz')
     
@@ -134,19 +147,35 @@ class ZeroPositionStabilizer(Node):
         # Update previous error for next iteration
         self.previous_error = errors.copy()
         
+        # Check if position is stabilized
+        max_error = max(abs(e) for e in errors)
+        if max_error < self.position_threshold:
+            if self.stabilization_start_time is None:
+                self.stabilization_start_time = time.time()
+            elif time.time() - self.stabilization_start_time >= self.min_stabilization_time:
+                if not self.is_stabilized:
+                    self.is_stabilized = True
+                    self.get_logger().info(f'✓ Position STABILIZED! Max error: {max_error:.4f} rad ({max_error * 180 / 3.14159:.2f} deg)')
+        else:
+            self.stabilization_start_time = None
+            self.is_stabilized = False
+        
         # Log status every 2 seconds
         if not hasattr(self, 'last_log_time'):
             self.last_log_time = time.time()
         
         if time.time() - self.last_log_time >= 2.0:
-            max_error = max(abs(e) for e in errors)
+            status = '✓ STABLE' if self.is_stabilized else 'STABILIZING...'
             self.get_logger().info(
-                f'Pos: [{self.current_joint_pos[0]:6.3f}, {self.current_joint_pos[1]:6.3f}, {self.current_joint_pos[2]:6.3f}] | '
+                f'{status} | Pos: [{self.current_joint_pos[0]:6.3f}, {self.current_joint_pos[1]:6.3f}, {self.current_joint_pos[2]:6.3f}] | '
                 f'Err: [{errors[0]:6.4f}, {errors[1]:6.4f}, {errors[2]:6.4f}] | '
-                f'Torq: [{torques[0]:5.1f}, {torques[1]:5.1f}, {torques[2]:5.1f}] | '
-                f'Max Err: {max_error:.4f} rad'
+                f'Max: {max_error:.4f} rad'
             )
             self.last_log_time = time.time()
+    
+    def is_stable(self):
+        """Check if the robot has reached and is holding the target position"""
+        return self.is_stabilized
 
 def main(args=None):
     rclpy.init(args=args)

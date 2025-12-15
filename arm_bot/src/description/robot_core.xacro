@@ -47,8 +47,10 @@
     <link name="link_1">
         <visual>
             <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+            <!-- <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/> -->
             <geometry>
                 <cylinder length="${link_1_length}" radius="${link_1_radius}" />
+                 <!-- <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/> -->
             </geometry>
             <material name="blue" />
         </visual>
@@ -56,6 +58,7 @@
             <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
             <geometry>
                 <cylinder length="${link_1_length}" radius="${link_1_radius}" />
+                 <!-- <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/> -->
             </geometry>
         </collision>
         <xacro:inertial_cylinder mass="0.5" length="${link_1_length}" radius="${link_1_radius}">
@@ -72,7 +75,7 @@
         <parent link="link_1"/>
         <child link="shoulder"/>
         <axis xyz="0 0 1"/>
-        <limit lower="0" upper="5.585" velocity="1" effort="100"/> 
+        <limit lower="${-8*pi/9}" upper="${8*pi/9}" velocity="2" effort="1000"/> 
         <dynamics damping="0" friction="0"/>
     </joint>
 
@@ -80,8 +83,10 @@
     <link name="shoulder">
         <visual>
             <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
+            <!-- <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/> -->
             <geometry>
                 <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
+                 <!-- <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/> -->
             </geometry>
             <material name="blue" />
         </visual>
@@ -100,11 +105,11 @@
     <xacro:property name="link_2_radius" value="0.065278" />
 
     <joint name="joint_2" type="revolute">
-        <origin xyz="0 ${shoulder_length} 0" rpy="0 0 0"/>
+        <origin xyz="0 ${shoulder_length} 0" rpy="${-pi/2} 0 0"/>
         <parent link="shoulder"/>
         <child link="link_2"/>
-        <axis xyz="0 1 0"/>
-        <limit lower="-1" upper="3.363" velocity="1" effort="100"/> 
+        <axis xyz="0 0 1"/>
+        <limit lower="${-5*pi/4}" upper="${pi/4}" velocity="2" effort="1000"/> 
         <dynamics damping="0" friction="0"/>
     </joint>
 
@@ -113,8 +118,10 @@
     <link name="link_2">
         <visual>
             <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+            <!-- <origin xyz="0 0 0" rpy="${3*pi/2} 0 0"/> -->
             <geometry>
                 <cylinder length="${link_2_length}" radius="${link_2_radius}" />
+                 <!-- <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/> -->
             </geometry>
             <material name="orange" />
         </visual>
@@ -133,11 +140,11 @@
     <xacro:property name="link_3_radius" value="0.028702" />
 
     <joint name="joint_3" type="revolute">
-        <origin xyz="${link_2_length} -0.094 0" rpy="0 0 0"/>
+        <origin xyz="${link_2_length} 0 -0.094" rpy="0 0 0"/>
         <parent link="link_2"/>
         <child link="link_3"/>
-        <axis xyz="0 1 0"/>
-        <limit lower="-0.712" upper="4" velocity="1" effort="100"/> 
+        <axis xyz="0 0 1"/>
+        <limit lower="${-pi/4}" upper="${5*pi/4}" velocity="2" effort="1000"/> 
         <dynamics damping="0" friction="0"/>
     </joint>
 
@@ -145,14 +152,16 @@
     <!-- CoG3 = [0.000; -0.143; 0.014] w.r.t. link frame {3} -->
     <link name="link_3">
         <visual>
-            <origin xyz="0 0 ${link_3_length/2}" rpy="0 0 0"/>
+            <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/>
+            <!-- <origin xyz="0 ${0.094/2} 0" rpy="${pi/2} -${pi/2} 0"/> -->
             <geometry>
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
+                 <!-- <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/> -->
             </geometry>
             <material name="yellow" />
         </visual>
         <collision>
-            <origin xyz="0 0 -${link_3_length/2}" rpy="0 0 0"/>
+            <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/>
             <geometry>
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
