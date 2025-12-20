@@ -2,9 +2,10 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
     <xacro:if value="$(arg sim_mode)">
-        <ros2_control name="GazeboSystem" type="system">
+        <ros2_control name="GazeboSimSystem" type="system">
             <hardware>
-                <plugin>gazebo_ros2_control/GazeboSystem</plugin>
+                <!-- Gazebo Sim (gz_ros2_control) plugin for Ignition Fortress -->
+                <plugin>gz_ros2_control/GazeboSimSystem</plugin>
             </hardware>
             <joint name="joint_1">
                 <command_interface name="effort"/>
@@ -27,8 +28,9 @@
         </ros2_control>
     </xacro:if>
 
+    <!-- Gazebo Sim (Ignition Fortress) ros2_control plugin -->
     <gazebo>
-        <plugin name="gazebo_ros2_control" filename="libgazebo_ros2_control.so">
+        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
             <parameters>$(find arm_bot)/config/my_controllers.yaml</parameters>
             <parameters>$(find arm_bot)/config/gaz_ros2_ctl_use_sim.yaml</parameters>
         </plugin>

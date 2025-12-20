@@ -171,37 +171,32 @@
         </xacro:inertial_link3>
     </link>
 
-    <!-- Gazebo-specific properties for links -->
+    <!-- Gazebo-specific properties for links (Ignition Gazebo Fortress compatible) -->
     <gazebo reference="base_link">
-        <material>Gazebo/Green</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>
     </gazebo>
 
     <gazebo reference="link_1">
-        <material>Gazebo/Purple</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>
     </gazebo>
 
     <gazebo reference="shoulder">
-        <material>Gazebo/Blue</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>
     </gazebo>
 
     <gazebo reference="link_2">
-        <material>Gazebo/Orange</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>
     </gazebo>
 
     <gazebo reference="link_3">
-        <material>Gazebo/Yellow</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>

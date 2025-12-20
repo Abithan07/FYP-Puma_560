@@ -1,33 +1,25 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
 
-    <!-- Joint State Publisher for reading joint positions -->
+    <!-- Ignition Gazebo Fortress: Joint State Publisher -->
+    <!-- Note: In Ignition Gazebo, joint states are typically published via ros_ign_bridge -->
+    <!-- or through the ign_ros2_control plugin when using ros2_control -->
+    
+    <!-- For standalone joint state publishing without ros2_control, 
+         you would use ros_ign_bridge to bridge /world/<world_name>/model/<model_name>/joint_state topic -->
+    
+    <!-- If you need direct Ignition Gazebo plugin for joint states: -->
     <gazebo>
-        <plugin name="joint_state_publisher" filename="libgazebo_ros_joint_state_publisher.so">
-            <update_rate>100</update_rate>
+        <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
             <joint_name>joint_1</joint_name>
             <joint_name>joint_2</joint_name>
             <joint_name>joint_3</joint_name>
-        </plugin>
-    </gazebo>
-
-    <!-- Individual joint control plugins -->
-    <gazebo reference="joint_1">
-        <plugin name="joint_1_controller" filename="libgazebo_ros_joint_pose_trajectory.so">
             <update_rate>100</update_rate>
         </plugin>
     </gazebo>
 
-    <gazebo reference="joint_2">
-        <plugin name="joint_2_controller" filename="libgazebo_ros_joint_pose_trajectory.so">
-            <update_rate>100</update_rate>
-        </plugin>
-    </gazebo>
-
-    <gazebo reference="joint_3">
-        <plugin name="joint_3_controller" filename="libgazebo_ros_joint_pose_trajectory.so">
-            <update_rate>100</update_rate>
-        </plugin>
-    </gazebo>
+    <!-- Note: Individual joint pose trajectory controllers are typically handled 
+         through ros2_control in Ignition Gazebo rather than separate plugins.
+         If you need trajectory control, use the ros2_control.xacro configuration instead. -->
 
 </robot>
