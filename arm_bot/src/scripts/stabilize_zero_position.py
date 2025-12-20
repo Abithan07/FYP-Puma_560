@@ -5,6 +5,7 @@ from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
 import time
+from trajectory_logger import TrajectoryLogger
 
 class ZeroPositionStabilizer(Node):
     def __init__(self, target_position=None, position_threshold=None):
@@ -26,7 +27,7 @@ class ZeroPositionStabilizer(Node):
         if target_position is not None:
             self.target_pos = target_position
         else:
-            self.target_pos = [3.14159/4, 3.14159/4, 3.14159/4]
+            self.target_pos = [0, 0, 0]
         
         # Position threshold for considering stabilization complete (radians)
         # Default to 5 degrees = 0.0873 radians
@@ -57,10 +58,16 @@ class ZeroPositionStabilizer(Node):
         self.stabilization_start_time = None
         self.min_stabilization_time = 0.5  # Must stay stable for 0.5 seconds
         
+        # Initialize trajectory logger
+        self.logger_csv = TrajectoryLogger(base_name="stabilize_position", output_dir="./logs")
+        self.csv_file = self.logger_csv.start_logging()
+        self.last_torques = [0.0, 0.0, 0.0]  # Store last commanded torques for logging
+        
         # Create timer for control loop
         self.timer = self.create_timer(self.dt, self.control_loop)
         
         self.get_logger().info('Position Stabilizer initialized')
+        self.get_logger().info(f'Logging to: {self.csv_file} (Test #{self.logger_csv.get_test_number()})')
         self.get_logger().info(f'Target position: [{self.target_pos[0]:.4f}, {self.target_pos[1]:.4f}, {self.target_pos[2]:.4f}] rad')
         self.get_logger().info(f'Position threshold: {self.position_threshold:.4f} rad ({self.position_threshold * 180 / 3.14159:.2f} deg)')
         self.get_logger().info(f'PID gains - Kp: {self.kp}, Ki: {self.ki}, Kd: {self.kd}')
@@ -144,6 +151,16 @@ class ZeroPositionStabilizer(Node):
         self.pub2.publish(msg2)
         self.pub3.publish(msg3)
         
+        # Store torques and log data to CSV
+        self.last_torques = torques.copy()
+        phase = 'STABILIZED' if self.is_stabilized else 'STABILIZING'
+        self.logger_csv.log_data(
+            positions=self.current_joint_pos,
+            velocities=self.current_joint_vel,
+            torques=torques,
+            phase=phase
+        )
+        
         # Update previous error for next iteration
         self.previous_error = errors.copy()
         
@@ -186,6 +203,10 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Shutting down stabilizer...')
     finally:
+        # Stop logging
+        final_file = node.logger_csv.stop_logging()
+        node.get_logger().info(f'Logged {node.logger_csv.get_log_count()} data points to: {final_file}')
+        
         # Send zero torques before shutting down
         zero_msg = Float64MultiArray()
         zero_msg.data = [0.0]

@@ -46,13 +46,13 @@
     
     <link name="link_1">
         <visual>
-            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
-            <!-- <origin xyz="0 0 0" rpy="0 0 ${pi/2}"/> -->
+            <!-- <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 ${-pi/2}"/>
             <geometry>
-                <cylinder length="${link_1_length}" radius="${link_1_radius}" />
-                 <!-- <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/> -->
+                <!-- <cylinder length="${link_1_length}" radius="${link_1_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
-            <material name="blue" />
+            <material name="purple" />
         </visual>
         <collision>
             <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
@@ -71,7 +71,7 @@
     <xacro:property name="shoulder_radius" value="${link_1_radius}" />
     
     <joint name="joint_1" type="revolute">
-        <origin xyz="0 0 ${link_1_length + shoulder_radius}" rpy="0 0 0"/>
+        <origin xyz="0 0 0.671" rpy="0 0 0"/>
         <parent link="link_1"/>
         <child link="shoulder"/>
         <axis xyz="0 0 1"/>
@@ -82,11 +82,11 @@
     <!-- MATLAB Link 1 = shoulder (m1=0, only Izz=1.49) -->
     <link name="shoulder">
         <visual>
-            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
-            <!-- <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/> -->
+            <!-- <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/> -->
+            <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/>
             <geometry>
-                <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
-                 <!-- <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/> -->
+                <!-- <cylinder length="${shoulder_length}" radius="${shoulder_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
             <material name="blue" />
         </visual>
@@ -117,11 +117,11 @@
     <!-- CoG2 = [0.068; 0.006; -0.016] w.r.t. link frame {2} -->
     <link name="link_2">
         <visual>
-            <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/>
-            <!-- <origin xyz="0 0 0" rpy="${3*pi/2} 0 0"/> -->
+            <!-- <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="${link_2_length}" radius="${link_2_radius}" />
-                 <!-- <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/> -->
+                <!-- <cylinder length="${link_2_length}" radius="${link_2_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
             <material name="orange" />
         </visual>
@@ -152,11 +152,11 @@
     <!-- CoG3 = [0.000; -0.143; 0.014] w.r.t. link frame {3} -->
     <link name="link_3">
         <visual>
-            <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/>
-            <!-- <origin xyz="0 ${0.094/2} 0" rpy="${pi/2} -${pi/2} 0"/> -->
+            <!-- <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/> -->
+            <origin xyz="0 0 ${0.094/2}" rpy="0 0 ${-pi/2}"/>
             <geometry>
-                <cylinder length="${link_3_length}" radius="${link_3_radius}" />
-                 <!-- <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/> -->
+                <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
             <material name="yellow" />
         </visual>
@@ -180,7 +180,7 @@
     </gazebo>
 
     <gazebo reference="link_1">
-        <material>Gazebo/Blue</material>
+        <material>Gazebo/Purple</material>
         <mu1>0.2</mu1>
         <mu2>0.2</mu2>
         <self_collide>true</self_collide>

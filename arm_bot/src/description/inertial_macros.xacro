@@ -22,6 +22,14 @@
     <material name="yellow">
         <color rgba="1 1 0 1"/>
     </material>
+    
+    <material name="green">
+        <color rgba="0.2 1 0.2 1"/>
+    </material>
+
+    <material name="purple">
+        <color rgba="1 0 1 1"/>
+    </material>
 
     <!-- Specify some standard inertial calculations https://en.wikipedia.org/wiki/List_of_moments_of_inertia -->
     <!-- These make use of xacro's mathematical functionality -->
