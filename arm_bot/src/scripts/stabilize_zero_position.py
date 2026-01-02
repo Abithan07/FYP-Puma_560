@@ -72,7 +72,10 @@ class ZeroPositionStabilizer(Node):
         self.get_logger().info(f'Position threshold: {self.position_threshold:.4f} rad ({self.position_threshold * 180 / 3.14159:.2f} deg)')
         self.get_logger().info(f'PID gains - Kp: {self.kp}, Ki: {self.ki}, Kd: {self.kd}')
         self.get_logger().info(f'Control rate: {self.control_rate} Hz')
-    
+        
+        self.stab_log = []  # For compact torque/position log
+        self.stab_log_file = None
+
     def joint_state_callback(self, msg):
         """Monitor current joint positions and velocities"""
         try:
@@ -161,18 +164,27 @@ class ZeroPositionStabilizer(Node):
             phase=phase
         )
         
+        # Log torques and positions in requested order
+        self.stab_log.append([
+            torques[0], self.current_joint_pos[0],
+            torques[1], self.current_joint_pos[1],
+            torques[2], self.current_joint_pos[2]
+        ])
+        
         # Update previous error for next iteration
         self.previous_error = errors.copy()
         
         # Check if position is stabilized
         max_error = max(abs(e) for e in errors)
         if max_error < self.position_threshold:
+            # Save compact log when stabilized for the first time
             if self.stabilization_start_time is None:
                 self.stabilization_start_time = time.time()
             elif time.time() - self.stabilization_start_time >= self.min_stabilization_time:
                 if not self.is_stabilized:
                     self.is_stabilized = True
                     self.get_logger().info(f'✓ Position STABILIZED! Max error: {max_error:.4f} rad ({max_error * 180 / 3.14159:.2f} deg)')
+                    self.save_stab_log()
         else:
             self.stabilization_start_time = None
             self.is_stabilized = False
@@ -193,6 +205,22 @@ class ZeroPositionStabilizer(Node):
     def is_stable(self):
         """Check if the robot has reached and is holding the target position"""
         return self.is_stabilized
+
+    def save_stab_log(self):
+        """Save the compact torque/position log to a CSV file."""
+        import csv, datetime, os
+        if not self.stab_log:
+            return
+        timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        fname = f'stabilization_torque_position_{timestamp}.csv'
+        outdir = './logs'
+        os.makedirs(outdir, exist_ok=True)
+        fpath = os.path.join(outdir, fname)
+        with open(fpath, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['tau1','pos1','tau2','pos2','tau3','pos3'])
+            writer.writerows(self.stab_log)
+        self.get_logger().info(f'Compact stabilization log saved: {fpath}')
 
 def main(args=None):
     rclpy.init(args=args)

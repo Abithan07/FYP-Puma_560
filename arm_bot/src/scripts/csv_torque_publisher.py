@@ -395,15 +395,32 @@ class CSVTorquePublisher(Node):
     
     def publish_phase(self):
         """Publish torque values from CSV trajectory"""
-        # Calculate elapsed time since trajectory started
-        elapsed = time.time() - self.trajectory_start_time
+        # Check if trajectory is complete first
+        if self.current_row >= len(self.torque_data):
+            self.get_logger().info('='*60)
+            self.get_logger().info(f'✓ Trajectory execution COMPLETE! Published {len(self.torque_data)} points')
+            self.get_logger().info('='*60)
+            
+            # Save logged data to CSV
+            self.save_to_csv()
+            
+            # Store final position for stabilization
+            final_data = self.torque_data[-1]
+            self.final_position = [final_data['dp1'], final_data['dp2'], final_data['dp3']]
+            
+            # Reset stabilization variables for final phase
+            self.integral_error = [0.0, 0.0, 0.0]
+            self.previous_error = [0.0, 0.0, 0.0]
+            self.stabilization_start_time = None
+            self.is_stabilized = False
+            
+            self.get_logger().info('Phase 3: Starting FINAL STABILIZATION...')
+            self.phase = 'FINAL_STABILIZING'
+            return
         
-        # Find the closest time index
-        while (self.current_row < len(self.torque_data) - 1 and 
-               self.torque_data[self.current_row]['t'] < elapsed):
-            self.current_row += 1
-        
-        # Get current row data
+        # Get current row data (sequential index-based, not time-based)
+        # This ensures 1:1 correspondence between timer ticks and CSV rows
+        # since both operate at 100 Hz (10 ms intervals)
         current_data = self.torque_data[self.current_row]
         
         # Log actual position for this row
@@ -443,32 +460,8 @@ class CSVTorquePublisher(Node):
                 f'Tracking Err: {max_error:.4f} rad'
             )
         
-        # Check if trajectory is complete
-        if self.current_row >= len(self.torque_data) - 1:
-            self.get_logger().info('='*60)
-            self.get_logger().info(f'✓ Trajectory execution COMPLETE! Published {len(self.torque_data)} points')
-            self.get_logger().info('='*60)
-            
-            # Save logged data to CSV
-            self.save_to_csv()
-            
-            # Transition to final stabilization phase
-            self.phase = 'FINAL_STABILIZING'
-            # Use ACTUAL current position instead of desired position
-            self.final_position = [
-                self.current_joint_pos[0],
-                self.current_joint_pos[1],
-                self.current_joint_pos[2]
-            ]
-            self.get_logger().info('Phase 3: STABILIZING at actual current position...')
-            self.get_logger().info(f'Target final position (actual): [{self.final_position[0]:.4f}, {self.final_position[1]:.4f}, {self.final_position[2]:.4f}] rad')
-            self.get_logger().info(f'Desired last position was:      [{self.torque_data[-1]["dp1"]:.4f}, {self.torque_data[-1]["dp2"]:.4f}, {self.torque_data[-1]["dp3"]:.4f}] rad')
-            
-            # Reset stabilization variables
-            self.integral_error = [0.0, 0.0, 0.0]
-            self.previous_error = [0.0, 0.0, 0.0]
-            self.is_stabilized = False
-            self.stabilization_start_time = None
+        # Increment row for next iteration (sequential execution)
+        self.current_row += 1
     
     def save_to_csv(self):
         """Save the logged data with actual positions to a new CSV file

@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 100
+    update_rate: 1000  # Match Gazebo physics rate (1000 Hz = 0.001s step)
 
     joint_1_controller:
       type: forward_command_controller/ForwardCommandController

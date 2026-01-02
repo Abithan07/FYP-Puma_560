@@ -68,47 +68,66 @@
 
 
     <!-- PUMA 560 Specific Inertia Macros based on Stanford paper -->
-    <!-- Link 1: Only rotates around Z-axis -->
-    <!-- Modified for Ignition Gazebo compatibility - requires physically valid inertia -->
+    <!-- 
+        INERTIA TENSOR VALIDITY FOR GAZEBO:
+        For a physically valid inertia tensor, the triangle inequality must hold:
+            Ixx + Iyy >= Izz
+            Ixx + Izz >= Iyy  
+            Iyy + Izz >= Ixx
+        
+        The original PUMA 560 values have very small Ixx/Iyy relative to Izz because
+        the motor inertia dominates. To satisfy the triangle inequality with MINIMUM
+        deviation from original dynamics:
+        
+        STRATEGY: Set Ixx = Iyy = Izz/2 (minimum valid values)
+        This preserves the critical Izz (rotational inertia about joint axis) while
+        satisfying physics constraints. The Ixx/Iyy values have minimal effect on
+        dynamics since the joints only rotate about the Z-axis.
+    -->
+    
+    <!-- Link 1 (Shoulder): Only rotates around Z-axis -->
+    <!-- Original: m1≈0, Ixx=0.001, Iyy=0.001, Izz=1.49 (Im1=1.14 + I1zz=0.35) -->
+    <!-- Minimum valid: Ixx = Iyy = Izz/2 = 0.745 -->
     <xacro:macro name="inertial_link1" params="*origin">
         <inertial>
             <xacro:insert_block name="origin"/>
-            <!-- Use small but valid mass for Ignition Gazebo -->
-            <mass value="0.1" />
-            <!-- Motor inertia Im1=1.14 + Link inertia I1zz=0.35 -->
-            <!-- Adjusted ixx,iyy to be physically valid (must satisfy triangle inequality) -->
-            <inertia ixx="0.75" ixy="0.0" ixz="0.0"
-                    iyy="0.75" iyz="0.0"
+            <!-- Small mass (original was ~0, but Gazebo needs non-zero) -->
+            <mass value="0.01" />
+            <!-- Izz preserved exactly, Ixx/Iyy set to minimum valid (Izz/2) -->
+            <inertia ixx="0.745" ixy="0.0" ixz="0.0"
+                    iyy="0.745" iyz="0.0"
                     izz="1.49" />
         </inertial>
     </xacro:macro>
 
-    <!-- Link 2 (Shoulder/Upper Arm): m2=17.4 kg -->
+    <!-- Link 2 (Upper Arm): m2=17.4 kg -->
+    <!-- Original: Ixx=0.130, Iyy=0.524, Izz=5.249 (I2zz=0.539 + Im2=4.71) -->
     <!-- CoG w.r.t. link frame: [0.068, 0.006, -0.016] meters -->
+    <!-- Minimum valid: Ixx = Iyy = Izz/2 = 2.6245 -->
     <xacro:macro name="inertial_link2" params="*origin">
         <inertial>
             <xacro:insert_block name="origin"/>
             <mass value="17.4" />
-            <!-- I2 = [I2xx, 0, 0; 0, I2yy, 0; 0, 0, I2zz] -->
-            <!-- I2xx=0.130, I2yy=0.524, I2zz=0.539+Im2(4.71)=5.249 -->
-            <!-- Adjusted for physical validity: all principal moments must satisfy triangle inequality -->
-            <inertia ixx="2.5" ixy="0.0" ixz="0.0"
-                    iyy="2.8" iyz="0.0"
+            <!-- Izz preserved exactly (critical for joint 2 dynamics) -->
+            <!-- Ixx/Iyy set to minimum valid values -->
+            <inertia ixx="2.6245" ixy="0.0" ixz="0.0"
+                    iyy="2.6245" iyz="0.0"
                     izz="5.249" />
         </inertial>
     </xacro:macro>
 
     <!-- Link 3 (Forearm): m3=4.8 kg -->
+    <!-- Original: Ixx=0.066, Iyy=0.125, Izz=0.916 (I3zz=0.086 + Im3=0.83) -->
     <!-- CoG w.r.t. link frame: [0.000, -0.143, 0.014] meters -->
+    <!-- Minimum valid: Ixx = Iyy = Izz/2 = 0.458 -->
     <xacro:macro name="inertial_link3" params="mass *origin">
         <inertial>
             <xacro:insert_block name="origin"/>
             <mass value="${mass}" />
-            <!-- I3 = [I3xx, 0, 0; 0, I3yy, 0; 0, 0, I3zz] -->
-            <!-- I3xx=0.066, I3yy=0.125, I3zz=0.086+Im3(0.83)=0.916 -->
-            <!-- Adjusted for physical validity -->
-            <inertia ixx="0.5" ixy="0.0" ixz="0.0"
-                    iyy="0.5" iyz="0.0"
+            <!-- Izz preserved exactly (critical for joint 3 dynamics) -->
+            <!-- Ixx/Iyy set to minimum valid values -->
+            <inertia ixx="0.458" ixy="0.0" ixz="0.0"
+                    iyy="0.458" iyz="0.0"
                     izz="0.916" />
         </inertial>
     </xacro:macro>
