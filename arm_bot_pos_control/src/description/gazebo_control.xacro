@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+    <!-- Ignition Gazebo Fortress: Joint State Publisher -->
+    <!-- Note: In Ignition Gazebo, joint states are typically published via ros_ign_bridge -->
+    <!-- or through the ign_ros2_control plugin when using ros2_control -->
+    
+    <!-- For standalone joint state publishing without ros2_control, 
+         you would use ros_ign_bridge to bridge /world/<world_name>/model/<model_name>/joint_state topic -->
+    
+    <!-- If you need direct Ignition Gazebo plugin for joint states: -->
+    <gazebo>
+        <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
+            <joint_name>joint_1</joint_name>
+            <joint_name>joint_2</joint_name>
+            <joint_name>joint_3</joint_name>
+            <update_rate>100</update_rate>
+        </plugin>
+    </gazebo>
+
+    <!-- Note: Individual joint pose trajectory controllers are typically handled 
+         through ros2_control in Ignition Gazebo rather than separate plugins.
+         If you need trajectory control, use the ros2_control.xacro configuration instead. -->
+
+</robot>
