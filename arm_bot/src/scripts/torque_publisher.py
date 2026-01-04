@@ -1,17 +1,21 @@
+#!/usr/bin/env python3
+"""
+Optimized Torque Publisher - Zero Delay, 100Hz Operation
+Publishes pre-computed inverse dynamics torques from CSV with minimal latency.
+"""
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
-import time
 import csv
-import os
 import math
 
 class TorquePublisher(Node):
     def __init__(self):
         super().__init__('torque_publisher')
         
-        # Publishers for torque commands
+        # Publishers for torque commands (QoS=10 for reliability)
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
         self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
@@ -23,36 +27,41 @@ class TorquePublisher(Node):
             self.joint_state_callback,
             10)
         
-        # Load CSV data
-        self.csv_path = '/home/abithan_ubuntu/ros2_ws2/arm_bot/path_angle_005_joint_states.csv'
+        # Load CSV data (pre-load ALL data to avoid I/O delays during execution)
+        self.csv_path = '/home/abithan_ubuntu/ros2_ws2/arm_bot/src/scripts/move_q1_traj_joint_states.csv'
         self.load_trajectory_data()
         
-        # Joint limits (from URDF)
-        # Joint 1: [-2.7625, 2.7625]
-        # Joint 2: [-3.9270, 0.7854]
-        # Joint 3: [-0.7854, 3.9270]
-        self.joint_limits = [
-            [-2.7625, 2.7625],  # Joint 1 (shoulder)
-            [-3.9270, 0.7854],   # Joint 2 (link_2)
-            [-0.7854, 3.9270]    # Joint 3 (link_3)
-        ]
+        # Pre-allocate message objects (avoid allocation overhead during control loop)
+        self.msg1 = Float64MultiArray()
+        self.msg2 = Float64MultiArray()
+        self.msg3 = Float64MultiArray()
         
         # State variables
         self.current_idx = 0
-        self.initialized = False
         self.current_joint_pos = [0.0, 0.0, 0.0]
         self.current_joint_vel = [0.0, 0.0, 0.0]
         self.joint_states_received = False
+        self.trajectory_active = False
+        self.trajectory_timer = None
         
-        self.get_logger().info('Torque publisher initialized')
+        # PID control timer for stabilization phase
+        self.stabilization_timer = None
+        self.stabilization_complete = False
+        self.stabilization_iterations = 0
+        
+        # Integral error accumulation for PID
+        self.integral_error = [0.0, 0.0, 0.0]
+        
+        self.get_logger().info('='*70)
+        self.get_logger().info('OPTIMIZED TORQUE PUBLISHER - ZERO DELAY MODE')
+        self.get_logger().info('='*70)
         self.get_logger().info(f'Loaded {len(self.time_data)} trajectory points')
-        self.get_logger().info(f'Initial positions: dp1={self.dp1[0]:.3f}, dp2={self.dp2[0]:.3f}, dp3={self.dp3[0]:.3f}')
-        
-        # Validate trajectory limits
-        # self.validate_trajectory_limits()  # Commented out - joint limits disabled
+        self.get_logger().info(f'Trajectory duration: {self.time_data[-1]:.2f}s')
+        self.get_logger().info(f'Control frequency: 100 Hz (dt={self.dt:.4f}s)')
+        self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
     
     def load_trajectory_data(self):
-        """Load trajectory data from CSV file"""
+        """Load trajectory data from CSV file (executed once at startup)"""
         data = {}
         with open(self.csv_path, 'r') as f:
             reader = csv.reader(f)
@@ -62,48 +71,21 @@ class TorquePublisher(Node):
                     values = [float(val) for val in row[1:]]
                     data[key] = values
         
-        # Extract required data
+        # Extract trajectory arrays (stored in memory for fast access)
         self.time_data = data['t']
-        self.dp1 = data['dp1']  # Initial joint 1 position
-        self.dp2 = data['dp2']  # Initial joint 2 position
-        self.dp3 = data['dp3']  # Initial joint 3 position
-        self.tau1 = data['tau1']  # Joint 1 torques
-        self.tau2 = data['tau2']  # Joint 2 torques
-        self.tau3 = data['tau3']  # Joint 3 torques
+        self.dp1 = data['dp1']  # Desired joint positions
+        self.dp2 = data['dp2']
+        self.dp3 = data['dp3']
+        self.tau1 = data['tau1']  # Computed torques
+        self.tau2 = data['tau2']
+        self.tau3 = data['tau3']
         
+        # Calculate time step (should be 0.01s for 100Hz)
         self.dt = self.time_data[1] - self.time_data[0] if len(self.time_data) > 1 else 0.01
     
-    def validate_trajectory_limits(self):
-        """Check if all trajectory points are within joint limits"""
-        trajectories = [self.dp1, self.dp2, self.dp3]
-        joint_names = ['joint_1', 'joint_2', 'joint_3']
-        
-        all_valid = True
-        for joint_idx, (traj, limits, name) in enumerate(zip(trajectories, self.joint_limits, joint_names)):
-            min_pos = min(traj)
-            max_pos = max(traj)
-            
-            if min_pos < limits[0] or max_pos > limits[1]:
-                all_valid = False
-                self.get_logger().warn(
-                    f'{name}: Trajectory range [{min_pos:.3f}, {max_pos:.3f}] '
-                    f'exceeds limits [{limits[0]:.3f}, {limits[1]:.3f}]'
-                )
-            else:
-                self.get_logger().info(
-                    f'{name}: Trajectory range [{min_pos:.3f}, {max_pos:.3f}] '
-                    f'within limits [{limits[0]:.3f}, {limits[1]:.3f}] ✓'
-                )
-        
-        if all_valid:
-            self.get_logger().info('All trajectory points are within joint limits!')
-        else:
-            self.get_logger().warn('WARNING: Some trajectory points exceed joint limits!')
-    
     def joint_state_callback(self, msg):
-        """Monitor current joint positions and velocities"""
+        """Minimal callback - just update state variables"""
         try:
-            # Find joint indices (joints should be joint_1, joint_2, joint_3)
             idx1 = msg.name.index('joint_1')
             idx2 = msg.name.index('joint_2')
             idx3 = msg.name.index('joint_3')
@@ -114,7 +96,7 @@ class TorquePublisher(Node):
                 msg.position[idx3]
             ]
             
-            if len(msg.velocity) > 0:
+            if len(msg.velocity) >= 3:
                 self.current_joint_vel = [
                     msg.velocity[idx1],
                     msg.velocity[idx2],
@@ -122,161 +104,189 @@ class TorquePublisher(Node):
                 ]
             
             self.joint_states_received = True
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             pass
     
-    def move_to_initial_position(self):
-        """Use PD control to move joints to initial position"""
+    def stabilization_callback(self):
+        """Timer callback for PID stabilization at 100Hz"""
         target_pos = [self.dp1[0], self.dp2[0], self.dp3[0]]
         
-        # Validate target position is within limits
-        # for i, (pos, limits) in enumerate(zip(target_pos, self.joint_limits)):
-        #     if pos < limits[0] or pos > limits[1]:
-        #         self.get_logger().error(
-        #             f'Initial position joint_{i+1}={pos:.3f} is outside limits [{limits[0]:.3f}, {limits[1]:.3f}]!'
-        #         )
-        #         raise ValueError(f'Initial position for joint {i+1} violates limits')
+        # Calculate position errors
+        errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
+        max_error = max(abs(e) for e in errors)
         
-        self.get_logger().info('Moving to initial position...')
-        self.get_logger().info(f'Current: [{self.current_joint_pos[0]:.3f}, {self.current_joint_pos[1]:.3f}, {self.current_joint_pos[2]:.3f}]')
-        self.get_logger().info(f'Target:  [{target_pos[0]:.3f}, {target_pos[1]:.3f}, {target_pos[2]:.3f}]')
-        self.get_logger().info(f'Errors:  [{target_pos[0]-self.current_joint_pos[0]:.3f}, {target_pos[1]-self.current_joint_pos[1]:.3f}, {target_pos[2]-self.current_joint_pos[2]:.3f}]')
+        # Check convergence (strict threshold: 0.5°)
+        if max_error < 0.0087:  # 0.5° in radians
+            self.get_logger().info(f'✓ Initial position reached! Max error: {max_error*180/3.14159:.3f}°')
+            if self.stabilization_timer:
+                self.stabilization_timer.cancel()
+            self.stabilization_complete = True
+            return
         
-        # PD gains for positioning (tune these if needed) - REDUCED to prevent oscillation
-        kp = [20.0, 20.0, 10.0]  # Proportional gains
-        kd = [5.0, 5.0, 2.0]      # Derivative gains
+        # Timeout check (60 seconds = 6000 iterations at 100Hz - increased for tighter convergence)
+        self.stabilization_iterations += 1
+        if self.stabilization_iterations >= 6000:
+            self.get_logger().error(f'Timeout! Failed to reach 0.5° target. Current error: {max_error*180/3.14159:.3f}°')
+            if self.stabilization_timer:
+                self.stabilization_timer.cancel()
+            self.stabilization_complete = True
+            return
         
-        position_threshold = 0.01  # 0.01 rad = ~0.57 degrees
-        max_iterations = 1000  # 10 seconds at 100Hz (increased timeout)
-        iteration = 0
+        # Full PID control with gravity compensation and integral windup protection
+        # Tuned gains for tight convergence (0.5°)
+        kp = [50.0, 200.0, 150.0]    # Increased Kp for joint 3
+        ki = [5.0, 25.0, 20.0]       # Increased Ki for joint 2 (15→25)
+        kd = [12.0, 35.0, 10.0]      # Increased Kd for joint 3
         
-        rate = self.create_rate(100)  # 100 Hz control loop
+        # Accumulate integral error (with anti-windup)
+        dt = 0.01  # 100Hz = 0.01s
+        for i in range(3):
+            self.integral_error[i] += errors[i] * dt
+            # Anti-windup: clamp integral to prevent excessive accumulation
+            max_integral = [0.5, 1.0, 1.0]  # Increased limit for joints 2 and 3
+            self.integral_error[i] = max(-max_integral[i], min(max_integral[i], self.integral_error[i]))
         
-        while iteration < max_iterations and rclpy.ok():
-            # Calculate position errors
-            errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
-            
-            # Check if we've reached the target
-            max_error = max(abs(e) for e in errors)
-            if max_error < position_threshold:
-                self.get_logger().info(f'Initial position reached! Max error: {max_error:.4f} rad')
-                break
-            
-            # Calculate PD control torques
-            torques = [
-                kp[i] * errors[i] - kd[i] * self.current_joint_vel[i]
-                for i in range(3)
+        # Gravity compensation (feedforward) - further tuned values
+        q2 = self.current_joint_pos[1]
+        q3 = self.current_joint_pos[2]
+        gravity_comp = [
+            0.0,
+            -44.0 * math.cos(q2),        # Increased for joint 2 (42→44)
+            -12.0 * math.cos(q2 + q3)    # Significantly increased for joint 3
+        ]
+        
+        # Full PID control law: τ = Kp*e + Ki*∫e + Kd*ė + g(q)
+        torques = [
+            kp[i] * errors[i] + ki[i] * self.integral_error[i] - kd[i] * self.current_joint_vel[i] + gravity_comp[i]
+            for i in range(3)
+        ]
+        
+        # Torque saturation
+        max_torques = [100.0, 100.0, 50.0]
+        torques = [max(-max_torques[i], min(max_torques[i], torques[i])) for i in range(3)]
+        
+        # Publish torques (use pre-allocated messages)
+        self.msg1.data = [torques[0]]
+        self.msg2.data = [torques[1]]
+        self.msg3.data = [torques[2]]
+        
+        self.pub1.publish(self.msg1)
+        self.pub2.publish(self.msg2)
+        self.pub3.publish(self.msg3)
+        
+        # Log progress every 50 iterations (0.5s)
+        if self.stabilization_iterations % 50 == 0:
+            self.get_logger().info(
+                f'  t={self.stabilization_iterations/100:.1f}s | '
+                f'Error: [{errors[0]*180/3.14159:.2f}°, {errors[1]*180/3.14159:.2f}°, {errors[2]*180/3.14159:.2f}°] | '
+                f'Max: {max_error*180/3.14159:.2f}° | '
+                f'Integral: [{self.integral_error[0]:.3f}, {self.integral_error[1]:.3f}, {self.integral_error[2]:.3f}]'
+            )
+    
+    def trajectory_callback(self):
+        """Timer callback for trajectory execution at EXACTLY 100Hz"""
+        if self.current_idx >= len(self.time_data):
+            self.get_logger().info('='*70)
+            self.get_logger().info('TRAJECTORY EXECUTION COMPLETED')
+            self.get_logger().info('='*70)
+            if self.trajectory_timer:
+                self.trajectory_timer.cancel()
+            self.trajectory_active = False
+            return
+        
+        # Publish torques directly (no logging, no conditionals - minimal overhead)
+        self.msg1.data = [self.tau1[self.current_idx]]
+        self.msg2.data = [self.tau2[self.current_idx]]
+        self.msg3.data = [self.tau3[self.current_idx]]
+        
+        self.pub1.publish(self.msg1)
+        self.pub2.publish(self.msg2)
+        self.pub3.publish(self.msg3)
+        
+        # Increment index (simple increment - no time synchronization logic)
+        self.current_idx += 1
+        
+        # Optional: Log every 50 points (0.5s) - OUTSIDE the critical path
+        if self.current_idx % 50 == 0 and self.current_idx < len(self.time_data):
+            # Calculate tracking error
+            pos_err = [
+                abs(self.dp1[self.current_idx] - self.current_joint_pos[0]),
+                abs(self.dp2[self.current_idx] - self.current_joint_pos[1]),
+                abs(self.dp3[self.current_idx] - self.current_joint_pos[2])
             ]
+            max_err_deg = max(pos_err) * 180 / 3.14159
             
-            # Saturate torques to prevent excessive forces
-            max_torques = [50.0, 50.0, 30.0]  # Maximum torque limits
-            torques = [max(-max_torques[i], min(max_torques[i], torques[i])) for i in range(3)]
-            
-            # Publish torques
-            msg1 = Float64MultiArray()
-            msg2 = Float64MultiArray()
-            msg3 = Float64MultiArray()
-            
-            msg1.data = [torques[0]]
-            msg2.data = [torques[1]]
-            msg3.data = [torques[2]]
-            
-            self.pub1.publish(msg1)
-            self.pub2.publish(msg2)
-            self.pub3.publish(msg3)
-            
-            # Log progress every 50 iterations (0.5 seconds)
-            if iteration % 50 == 0:
-                self.get_logger().info(
-                    f'Error: [{errors[0]:.4f}, {errors[1]:.4f}, {errors[2]:.4f}] rad | '
-                    f'Max: {max_error:.4f} rad'
-                )
-            
-            iteration += 1
-            rclpy.spin_once(self, timeout_sec=0.01)
-            rate.sleep()
-        
-        if iteration >= max_iterations:
-            self.get_logger().warn('Initial position not fully reached, continuing anyway...')
-        
-        # Let the robot settle
-        self.get_logger().info('Settling for 1 second...')
-        time.sleep(1.0)
+            self.get_logger().info(
+                f't={self.time_data[self.current_idx]:.1f}s | '
+                f'idx={self.current_idx}/{len(self.time_data)} | '
+                f'τ=[{self.tau1[self.current_idx]:.1f}, {self.tau2[self.current_idx]:.1f}, {self.tau3[self.current_idx]:.1f}] Nm | '
+                f'err={max_err_deg:.1f}°'
+            )
     
     def run(self):
-        """Main control loop"""
-        self.get_logger().info('Waiting for initial joint states...')
+        """Main execution sequence"""
+        self.get_logger().info('Waiting for joint states...')
         
-        # Wait for joint states to be available
-        timeout = 5.0
-        start_wait = time.time()
-        while not self.joint_states_received and (time.time() - start_wait) < timeout:
+        # Wait for joint states (blocking)
+        while not self.joint_states_received and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.1)
         
         if not self.joint_states_received:
             self.get_logger().error('Failed to receive joint states!')
             return
         
-        self.get_logger().info(f'Current joint positions: [{self.current_joint_pos[0]:.3f}, {self.current_joint_pos[1]:.3f}, {self.current_joint_pos[2]:.3f}]')
-        self.get_logger().info(f'Target initial positions: [{self.dp1[0]:.3f}, {self.dp2[0]:.3f}, {self.dp3[0]:.3f}]')
+        self.get_logger().info(f'Current position: [{self.current_joint_pos[0]:.4f}, {self.current_joint_pos[1]:.4f}, {self.current_joint_pos[2]:.4f}] rad')
         
-        # Move to initial position using PD control
-        self.move_to_initial_position()
+        # Phase 1: Move to initial position using PID control
+        self.get_logger().info('='*70)
+        self.get_logger().info('PHASE 1: STABILIZATION (Moving to initial position)')
+        self.get_logger().info('='*70)
+        self.get_logger().info('Target: 0.5° convergence with full PID + gravity compensation')
+        self.stabilization_iterations = 0
+        self.stabilization_complete = False
+        self.integral_error = [0.0, 0.0, 0.0]  # Reset integral error
+        self.stabilization_timer = self.create_timer(0.01, self.stabilization_callback)  # 100 Hz
         
-        self.get_logger().info('='*60)
-        self.get_logger().info('Starting trajectory execution with computed torques!')
-        self.get_logger().info('='*60)
-        time.sleep(1.0)
+        # Wait for stabilization to complete
+        while not self.stabilization_complete and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
         
-        start_time = time.time()
+        if not rclpy.ok():
+            return
         
-        while rclpy.ok() and self.current_idx < len(self.time_data):
-            # Calculate elapsed time
-            elapsed = time.time() - start_time
-            
-            # Find the closest time index
-            while (self.current_idx < len(self.time_data) - 1 and 
-                   self.time_data[self.current_idx] < elapsed):
-                self.current_idx += 1
-            
-            # Publish torques
-            msg1 = Float64MultiArray()
-            msg2 = Float64MultiArray()
-            msg3 = Float64MultiArray()
-            
-            msg1.data = [self.tau1[self.current_idx]]
-            msg2.data = [self.tau2[self.current_idx]]
-            msg3.data = [self.tau3[self.current_idx]]
-            
-            self.pub1.publish(msg1)
-            self.pub2.publish(msg2)
-            self.pub3.publish(msg3)
-            
-            # Spin once to update joint states
-            rclpy.spin_once(self, timeout_sec=0)
-            
-            # Log progress every 0.5 seconds
-            if self.current_idx % int(0.5 / self.dt) == 0:
-                # Calculate position errors
-                pos_error = [
-                    self.dp1[self.current_idx] - self.current_joint_pos[0],
-                    self.dp2[self.current_idx] - self.current_joint_pos[1],
-                    self.dp3[self.current_idx] - self.current_joint_pos[2]
-                ]
-                max_error = max(abs(e) for e in pos_error)
-                
-                self.get_logger().info(
-                    f'Time: {self.time_data[self.current_idx]:.2f}s | '
-                    f'Torques: [{self.tau1[self.current_idx]:.1f}, {self.tau2[self.current_idx]:.1f}, {self.tau3[self.current_idx]:.1f}] | '
-                    f'Pos Error: {max_error:.4f} rad'
-                )
-            
-            # Sleep to maintain real-time execution
-            time.sleep(self.dt)
+        self.get_logger().info('Holding position for 1 second...')
+        # Hold with timer (100Hz)
+        hold_iterations = [0]
+        def hold_callback():
+            hold_iterations[0] += 1
+            if hold_iterations[0] >= 100:  # 1 second
+                hold_timer.cancel()
+                return
+            # Keep publishing last stabilization torque
+            self.stabilization_callback()
         
-        self.get_logger().info('Trajectory execution completed!')
-        # Hold final torques for a bit
-        time.sleep(2.0)
+        hold_timer = self.create_timer(0.01, hold_callback)
+        while hold_iterations[0] < 100 and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
+        
+        # Phase 2: Execute trajectory with computed torques
+        self.get_logger().info('='*70)
+        self.get_logger().info('PHASE 2: TRAJECTORY EXECUTION (Open-loop torque control)')
+        self.get_logger().info('='*70)
+        self.get_logger().info(f'Publishing {len(self.time_data)} torque commands at 100Hz...')
+        
+        self.current_idx = 0
+        self.trajectory_active = True
+        
+        # Create 100Hz timer for trajectory execution
+        # Period = 1/100 = 0.01 seconds = 10ms
+        self.trajectory_timer = self.create_timer(0.01, self.trajectory_callback)
+        
+        # Spin until trajectory completes
+        while self.trajectory_active and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
+        
+        self.get_logger().info('Torque publisher shutting down.')
 
 def main(args=None):
     rclpy.init(args=args)
@@ -286,6 +296,13 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
     finally:
+        # Zero out torques on shutdown
+        zero_msg = Float64MultiArray()
+        zero_msg.data = [0.0]
+        node.pub1.publish(zero_msg)
+        node.pub2.publish(zero_msg)
+        node.pub3.publish(zero_msg)
+        
         node.destroy_node()
         rclpy.shutdown()
 
