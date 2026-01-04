@@ -35,6 +35,10 @@
         </inertial>
     </link>
 
+
+
+
+
     <joint name="joint_1_shoulder" type="fixed">
         <origin xyz="0 0 0.1" rpy="0 0 0"/>
         <parent link="base_link"/>
@@ -66,12 +70,16 @@
         </xacro:inertial_cylinder>
     </link>
 
+
+
+
+
     <!-- Add properties for shoulder -->
     <xacro:property name="shoulder_length" value="${0.1686 + link_1_radius}" />
     <xacro:property name="shoulder_radius" value="${link_1_radius}" />
     
     <joint name="joint_1" type="revolute">
-        <origin xyz="0 0 0.671" rpy="0 0 0"/>
+        <origin xyz="0 0 0.6718" rpy="0 0 0"/>
         <parent link="link_1"/>
         <child link="shoulder"/>
         <axis xyz="0 0 1"/>
@@ -101,11 +109,15 @@
         </xacro:inertial_link1>
     </link>
 
+
+
+
+
     <xacro:property name="link_2_length" value="0.432" />
     <xacro:property name="link_2_radius" value="0.065278" />
 
     <joint name="joint_2" type="revolute">
-        <origin xyz="0 ${shoulder_length} 0" rpy="${-pi/2} 0 0"/>
+        <origin xyz="0 0.2435 0" rpy="${-pi/2} 0 0"/>
         <parent link="shoulder"/>
         <child link="link_2"/>
         <axis xyz="0 0 1"/>
@@ -136,11 +148,15 @@
         </xacro:inertial_link2>
     </link>
 
+
+
+
+
     <xacro:property name="link_3_length" value="0.233" />
     <xacro:property name="link_3_radius" value="0.028702" />
 
     <joint name="joint_3" type="revolute">
-        <origin xyz="${link_2_length} 0 -0.094" rpy="0 0 0"/>
+        <origin xyz="0.4318 0 -0.094" rpy="0 0 0"/>
         <parent link="link_2"/>
         <child link="link_3"/>
         <axis xyz="0 0 1"/>
@@ -166,10 +182,16 @@
                 <cylinder length="${link_3_length}" radius="${link_3_radius}" />
             </geometry>
         </collision>
-        <xacro:inertial_link3 mass="4.8">
+        <xacro:inertial_link3>
             <origin xyz="0.0 -0.143 0.014" rpy="0 0 0"/>
         </xacro:inertial_link3>
     </link>
+
+
+
+
+
+
 
     <!-- Gazebo-specific properties for links (Ignition Gazebo Fortress compatible) -->
     <gazebo reference="base_link">

@@ -120,10 +120,10 @@
     <!-- Original: Ixx=0.066, Iyy=0.125, Izz=0.916 (I3zz=0.086 + Im3=0.83) -->
     <!-- CoG w.r.t. link frame: [0.000, -0.143, 0.014] meters -->
     <!-- Minimum valid: Ixx = Iyy = Izz/2 = 0.458 -->
-    <xacro:macro name="inertial_link3" params="mass *origin">
+    <xacro:macro name="inertial_link3" params="*origin">
         <inertial>
             <xacro:insert_block name="origin"/>
-            <mass value="${mass}" />
+            <mass value="4.8" />
             <!-- Izz preserved exactly (critical for joint 3 dynamics) -->
             <!-- Ixx/Iyy set to minimum valid values -->
             <inertia ixx="0.458" ixy="0.0" ixz="0.0"

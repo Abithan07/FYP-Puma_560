@@ -27,7 +27,8 @@ class ZeroPositionStabilizer(Node):
         if target_position is not None:
             self.target_pos = target_position
         else:
-            self.target_pos = [0, 0, 0]
+            # pi/2 for joint 2 to account for initial offset
+            self.target_pos = [0, -1.57, 0]
         
         # Position threshold for considering stabilization complete (radians)
         # Default to 5 degrees = 0.0873 radians
