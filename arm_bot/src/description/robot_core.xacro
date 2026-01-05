@@ -59,10 +59,11 @@
             <material name="purple" />
         </visual>
         <collision>
-            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+            <!-- <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 ${-pi/2}"/>
             <geometry>
-                <cylinder length="${link_1_length}" radius="${link_1_radius}" />
-                 <!-- <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/> -->
+                <!-- <cylinder length="${link_1_length}" radius="${link_1_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
         </collision>
         <xacro:inertial_cylinder mass="0.5" length="${link_1_length}" radius="${link_1_radius}">
@@ -99,9 +100,11 @@
             <material name="blue" />
         </visual>
         <collision>
-            <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/>
+            <!-- <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/> -->
+            <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/>
             <geometry>
-                <cylinder length="${shoulder_length}" radius="${shoulder_radius}" />
+                <!-- <cylinder length="${shoulder_length}" radius="${shoulder_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
         </collision>
         <xacro:inertial_link1>
@@ -138,9 +141,11 @@
             <material name="orange" />
         </visual>
         <collision>
-            <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/>
+            <!-- <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 0"/>
             <geometry>
-                <cylinder length="${link_2_length}" radius="${link_2_radius}" />
+                <!-- <cylinder length="${link_2_length}" radius="${link_2_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
         </collision>
         <xacro:inertial_link2>
@@ -177,9 +182,11 @@
             <material name="yellow" />
         </visual>
         <collision>
-            <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/>
+            <!-- <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/> -->
+            <origin xyz="0 0 ${0.094/2}" rpy="0 0 ${-pi/2}"/>
             <geometry>
-                <cylinder length="${link_3_length}" radius="${link_3_radius}" />
+                <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
             </geometry>
         </collision>
         <xacro:inertial_link3>

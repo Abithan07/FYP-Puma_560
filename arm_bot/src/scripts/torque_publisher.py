@@ -2,14 +2,19 @@
 """
 Optimized Torque Publisher - Zero Delay, 100Hz Operation
 Publishes pre-computed inverse dynamics torques from CSV with minimal latency.
+Now with integrated triggered logging for precise data capture.
 """
 
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray
 from sensor_msgs.msg import JointState
+from std_srvs.srv import Trigger
 import csv
 import math
+import subprocess
+import time
+import os
 
 class TorquePublisher(Node):
     def __init__(self):
@@ -28,7 +33,7 @@ class TorquePublisher(Node):
             10)
         
         # Load CSV data (pre-load ALL data to avoid I/O delays during execution)
-        self.csv_path = '/home/abithan_ubuntu/ros2_ws2/arm_bot/src/scripts/move_q1_traj_joint_states.csv'
+        self.csv_path = '/data/ros2/ros2_ws2/arm_bot/src/scripts/move_q2_traj_joint_states.csv'
         self.load_trajectory_data()
         
         # Pre-allocate message objects (avoid allocation overhead during control loop)
@@ -51,6 +56,11 @@ class TorquePublisher(Node):
         
         # Integral error accumulation for PID
         self.integral_error = [0.0, 0.0, 0.0]
+        
+        # Logger subprocess and service clients
+        self.logger_process = None
+        self.logger_start_client = None
+        self.logger_stop_client = None
         
         self.get_logger().info('='*70)
         self.get_logger().info('OPTIMIZED TORQUE PUBLISHER - ZERO DELAY MODE')
@@ -107,6 +117,103 @@ class TorquePublisher(Node):
         except (ValueError, IndexError):
             pass
     
+    def launch_logger(self):
+        """Launch the triggered logger as a subprocess"""
+        try:
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            logger_script = os.path.join(script_dir, 'continuous_logger_triggered.py')
+            
+            self.get_logger().info('Launching triggered logger subprocess...')
+            self.logger_process = subprocess.Popen(
+                ['python3', logger_script],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            # Give logger time to initialize and create services (100ms)
+            time.sleep(0.1)
+            
+            # Create service clients
+            self.logger_start_client = self.create_client(Trigger, '/logger/start')
+            self.logger_stop_client = self.create_client(Trigger, '/logger/stop')
+            
+            # Wait for services to be available (max 5 seconds)
+            timeout = 5.0
+            start_time = time.time()
+            while not self.logger_start_client.wait_for_service(timeout_sec=0.1):
+                if time.time() - start_time > timeout:
+                    self.get_logger().error('Logger start service not available!')
+                    return False
+                rclpy.spin_once(self, timeout_sec=0.01)
+            
+            self.get_logger().info('✓ Logger subprocess ready')
+            return True
+            
+        except Exception as e:
+            self.get_logger().error(f'Failed to launch logger: {e}')
+            return False
+    
+    def start_logger(self):
+        """Call the logger start service"""
+        if not self.logger_start_client:
+            self.get_logger().error('Logger client not initialized')
+            return False
+        
+        request = Trigger.Request()
+        future = self.logger_start_client.call_async(request)
+        
+        # Wait for response (with timeout)
+        start_time = time.time()
+        while not future.done():
+            if time.time() - start_time > 1.0:
+                self.get_logger().error('Logger start service timeout')
+                return False
+            rclpy.spin_once(self, timeout_sec=0.01)
+        
+        response = future.result()
+        if response.success:
+            self.get_logger().info('✓ Logger recording started')
+        else:
+            self.get_logger().error(f'Logger start failed: {response.message}')
+        
+        return response.success
+    
+    def stop_logger(self):
+        """Call the logger stop service"""
+        if not self.logger_stop_client:
+            self.get_logger().error('Logger client not initialized')
+            return False
+        
+        request = Trigger.Request()
+        future = self.logger_stop_client.call_async(request)
+        
+        # Wait for response (with timeout)
+        start_time = time.time()
+        while not future.done():
+            if time.time() - start_time > 1.0:
+                self.get_logger().error('Logger stop service timeout')
+                return False
+            rclpy.spin_once(self, timeout_sec=0.01)
+        
+        response = future.result()
+        if response.success:
+            self.get_logger().info(f'✓ Logger stopped: {response.message}')
+        else:
+            self.get_logger().error(f'Logger stop failed: {response.message}')
+        
+        return response.success
+    
+    def shutdown_logger(self):
+        """Terminate the logger subprocess"""
+        if self.logger_process:
+            self.logger_process.terminate()
+            try:
+                self.logger_process.wait(timeout=2.0)
+                self.get_logger().info('✓ Logger subprocess terminated')
+            except subprocess.TimeoutExpired:
+                self.logger_process.kill()
+                self.get_logger().warning('Logger subprocess killed (timeout)')
+    
     def stabilization_callback(self):
         """Timer callback for PID stabilization at 100Hz"""
         target_pos = [self.dp1[0], self.dp2[0], self.dp3[0]]
@@ -115,8 +222,8 @@ class TorquePublisher(Node):
         errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
         max_error = max(abs(e) for e in errors)
         
-        # Check convergence (strict threshold: 0.5°)
-        if max_error < 0.0087:  # 0.5° in radians
+        # Check convergence (strict threshold: 0.2°)
+        if max_error < 0.0035:  # 0.2° in radians
             self.get_logger().info(f'✓ Initial position reached! Max error: {max_error*180/3.14159:.3f}°')
             if self.stabilization_timer:
                 self.stabilization_timer.cancel()
@@ -269,11 +376,25 @@ class TorquePublisher(Node):
         while hold_iterations[0] < 100 and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.001)
         
+        # Launch logger subprocess
+        self.get_logger().info('='*70)
+        self.get_logger().info('Launching data logger...')
+        if not self.launch_logger():
+            self.get_logger().error('Failed to launch logger, continuing without logging')
+        
         # Phase 2: Execute trajectory with computed torques
         self.get_logger().info('='*70)
         self.get_logger().info('PHASE 2: TRAJECTORY EXECUTION (Open-loop torque control)')
         self.get_logger().info('='*70)
         self.get_logger().info(f'Publishing {len(self.time_data)} torque commands at 100Hz...')
+        
+        # Start logger 100ms before trajectory execution
+        time.sleep(0.1)
+        if self.logger_start_client:
+            self.start_logger()
+        
+        # Small delay to ensure logger is recording before first torque command
+        time.sleep(0.01)
         
         self.current_idx = 0
         self.trajectory_active = True
@@ -286,6 +407,14 @@ class TorquePublisher(Node):
         while self.trajectory_active and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.001)
         
+        # Stop logger 100ms after trajectory completion
+        time.sleep(0.1)
+        if self.logger_stop_client:
+            self.stop_logger()
+        
+        # Give logger time to write final data
+        time.sleep(0.1)
+        
         self.get_logger().info('Torque publisher shutting down.')
 
 def main(args=None):
@@ -296,6 +425,9 @@ def main(args=None):
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
     finally:
+        # Shutdown logger if running
+        node.shutdown_logger()
+        
         # Zero out torques on shutdown
         zero_msg = Float64MultiArray()
         zero_msg.data = [0.0]
@@ -308,3 +440,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
