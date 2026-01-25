@@ -29,9 +29,19 @@ class TriggeredLogger(Node):
     def __init__(self):
         super().__init__('triggered_logger')
         
-        # Setup log directory
-        self.log_dir = '/data/ros2/ros2_ws2/arm_bot/logs'
-        os.makedirs(self.log_dir, exist_ok=True)
+        # Setup log directory (relative to script location, not hard-coded)
+        # This allows the script to work in any workspace
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        workspace_root = os.path.abspath(os.path.join(script_dir, '../..'))
+        self.log_dir = os.path.join(workspace_root, 'logs')
+        
+        # Create logs directory if it doesn't exist
+        try:
+            os.makedirs(self.log_dir, exist_ok=True)
+            self.get_logger().info(f'Log directory: {self.log_dir}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to create log directory: {e}')
+            raise
         
         # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

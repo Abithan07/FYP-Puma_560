@@ -33,7 +33,7 @@ class TorquePublisher(Node):
             10)
         
         # Load CSV data (pre-load ALL data to avoid I/O delays during execution)
-        self.csv_path = '/data/ros2/ros2_ws2/arm_bot/src/scripts/move_q2_traj_joint_states.csv'
+        self.csv_path = os.path.expanduser('~/ros2_ws/FYP-Puma_560/arm_bot/src/scripts/path_angle_005_trajectory_joint_states.csv')
         self.load_trajectory_data()
         
         # Pre-allocate message objects (avoid allocation overhead during control loop)
@@ -124,10 +124,12 @@ class TorquePublisher(Node):
             logger_script = os.path.join(script_dir, 'continuous_logger_triggered.py')
             
             self.get_logger().info('Launching triggered logger subprocess...')
+            # Don't pipe stdout/stderr - let subprocess output directly to console
+            # This prevents ROS2 initialization blocking issues in subprocess
             self.logger_process = subprocess.Popen(
                 ['python3', logger_script],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stdout=None,  # Inherit parent's stdout
+                stderr=None   # Inherit parent's stderr
             )
             
             # Give logger time to initialize and create services (100ms)
