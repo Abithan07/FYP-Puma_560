@@ -3,16 +3,16 @@
 <package format="3">
   <name>arm_bot</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
-  <maintainer email="my_email@email.com">Josh Newans</maintainer>
-  <license>TODO: License declaration</license>
+  <description>Package description</description>
+  <maintainer email="my_email@email.com">Abithan Asokumar</maintainer>
+  <license>License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <!-- Ignition Gazebo Fortress (ros_ign) dependencies -->
-  <exec_depend>ros_ign_gazebo</exec_depend>
-  <exec_depend>ros_ign_bridge</exec_depend>
-  <exec_depend>ign_ros2_control</exec_depend>
+  <exec_depend>ros_gz_sim</exec_depend>
+  <exec_depend>ros_gz_bridge</exec_depend>
+  <exec_depend>gz_ros2_control</exec_depend>
   
   <!-- ROS2 Control dependencies -->
   <exec_depend>ros2_control</exec_depend>

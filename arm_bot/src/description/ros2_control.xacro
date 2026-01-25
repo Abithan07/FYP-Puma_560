@@ -39,7 +39,7 @@
 
     <!-- Gazebo Sim (Ignition Fortress) ros2_control plugin -->
     <gazebo>
-        <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+        <plugin filename="libgz_ros2_control-system.so" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
             <parameters>$(find arm_bot)/config/my_controllers.yaml</parameters>
             <parameters>$(find arm_bot)/config/gaz_ros2_ctl_use_sim.yaml</parameters>
         </plugin>
