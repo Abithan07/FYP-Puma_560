@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Optimized Torque Publisher - Zero Delay, 100Hz Operation
+Optimized Torque Publisher - 2 DOF Version - Zero Delay, 100Hz Operation
 Publishes pre-computed inverse dynamics torques from CSV with minimal latency.
+Adapted for two-joint robot arm (joint_1 and joint_2 only).
 Now with integrated triggered logging for precise data capture.
 """
 
@@ -17,14 +18,13 @@ import time
 import os
 import argparse
 
-class TorquePublisher(Node):
+class TorquePublisher2DOF(Node):
     def __init__(self, csv_path=None):
-        super().__init__('torque_publisher')
+        super().__init__('torque_publisher_2dof')
         
         # Publishers for torque commands (QoS=10 for reliability)
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
-        self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
         
         # Subscriber to monitor joint states
         self.joint_sub = self.create_subscription(
@@ -43,12 +43,11 @@ class TorquePublisher(Node):
         # Pre-allocate message objects (avoid allocation overhead during control loop)
         self.msg1 = Float64MultiArray()
         self.msg2 = Float64MultiArray()
-        self.msg3 = Float64MultiArray()
         
         # State variables
         self.current_idx = 0
-        self.current_joint_pos = [0.0, 0.0, 0.0]
-        self.current_joint_vel = [0.0, 0.0, 0.0]
+        self.current_joint_pos = [0.0, 0.0]
+        self.current_joint_vel = [0.0, 0.0]
         self.joint_states_received = False
         self.trajectory_active = False
         self.trajectory_timer = None
@@ -59,7 +58,7 @@ class TorquePublisher(Node):
         self.stabilization_iterations = 0
         
         # Integral error accumulation for PID
-        self.integral_error = [0.0, 0.0, 0.0]
+        self.integral_error = [0.0, 0.0]
         
         # Logger subprocess and service clients
         self.logger_process = None
@@ -67,12 +66,12 @@ class TorquePublisher(Node):
         self.logger_stop_client = None
         
         self.get_logger().info('='*70)
-        self.get_logger().info('OPTIMIZED TORQUE PUBLISHER - ZERO DELAY MODE')
+        self.get_logger().info('OPTIMIZED TORQUE PUBLISHER 2DOF - ZERO DELAY MODE')
         self.get_logger().info('='*70)
         self.get_logger().info(f'Loaded {len(self.time_data)} trajectory points')
         self.get_logger().info(f'Trajectory duration: {self.time_data[-1]:.2f}s')
         self.get_logger().info(f'Control frequency: 100 Hz (dt={self.dt:.4f}s)')
-        self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
+        self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}] rad')
     
     def load_trajectory_data(self):
         """Load trajectory data from CSV file (executed once at startup)"""
@@ -85,36 +84,31 @@ class TorquePublisher(Node):
                     values = [float(val) for val in row[1:]]
                     data[key] = values
         
-        # Extract trajectory arrays (stored in memory for fast access)
+        # Extract trajectory arrays for joints 1 and 2 only (stored in memory for fast access)
         self.time_data = data['t']
-        self.dp1 = data['dp1']  # Desired joint positions
+        self.dp1 = data['dp1']   # Desired joint positions
         self.dp2 = data['dp2']
-        self.dp3 = data['dp3']
         self.tau1 = data['tau1']  # Computed torques
         self.tau2 = data['tau2']
-        self.tau3 = data['tau3']
         
         # Calculate time step (should be 0.01s for 100Hz)
         self.dt = self.time_data[1] - self.time_data[0] if len(self.time_data) > 1 else 0.01
     
     def joint_state_callback(self, msg):
-        """Minimal callback - just update state variables"""
+        """Minimal callback - just update state variables for joints 1 and 2"""
         try:
             idx1 = msg.name.index('joint_1')
             idx2 = msg.name.index('joint_2')
-            idx3 = msg.name.index('joint_3')
             
             self.current_joint_pos = [
                 msg.position[idx1],
-                msg.position[idx2],
-                msg.position[idx3]
+                msg.position[idx2]
             ]
             
-            if len(msg.velocity) >= 3:
+            if len(msg.velocity) >= 2:
                 self.current_joint_vel = [
                     msg.velocity[idx1],
-                    msg.velocity[idx2],
-                    msg.velocity[idx3]
+                    msg.velocity[idx2]
                 ]
             
             self.joint_states_received = True
@@ -125,17 +119,13 @@ class TorquePublisher(Node):
         """Launch the triggered logger as a subprocess"""
         try:
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            logger_script = os.path.join(script_dir, 'continuous_logger_triggered.py')
+            logger_script = os.path.join(script_dir, 'continuous_logger_triggered_2dof.py')
             
             self.get_logger().info('Launching triggered logger subprocess...')
             # Don't pipe stdout/stderr - let subprocess output directly to console
             # This prevents ROS2 initialization blocking issues in subprocess
-            cmd = ['python3', logger_script]
-            # Pass dataset path to logger so it can include it in the log filename
-            if self.csv_path:
-                cmd.extend(['--dataset-path', self.csv_path])
             self.logger_process = subprocess.Popen(
-                cmd,
+                ['python3', logger_script],
                 stdout=None,  # Inherit parent's stdout
                 stderr=None   # Inherit parent's stderr
             )
@@ -226,10 +216,10 @@ class TorquePublisher(Node):
     
     def stabilization_callback(self):
         """Timer callback for PID stabilization at 100Hz"""
-        target_pos = [self.dp1[0], self.dp2[0], self.dp3[0]]
+        target_pos = [self.dp1[0], self.dp2[0]]
         
         # Calculate position errors
-        errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
+        errors = [target_pos[i] - self.current_joint_pos[i] for i in range(2)]
         max_error = max(abs(e) for e in errors)
         
         # Check convergence (strict threshold: 0.2°)
@@ -240,7 +230,7 @@ class TorquePublisher(Node):
             self.stabilization_complete = True
             return
         
-        # Timeout check (120 seconds = 12000 iterations at 100Hz - increased for tighter convergence)
+        # Timeout check (120 seconds = 12000 iterations at 100Hz)
         self.stabilization_iterations += 1
         if self.stabilization_iterations >= 12000:
             self.get_logger().error(f'Timeout! Failed to reach 0.5° target. Current error: {max_error*180/3.14159:.6f}°')
@@ -249,55 +239,50 @@ class TorquePublisher(Node):
             self.stabilization_complete = True
             return
         
-        # Full PID control with gravity compensation and integral windup protection
+        # Full PID control with gravity compensation
         # Tuned gains for tight convergence (0.5°)
-        kp = [50.0, 200.0, 150.0]    # Increased Kp for joint 3
-        ki = [5.0, 25.0, 20.0]       # Increased Ki for joint 2 (15→25)
-        kd = [12.0, 35.0, 10.0]      # Increased Kd for joint 3
+        kp = [50.0, 200.0]    # Proportional gains
+        ki = [15.0, 75.0]     # Integral gains - INCREASED 3x
+        kd = [12.0, 35.0]     # Derivative gains
         
         # Accumulate integral error (with anti-windup)
         dt = 0.01  # 100Hz = 0.01s
-        for i in range(3):
+        for i in range(2):
             self.integral_error[i] += errors[i] * dt
             # Anti-windup: clamp integral to prevent excessive accumulation
-            max_integral = [0.5, 1.0, 1.0]  # Increased limit for joints 2 and 3
+            max_integral = [2.0, 4.0]  # INCREASED to allow more integral buildup
             self.integral_error[i] = max(-max_integral[i], min(max_integral[i], self.integral_error[i]))
         
-        # Gravity compensation (feedforward) - further tuned values
+        # Gravity compensation (feedforward)
         q2 = self.current_joint_pos[1]
-        q3 = self.current_joint_pos[2]
         gravity_comp = [
             0.0,
-            -44.0 * math.cos(q2),        # Increased for joint 2 (42→44)
-            -12.0 * math.cos(q2 + q3)    # Significantly increased for joint 3
+            -44.0 * math.cos(q2)
         ]
         
         # Full PID control law: τ = Kp*e + Ki*∫e + Kd*ė + g(q)
         torques = [
             kp[i] * errors[i] + ki[i] * self.integral_error[i] - kd[i] * self.current_joint_vel[i] + gravity_comp[i]
-            for i in range(3)
+            for i in range(2)
         ]
         
         # Torque saturation
-        max_torques = [100.0, 100.0, 50.0]
-        torques = [max(-max_torques[i], min(max_torques[i], torques[i])) for i in range(3)]
+        max_torques = [100.0, 100.0]
+        torques = [max(-max_torques[i], min(max_torques[i], torques[i])) for i in range(2)]
         
         # Publish torques (use pre-allocated messages)
         self.msg1.data = [torques[0]]
         self.msg2.data = [torques[1]]
-        self.msg3.data = [torques[2]]
         
         self.pub1.publish(self.msg1)
         self.pub2.publish(self.msg2)
-        self.pub3.publish(self.msg3)
         
         # Log progress every 50 iterations (0.5s)
         if self.stabilization_iterations % 50 == 0:
             self.get_logger().info(
                 f'  t={self.stabilization_iterations/100:.1f}s | '
-                f'Error: [{errors[0]*180/3.14159:.5f}°, {errors[1]*180/3.14159:.5f}°, {errors[2]*180/3.14159:.5f}°] | '
-                f'Max: {max_error*180/3.14159:.5f}° | '
-                # f'Integral: [{self.integral_error[0]:.3f}, {self.integral_error[1]:.3f}, {self.integral_error[2]:.3f}]'
+                f'Error: [{errors[0]*180/3.14159:.5f}°, {errors[1]*180/3.14159:.5f}°] | '
+                f'Max: {max_error*180/3.14159:.5f}°'
             )
     
     def trajectory_callback(self):
@@ -314,11 +299,9 @@ class TorquePublisher(Node):
         # Publish torques directly (no logging, no conditionals - minimal overhead)
         self.msg1.data = [self.tau1[self.current_idx]]
         self.msg2.data = [self.tau2[self.current_idx]]
-        self.msg3.data = [self.tau3[self.current_idx]]
         
         self.pub1.publish(self.msg1)
         self.pub2.publish(self.msg2)
-        self.pub3.publish(self.msg3)
         
         # Increment index (simple increment - no time synchronization logic)
         self.current_idx += 1
@@ -328,15 +311,14 @@ class TorquePublisher(Node):
             # Calculate tracking error
             pos_err = [
                 abs(self.dp1[self.current_idx] - self.current_joint_pos[0]),
-                abs(self.dp2[self.current_idx] - self.current_joint_pos[1]),
-                abs(self.dp3[self.current_idx] - self.current_joint_pos[2])
+                abs(self.dp2[self.current_idx] - self.current_joint_pos[1])
             ]
             max_err_deg = max(pos_err) * 180 / 3.14159
             
             self.get_logger().info(
                 f't={self.time_data[self.current_idx]:.1f}s | '
                 f'idx={self.current_idx}/{len(self.time_data)} | '
-                f'τ=[{self.tau1[self.current_idx]:.1f}, {self.tau2[self.current_idx]:.1f}, {self.tau3[self.current_idx]:.1f}] Nm | '
+                f'τ=[{self.tau1[self.current_idx]:.1f}, {self.tau2[self.current_idx]:.1f}] Nm | '
                 f'err={max_err_deg:.1f}°'
             )
     
@@ -352,7 +334,7 @@ class TorquePublisher(Node):
             self.get_logger().error('Failed to receive joint states!')
             return
         
-        self.get_logger().info(f'Current position: [{self.current_joint_pos[0]:.4f}, {self.current_joint_pos[1]:.4f}, {self.current_joint_pos[2]:.4f}] rad')
+        self.get_logger().info(f'Current position: [{self.current_joint_pos[0]:.4f}, {self.current_joint_pos[1]:.4f}] rad')
         
         # Phase 1: Move to initial position using PID control
         self.get_logger().info('='*70)
@@ -361,7 +343,7 @@ class TorquePublisher(Node):
         self.get_logger().info('Target: 0.5° convergence with full PID + gravity compensation')
         self.stabilization_iterations = 0
         self.stabilization_complete = False
-        self.integral_error = [0.0, 0.0, 0.0]  # Reset integral error
+        self.integral_error = [0.0, 0.0]  # Reset integral error
         self.stabilization_timer = self.create_timer(0.01, self.stabilization_callback)  # 100 Hz
         
         # Wait for stabilization to complete
@@ -429,17 +411,17 @@ class TorquePublisher(Node):
 
 def main(args=None):
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description='Torque Publisher with trajectory from CSV')
+    parser = argparse.ArgumentParser(description='2DOF Torque Publisher with trajectory from CSV')
     parser.add_argument(
         '--csv-path',
         type=str,
         default=None,
-        help='Path to the CSV file containing trajectory data (default: path_001_joint_states_modified.csv)'
+        help='Path to the CSV file containing trajectory data (default: path_021_joint_states_modified.csv)'
     )
     parsed_args = parser.parse_args()
     
     rclpy.init(args=args)
-    node = TorquePublisher(csv_path=parsed_args.csv_path)
+    node = TorquePublisher2DOF(csv_path=parsed_args.csv_path)
     try:
         node.run()
     except KeyboardInterrupt:
@@ -453,11 +435,9 @@ def main(args=None):
         zero_msg.data = [0.0]
         node.pub1.publish(zero_msg)
         node.pub2.publish(zero_msg)
-        node.pub3.publish(zero_msg)
         
         node.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
-

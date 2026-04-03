@@ -3,3 +3,15 @@ install/
 log/
 
 scripts/__pycache__/
+scripts/logs/
+scripts/Joint_states/
+scripts/plots/
+scripts/joint_states_dof/
+scripts/plots_dof/
+scripts/joint_states_2dof/
+scripts/plots_2dof/
+
+trajectory comparison plots/
+
+new_generatedDataset/
+script_resources/

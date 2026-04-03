@@ -1,17 +1,15 @@
 #!/usr/bin/env python3
 """
-Continuous Logger - Triggered Mode
+Continuous Logger - Triggered Mode - 2DOF Version
 Waits for start/stop signals via ROS2 services for precise timing control.
+Adapted for two-joint robot arm (joint_1 and joint_2 only).
 
 This version is launched as a subprocess by the torque_publisher and logs only
 during the trajectory execution phase with precise timing.
 
 Usage:
-    python3 continuous_logger_triggered.py [--dataset-path <path_to_dataset.csv>]
+    python3 continuous_logger_triggered_2dof.py
     
-Arguments:
-    --dataset-path: Path to the dataset CSV being executed (used in log filename)
-
 Services:
     /logger/start - Start logging (std_srvs/srv/Trigger)
     /logger/stop - Stop logging (std_srvs/srv/Trigger)
@@ -26,19 +24,11 @@ import os
 from datetime import datetime
 import signal
 import sys
-import argparse
 
 
-class TriggeredLogger(Node):
-    def __init__(self, dataset_path=None):
-        super().__init__('triggered_logger')
-        
-        # Extract dataset name for log filename
-        self.dataset_name = None
-        if dataset_path:
-            # Extract dataset number without extension (e.g. 'path_021_joint_states.csv -> '021')
-            self.dataset_name = '_'.join(os.path.splitext(os.path.basename(dataset_path))[0].split('_')[0:2])
-            self.get_logger().info(f'Dataset: {self.dataset_name}')
+class TriggeredLogger2DOF(Node):
+    def __init__(self):
+        super().__init__('triggered_logger_2dof')
         
         # Setup log directory (relative to script location, not hard-coded)
         # This allows the script to work in any workspace
@@ -54,19 +44,13 @@ class TriggeredLogger(Node):
             self.get_logger().error(f'Failed to create log directory: {e}')
             raise
         
-        # Generate timestamped filename (include dataset name if provided)
+        # Generate timestamped filename
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.test_number = self._get_next_test_number()
-        if self.dataset_name:
-            self.csv_filename = os.path.join(
-                self.log_dir, 
-                f'{self.dataset_name}_log_{self.test_number}.csv'
-            )
-        else:
-            self.csv_filename = os.path.join(
-                self.log_dir, 
-                f'trajectory_log_{self.test_number}.csv'
-            )
+        self.csv_filename = os.path.join(
+            self.log_dir, 
+            f'trajectory_log_2dof_{self.test_number}_{timestamp}.csv'
+        )
         
         # CSV file (opened when logging starts)
         self.csv_file = None
@@ -88,10 +72,10 @@ class TriggeredLogger(Node):
         # Timer to ensure consistent 100Hz logging
         self.log_timer = self.create_timer(0.01, self.timer_callback)  # 100Hz = 0.01s
         
-        # Store latest joint state data
-        self.latest_positions = [0.0, 0.0, 0.0]
-        self.latest_velocities = [0.0, 0.0, 0.0]
-        self.latest_efforts = [0.0, 0.0, 0.0]
+        # Store latest joint state data (joints 1 and 2)
+        self.latest_positions = [0.0, 0.0]
+        self.latest_velocities = [0.0, 0.0]
+        self.latest_efforts = [0.0, 0.0]
         self.data_received = False
         
         # Create services for start/stop control
@@ -112,7 +96,7 @@ class TriggeredLogger(Node):
         signal.signal(signal.SIGTERM, self.signal_handler)
         
         self.get_logger().info('='*70)
-        self.get_logger().info('TRIGGERED LOGGER - Ready for Commands')
+        self.get_logger().info('TRIGGERED LOGGER 2DOF - Ready for Commands')
         self.get_logger().info('='*70)
         self.get_logger().info(f'Log file ready: {self.csv_filename}')
         self.get_logger().info(f'Test number: {self.test_number}')
@@ -123,7 +107,7 @@ class TriggeredLogger(Node):
         """Find the next available test number by checking existing files."""
         test_num = 1
         while True:
-            pattern = f"{self.dataset_name}_log_{test_num}"
+            pattern = f"trajectory_log_2dof_{test_num}_"
             existing_files = [f for f in os.listdir(self.log_dir) if f.startswith(pattern)]
             if not existing_files:
                 break
@@ -141,7 +125,7 @@ class TriggeredLogger(Node):
         self.csv_file = open(self.csv_filename, 'w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
         
-        # Write header
+        # Write header (all 3 joints, but only joints 1 and 2 have real data)
         self.csv_writer.writerow([
             'time_elapsed',
             'pos1', 'pos2', 'pos3',
@@ -197,34 +181,30 @@ class TriggeredLogger(Node):
         return response
     
     def joint_state_callback(self, msg):
-        """Store the latest joint state data"""
+        """Store the latest joint state data for joints 1 and 2 only"""
         try:
-            # Find indices for joints 1, 2, 3
+            # Find indices for joints 1 and 2
             idx1 = msg.name.index('joint_1')
             idx2 = msg.name.index('joint_2')
-            idx3 = msg.name.index('joint_3')
             
             # Extract positions
             self.latest_positions = [
                 msg.position[idx1],
-                msg.position[idx2],
-                msg.position[idx3]
+                msg.position[idx2]
             ]
             
             # Extract velocities
-            if len(msg.velocity) >= 3:
+            if len(msg.velocity) >= 2:
                 self.latest_velocities = [
                     msg.velocity[idx1],
-                    msg.velocity[idx2],
-                    msg.velocity[idx3]
+                    msg.velocity[idx2]
                 ]
             
             # Extract efforts (torques)
-            if len(msg.effort) >= 3:
+            if len(msg.effort) >= 2:
                 self.latest_efforts = [
                     msg.effort[idx1],
-                    msg.effort[idx2],
-                    msg.effort[idx3]
+                    msg.effort[idx2]
                 ]
             
             self.data_received = True
@@ -241,18 +221,18 @@ class TriggeredLogger(Node):
         current_time = self.get_clock().now()
         elapsed = (current_time - self.start_time).nanoseconds / 1e9  # Convert to seconds
         
-        # Write data row
+        # Write data row (joints 1 and 2 with real data, joint 3 filled with -40)
         row = [
             f"{elapsed:.3f}",
             f"{self.latest_positions[0]:.6f}",
             f"{self.latest_positions[1]:.6f}",
-            f"{self.latest_positions[2]:.6f}",
+            "0.000000",  # pos3 placeholder
             f"{self.latest_velocities[0]:.6f}",
             f"{self.latest_velocities[1]:.6f}",
-            f"{self.latest_velocities[2]:.6f}",
+            "0.000000",  # vel3 placeholder
             f"{self.latest_efforts[0]:.6f}",
             f"{self.latest_efforts[1]:.6f}",
-            f"{self.latest_efforts[2]:.6f}"
+            "0.000000"   # torque3 placeholder
         ]
         
         self.csv_writer.writerow(row)
@@ -263,7 +243,7 @@ class TriggeredLogger(Node):
             self.csv_file.flush()
             self.get_logger().info(
                 f't={elapsed:.1f}s | Samples: {self.sample_count} | '
-                f'Pos: [{self.latest_positions[0]:.3f}, {self.latest_positions[1]:.3f}, {self.latest_positions[2]:.3f}] rad'
+                f'Pos: [{self.latest_positions[0]:.3f}, {self.latest_positions[1]:.3f}] rad'
             )
     
     def signal_handler(self, sig, frame):
@@ -281,18 +261,8 @@ class TriggeredLogger(Node):
 
 
 def main(args=None):
-    # Parse command-line arguments (before ROS2 init to avoid conflicts)
-    parser = argparse.ArgumentParser(description='Triggered Logger with optional dataset path')
-    parser.add_argument(
-        '--dataset-path',
-        type=str,
-        default=None,
-        help='Path to the dataset CSV being executed (used in log filename)'
-    )
-    parsed_args, remaining = parser.parse_known_args()
-    
-    rclpy.init(args=remaining)
-    logger = TriggeredLogger(dataset_path=parsed_args.dataset_path)
+    rclpy.init(args=args)
+    logger = TriggeredLogger2DOF()
     
     try:
         rclpy.spin(logger)

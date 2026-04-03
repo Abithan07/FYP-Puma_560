@@ -73,7 +73,7 @@ class SinusoidalTorquePublisher(Node):
         self.csv_writer = None
         
         # Create logs directory if it doesn't exist
-        self.logs_dir = os.path.expanduser('~/ros2_ws/FYP-Puma_560/arm_bot/src/scripts/dataset')
+        self.logs_dir = os.path.expanduser('/data/ros2/ros2_ws2/arm_bot/src/scripts/dataset')
         os.makedirs(self.logs_dir, exist_ok=True)
         
         # Generate log filename with timestamp
@@ -190,8 +190,12 @@ class SinusoidalTorquePublisher(Node):
                 return False
             
             self.get_logger().info('Launching triggered logger subprocess...')
+            cmd = ['python3', logger_script]
+            # Pass dataset filename to logger so it can include it in the log filename
+            if hasattr(self, 'csv_filename') and self.csv_filename:
+                cmd.extend(['--dataset-path', self.csv_filename])
             self.logger_process = subprocess.Popen(
-                ['python3', logger_script],
+                cmd,
                 stdout=None,  # Inherit parent's stdout
                 stderr=None   # Inherit parent's stderr
             )
@@ -417,9 +421,9 @@ def main(args=None):
     rclpy.init(args=args)
     
     # Configuration parameters
-    max_torque = [35.0, 35.0, 1.0]      # Maximum torque amplitude (Nm)
+    max_torque = [1.0, 35.0, 20.0]      # Maximum torque amplitude (Nm)
     period = 30.0          # Period for one complete cycle (seconds)
-    duration = 30.0        # Total test duration (seconds) - 3 cycles
+    duration = 30.0        # Total test duration (seconds) - 1 cycles
     
     node = SinusoidalTorquePublisher(
         max_torque=max_torque,
