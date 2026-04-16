@@ -7,7 +7,8 @@ Now with integrated triggered logging for precise data capture.
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64MultiArray
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
+from std_msgs.msg import Float64MultiArray, Bool
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 import csv
@@ -25,6 +26,17 @@ class TorquePublisher(Node):
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
         self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
+        state_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.recording_state_pub = self.create_publisher(
+            Bool,
+            '/line_drawer/recording_active',
+            state_qos,
+        )
+        self._publish_recording_state(False)
         
         # Subscriber to monitor joint states
         self.joint_sub = self.create_subscription(
@@ -183,6 +195,7 @@ class TorquePublisher(Node):
         response = future.result()
         if response.success:
             self.get_logger().info('✓ Logger recording started')
+            self._publish_recording_state(True)
         else:
             self.get_logger().error(f'Logger start failed: {response.message}')
         
@@ -208,6 +221,7 @@ class TorquePublisher(Node):
         response = future.result()
         if response.success:
             self.get_logger().info(f'✓ Logger stopped: {response.message}')
+            self._publish_recording_state(False)
         else:
             self.get_logger().error(f'Logger stop failed: {response.message}')
         
@@ -215,6 +229,7 @@ class TorquePublisher(Node):
     
     def shutdown_logger(self):
         """Terminate the logger subprocess"""
+        self._publish_recording_state(False)
         if self.logger_process:
             self.logger_process.terminate()
             try:
@@ -223,6 +238,11 @@ class TorquePublisher(Node):
             except subprocess.TimeoutExpired:
                 self.logger_process.kill()
                 self.get_logger().warning('Logger subprocess killed (timeout)')
+
+    def _publish_recording_state(self, active):
+        msg = Bool()
+        msg.data = bool(active)
+        self.recording_state_pub.publish(msg)
     
     def stabilization_callback(self):
         """Timer callback for PID stabilization at 100Hz"""
