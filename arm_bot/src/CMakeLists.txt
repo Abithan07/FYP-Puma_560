@@ -37,4 +37,10 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(
+  PROGRAMS launch/line_drawer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME line_drawer
+)
+
 ament_package()

@@ -23,6 +23,13 @@ Visualization Manager:
       Description Topic:
         Value: /robot_description
       Visual Enabled: true
+    - Class: rviz_default_plugins/Marker
+      Enabled: true
+      Name: Marker
+      Namespaces:
+        end_effector_marker: true
+      Topic:
+        Value: /visualization_marker
   Global Options:
     Fixed Frame: world
     Background Color: 48; 48; 48
