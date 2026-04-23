@@ -1,0 +1,31 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Controller update rate (100 Hz = 0.01s step)
+
+    joint_1_controller:
+      type: forward_command_controller/ForwardCommandController
+    
+    joint_2_controller:
+      type: forward_command_controller/ForwardCommandController
+    
+    joint_3_controller:
+      type: forward_command_controller/ForwardCommandController
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+joint_1_controller:
+  ros__parameters:
+    joints: [joint_1]
+    interface_name: effort
+
+joint_2_controller:
+  ros__parameters:
+    joints: [joint_2]
+    interface_name: effort
+
+joint_3_controller:
+  ros__parameters:
+    joints: [joint_3]
+    interface_name: effort
+

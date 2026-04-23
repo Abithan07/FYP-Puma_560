@@ -1,0 +1,234 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="robot">
+
+    <xacro:include filename="inertial_macros.xacro" />
+
+    <!-- This first link called "world" is empty -->
+    <link name="world"></link>
+
+    <joint name="base_joint" type="fixed">
+        <origin xyz="0.5 0.5 0" rpy="0 0 0"/>
+        <parent link="world"/>
+        <child link="base_link"/>        
+    </joint>
+
+    <link name="base_link">
+        <visual>
+            <origin xyz="0 0 0.05" rpy="0 0 0"/>
+            <geometry>
+                <box size="1 1 0.1" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.2 1 0.2 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0.05" rpy="0 0 0"/>
+            <geometry>
+                <box size="1 1 0.1" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0.05" rpy="0 0 0"/>
+            <mass value="12" />
+            <inertia ixx="2.26" ixy="0.0" ixz="0.0" iyy="6.26" iyz="0.0" izz="8.5" />
+        </inertial>
+    </link>
+
+
+
+
+
+    <joint name="joint_1_shoulder" type="fixed">
+        <origin xyz="0 0 0.1" rpy="0 0 0"/>
+        <parent link="base_link"/>
+        <child link="link_1"/>
+    </joint>
+
+    <xacro:property name="link_1_length" value="0.59817" />
+    <xacro:property name="link_1_radius" value="0.07493" />
+    
+    <link name="link_1">
+        <visual>
+            <!-- <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 ${-pi/2}"/>
+            <geometry>
+                <!-- <cylinder length="${link_1_length}" radius="${link_1_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+            <material name="purple" />
+        </visual>
+        <collision>
+            <!-- <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 ${-pi/2}"/>
+            <geometry>
+                <!-- <cylinder length="${link_1_length}" radius="${link_1_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link1.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_cylinder mass="0.5" length="${link_1_length}" radius="${link_1_radius}">
+            <origin xyz="0 0 ${link_1_length/2}" rpy="0 0 0"/>
+        </xacro:inertial_cylinder>
+    </link>
+
+
+
+
+
+    <!-- Add properties for shoulder -->
+    <xacro:property name="shoulder_length" value="${0.1686 + link_1_radius}" />
+    <xacro:property name="shoulder_radius" value="${link_1_radius}" />
+    
+    <joint name="joint_1" type="revolute">
+        <origin xyz="0 0 0.6718" rpy="0 0 0"/>
+        <parent link="link_1"/>
+        <child link="shoulder"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="${-8*pi/9}" upper="${8*pi/9}" velocity="2" effort="1000"/> 
+        <dynamics damping="0" friction="0"/>
+    </joint>
+
+    <!-- MATLAB Link 1 = shoulder (m1=0, only Izz=1.49) -->
+    <link name="shoulder">
+        <visual>
+            <!-- <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/> -->
+            <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/>
+            <geometry>
+                <!-- <cylinder length="${shoulder_length}" radius="${shoulder_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+            <material name="blue" />
+        </visual>
+        <collision>
+            <!-- <origin xyz="0 ${shoulder_length/2 - shoulder_radius} 0" rpy="${pi/2} 0 0"/> -->
+            <origin xyz="0 -0.09677 0" rpy="${pi/2} 0 ${pi}"/>
+            <geometry>
+                <!-- <cylinder length="${shoulder_length}" radius="${shoulder_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link2.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_link1>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+        </xacro:inertial_link1>
+    </link>
+
+
+
+
+
+    <xacro:property name="link_2_length" value="0.432" />
+    <xacro:property name="link_2_radius" value="0.065278" />
+
+    <joint name="joint_2" type="revolute">
+        <origin xyz="0 0.2435 0" rpy="${-pi/2} 0 0"/>
+        <parent link="shoulder"/>
+        <child link="link_2"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="${-5*pi/4}" upper="${pi/4}" velocity="2" effort="1000"/> 
+        <dynamics damping="0" friction="0"/>
+    </joint>
+
+    <!-- MATLAB Link 2 = link_2 (m2=17.4 kg) -->
+    <!-- CoG2 = [0.068; 0.006; -0.016] w.r.t. link frame {2} -->
+    <link name="link_2">
+        <visual>
+            <!-- <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <!-- <cylinder length="${link_2_length}" radius="${link_2_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+            <material name="orange" />
+        </visual>
+        <collision>
+            <!-- <origin xyz="${link_2_length/2} 0 0" rpy="0 ${pi/2} 0"/> -->
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <geometry>
+                <!-- <cylinder length="${link_2_length}" radius="${link_2_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link3.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_link2>
+            <origin xyz="0.068 0.006 -0.016" rpy="0 0 0"/>
+        </xacro:inertial_link2>
+    </link>
+
+
+
+
+
+    <xacro:property name="link_3_length" value="0.233" />
+    <xacro:property name="link_3_radius" value="0.028702" />
+
+    <joint name="joint_3" type="revolute">
+        <origin xyz="0.4318 0 -0.094" rpy="0 0 0"/>
+        <parent link="link_2"/>
+        <child link="link_3"/>
+        <axis xyz="0 0 1"/>
+        <limit lower="${-pi/4}" upper="${5*pi/4}" velocity="2" effort="1000"/> 
+        <dynamics damping="0" friction="0"/>
+    </joint>
+
+    <!-- MATLAB Link 3 = link_3 (m3=4.8 kg) -->
+    <!-- CoG3 = [0.000; -0.143; 0.014] w.r.t. link frame {3} -->
+    <link name="link_3">
+        <visual>
+            <!-- <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/> -->
+            <origin xyz="0 0 ${0.094/2}" rpy="0 0 ${-pi/2}"/>
+            <geometry>
+                <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+            <material name="yellow" />
+        </visual>
+        <collision>
+            <!-- <origin xyz="0 -${link_3_length/2} 0" rpy="${-pi/2} 0 0"/> -->
+            <origin xyz="0 0 ${0.094/2}" rpy="0 0 ${-pi/2}"/>
+            <geometry>
+                <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
+            </geometry>
+        </collision>
+        <xacro:inertial_link3>
+            <origin xyz="0.0 -0.143 0.014" rpy="0 0 0"/>
+        </xacro:inertial_link3>
+    </link>
+
+
+
+
+
+
+
+    <!-- Gazebo-specific properties for links (Ignition Gazebo Fortress compatible) -->
+    <gazebo reference="base_link">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_1">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="shoulder">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_2">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+    <gazebo reference="link_3">
+        <mu1>0.2</mu1>
+        <mu2>0.2</mu2>
+        <self_collide>true</self_collide>
+    </gazebo>
+
+</robot>
