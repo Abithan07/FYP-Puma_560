@@ -227,9 +227,11 @@ def plot_all_in_one(dataset_time, dataset_pos1, dataset_pos2, dataset_pos3,
     Unique color per (joint, value-type) pair; same color for expected & sensed of
     the same pair.
     """
+    # fig, (ax_tau, ax_vel) = plt.subplots(2, 1, figsize=(24, 26),
+    #                                       height_ratios=[3, 2],
+    #                                       gridspec_kw={'hspace': 0.25})
     fig, (ax_tau, ax_vel) = plt.subplots(2, 1, figsize=(24, 26),
-                                          height_ratios=[3, 2],
-                                          gridspec_kw={'hspace': 0.25})
+                                      gridspec_kw={'height_ratios': [3, 2], 'hspace': 0.25})
 
     # Create twin axis for Position on the top subplot (right side)
     ax_pos = ax_tau.twinx()

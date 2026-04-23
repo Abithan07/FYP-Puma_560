@@ -26,4 +26,11 @@ ros2 topic pub /joint_1_controller/commands std_msgs/msg/Float64MultiArray "{dat
 colcon build
 source install/setup.bash
 ros2 launch arm_bot robot_gui.launch.py
+
 python3 /home/abithan_ubuntu/ros2_ws2/arm_bot/scripts/torque_publisher.py
+
+# run for a single indexed file (zero-padded)
+./src/scripts/dataset_generator.sh 1
+
+# run for a range (uses src/scripts/Joint_states/path_<i>_joint_states.csv)
+./src/scripts/dataset_generator.sh 1 10
