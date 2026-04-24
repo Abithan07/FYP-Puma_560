@@ -1,12 +1,14 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from pathlib import Path
+import re
 
 
 # ----------------------------- CONFIG -----------------------------
 # csv_path = "/home/priyankan/Desktop/arm_bot/src/scripts/Joint_states/path_601_joint_states.csv"
 # csv_path = "/home/priyankan/Downloads/path_451-600/path_564_joint_states_1.csv"
-csv_path = "/home/priyankan/Desktop/FYP_DNN_CTC/Data/path_461_joint_states.csv"
+csv_path = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test/Data/path_602_joint_states.csv"
 # -----------------------------------------------------------------
 
 
@@ -131,6 +133,12 @@ def main():
     )
 
     plt.tight_layout()
+    csv_name = Path(csv_path).stem
+    match = re.search(r"path_(\d+)_joint_states", csv_name)
+    count = match.group(1) if match else csv_name
+    output_path = Path(csv_path).with_name(f"path_{count}_joint_states_data_plot.png")
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    print(f"Saved plot to {output_path}")
     plt.show()
 
 

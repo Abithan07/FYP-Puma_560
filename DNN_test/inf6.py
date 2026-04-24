@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 # ⚙️ 1. USER CONFIGURATION (Update paths & column names if needed)
 # ============================================================================
 # ... (around line 20)
-CSV_INPUT_PATH = "/home/priyankan/Desktop/FYP_DNN_CTC/Data/Trajectory/path_461_trajectories.csv"
+CSV_INPUT_PATH = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test/Data/Trajectory/path_602_trajectories.csv"
 
 # --- Auto-generate output path ---
 output_dir = "Data"

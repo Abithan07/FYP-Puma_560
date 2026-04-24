@@ -20,8 +20,8 @@ if args.seed is not None:
     np.random.seed(args.seed)
 
 # ---------------- DIRECTORIES ----------------
-base_dir = "/home/priyankan/Desktop/FYP_DNN_CTC/Data"
-summary_dir = "/home/priyankan/Desktop/FYP_DNN_CTC"
+base_dir = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test/Data"
+summary_dir = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test"
 
 angle_dir = os.path.join(base_dir, "Angles")
 xyz_dir   = os.path.join(base_dir, "XYZ")
