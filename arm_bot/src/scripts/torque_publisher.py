@@ -10,6 +10,8 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from std_msgs.msg import Float64MultiArray, Bool
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import Point
+from visualization_msgs.msg import Marker
 from std_srvs.srv import Trigger
 import csv
 import math
@@ -26,6 +28,7 @@ class TorquePublisher(Node):
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
         self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
+        self.marker_pub = self.create_publisher(Marker, '/visualization_marker', 10)
         state_qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -85,6 +88,97 @@ class TorquePublisher(Node):
         self.get_logger().info(f'Trajectory duration: {self.time_data[-1]:.2f}s')
         self.get_logger().info(f'Control frequency: 100 Hz (dt={self.dt:.4f}s)')
         self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
+
+    @staticmethod
+    def _mat_mul(a, b):
+        return [
+            [a[0][0] * b[0][0] + a[0][1] * b[1][0] + a[0][2] * b[2][0],
+             a[0][0] * b[0][1] + a[0][1] * b[1][1] + a[0][2] * b[2][1],
+             a[0][0] * b[0][2] + a[0][1] * b[1][2] + a[0][2] * b[2][2]],
+            [a[1][0] * b[0][0] + a[1][1] * b[1][0] + a[1][2] * b[2][0],
+             a[1][0] * b[0][1] + a[1][1] * b[1][1] + a[1][2] * b[2][1],
+             a[1][0] * b[0][2] + a[1][1] * b[1][2] + a[1][2] * b[2][2]],
+            [a[2][0] * b[0][0] + a[2][1] * b[1][0] + a[2][2] * b[2][0],
+             a[2][0] * b[0][1] + a[2][1] * b[1][1] + a[2][2] * b[2][1],
+             a[2][0] * b[0][2] + a[2][1] * b[1][2] + a[2][2] * b[2][2]],
+        ]
+
+    @staticmethod
+    def _mat_vec_mul(a, v):
+        return [
+            a[0][0] * v[0] + a[0][1] * v[1] + a[0][2] * v[2],
+            a[1][0] * v[0] + a[1][1] * v[1] + a[1][2] * v[2],
+            a[2][0] * v[0] + a[2][1] * v[1] + a[2][2] * v[2],
+        ]
+
+    @staticmethod
+    def _rot_x(angle):
+        c = math.cos(angle)
+        s = math.sin(angle)
+        return [[1.0, 0.0, 0.0], [0.0, c, -s], [0.0, s, c]]
+
+    @staticmethod
+    def _rot_z(angle):
+        c = math.cos(angle)
+        s = math.sin(angle)
+        return [[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]]
+
+    @staticmethod
+    def _compose(r, p, r_local, p_local):
+        rp = TorquePublisher._mat_vec_mul(r, p_local)
+        p_new = [p[0] + rp[0], p[1] + rp[1], p[2] + rp[2]]
+        r_new = TorquePublisher._mat_mul(r, r_local)
+        return r_new, p_new
+
+    def _fk_tip_world(self, q1, q2, q3):
+        # Base: world -> base_link, then base_link -> link_1 (fixed joint).
+        r = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        p = [0.0, 0.0, 0.0]
+        r, p = self._compose(r, p, self._rot_z(0.0), [0.5, 0.5, 0.0])
+        r, p = self._compose(r, p, self._rot_z(0.0), [0.0, 0.0, 0.1])
+
+        # joint_1: origin then rotation about z.
+        r, p = self._compose(r, p, self._rot_z(0.0), [0.0, 0.0, 0.6718])
+        r, p = self._compose(r, p, self._rot_z(q1), [0.0, 0.0, 0.0])
+
+        # joint_2: origin with rpy(-pi/2, 0, 0), then rotation about z.
+        r, p = self._compose(r, p, self._rot_x(-math.pi / 2.0), [0.0, 0.2435, 0.0])
+        r, p = self._compose(r, p, self._rot_z(q2), [0.0, 0.0, 0.0])
+
+        # joint_3: origin then rotation about z.
+        r, p = self._compose(r, p, self._rot_z(0.0), [0.4318, 0.0, -0.094])
+        r, p = self._compose(r, p, self._rot_z(q3), [0.0, 0.0, 0.0])
+
+        # Tip offset in link_3 frame (same as line_drawer default).
+        tip_local = [0.0, -0.32, 0.0]
+        tip_world = self._mat_vec_mul(r, tip_local)
+        return [p[0] + tip_world[0], p[1] + tip_world[1], p[2] + tip_world[2]]
+
+    def publish_expected_path_marker(self):
+        marker = Marker()
+        marker.header.frame_id = 'world'
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = 'expected_path'
+        marker.id = 0
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+        marker.scale.x = 0.012
+        marker.color.r = 1.0
+        marker.color.g = 1.0
+        marker.color.b = 1.0
+        marker.color.a = 0.95
+        marker.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
+
+        for q1, q2, q3 in zip(self.dp1, self.dp2, self.dp3):
+            xyz = self._fk_tip_world(q1, q2, q3)
+            pt = Point()
+            pt.x = xyz[0]
+            pt.y = xyz[1]
+            pt.z = xyz[2]
+            marker.points.append(pt)
+
+        self.marker_pub.publish(marker)
+        self.get_logger().info(f'Published expected end-effector path ({len(marker.points)} points)')
     
     def load_trajectory_data(self):
         """Load trajectory data from CSV file (executed once at startup)"""
@@ -411,6 +505,9 @@ class TorquePublisher(Node):
         self.get_logger().info('Launching data logger...')
         if not self.launch_logger():
             self.get_logger().error('Failed to launch logger, continuing without logging')
+        
+        # Draw expected Cartesian trajectory before torque commands start.
+        self.publish_expected_path_marker()
         
         # Phase 2: Execute trajectory with computed torques
         self.get_logger().info('='*70)
