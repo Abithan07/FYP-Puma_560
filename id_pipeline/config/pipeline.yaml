@@ -1,0 +1,43 @@
+# ─── ID Pipeline Configuration ────────────────────────────────────────────────
+#
+# Copy this file and edit for each run.  Pass as an argument to the scripts
+# or just run the scripts directly with CLI flags.
+
+pipeline:
+
+  # ── Controller ──────────────────────────────────────────────────────────────
+  # MUST match controller_manager/update_rate in my_controllers.yaml.
+  # For 0.001 s CSV data use 1000.  For legacy 0.01 s data use 100.
+  ctrl_rate_hz: 1000
+
+  # ── PD gains (trajectory tracking – no integral) ────────────────────────────
+  # Higher Kp → tighter tracking → tau_cmd closer to true tau_ID.
+  # If the robot oscillates, reduce Kp and Kd proportionally.
+  kp: [300.0, 600.0, 400.0]
+  kd: [ 25.0,  50.0,  30.0]
+
+  # ── Gravity compensation coefficients ───────────────────────────────────────
+  # tau_grav = [0,  g2*cos(q2),  g3*cos(q2+q3)]
+  # Empirically tuned for this URDF (see inertial_macros.xacro).
+  g_coeffs: [0.0, -44.0, -12.0]
+
+  # ── Post-processing (build_dataset.py) ──────────────────────────────────────
+  # Butterworth low-pass cutoff (Hz).
+  #   1000 Hz data → 30 Hz is good (removes solver noise above 30 Hz)
+  #    100 Hz data → 20 Hz is good
+  lpf_cutoff_hz: 30.0
+
+  # Savitzky-Golay window for ddq computation (must be ODD, > sg_order+2).
+  #   1000 Hz data → 21 or 31 (21 ms or 31 ms window)
+  #    100 Hz data → 11
+  sg_window: 21
+  sg_order: 4
+
+  # Set true to subtract the PD correction from tau_cmd.
+  # Only useful when max tracking error > 0.1°.  Usually leave false.
+  subtract_pd: false
+
+  # Use actual measured q/dq in output instead of commanded reference.
+  # For a regression dataset the commanded values are usually preferred
+  # because they represent what you would query the model with at runtime.
+  use_act_q: false

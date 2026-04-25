@@ -21,7 +21,7 @@ import os
 import argparse
 
 class TorquePublisher(Node):
-    def __init__(self, csv_path=None, skip_stabilization_threshold_deg=1.0):
+    def __init__(self, csv_path=None):
         super().__init__('torque_publisher')
         
         # Publishers for torque commands (QoS=10 for reliability)
@@ -80,9 +80,6 @@ class TorquePublisher(Node):
         self.logger_process = None
         self.logger_start_client = None
         self.logger_stop_client = None
-
-        # Skip stabilization if current pose is already very close to CSV start pose.
-        self.skip_stabilization_threshold_rad = math.radians(skip_stabilization_threshold_deg)
         
         self.get_logger().info('='*70)
         self.get_logger().info('OPTIMIZED TORQUE PUBLISHER - ZERO DELAY MODE')
@@ -91,10 +88,6 @@ class TorquePublisher(Node):
         self.get_logger().info(f'Trajectory duration: {self.time_data[-1]:.2f}s')
         self.get_logger().info(f'Control frequency: 100 Hz (dt={self.dt:.4f}s)')
         self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
-        self.get_logger().info(
-            f'Skip stabilization threshold: {skip_stabilization_threshold_deg:.3f} deg '
-            f'({self.skip_stabilization_threshold_rad:.6f} rad)'
-        )
 
     @staticmethod
     def _mat_mul(a, b):
@@ -420,14 +413,13 @@ class TorquePublisher(Node):
                 f'Max: {max_error*180/3.14159:.5f}° | '
                 # f'Integral: [{self.integral_error[0]:.3f}, {self.integral_error[1]:.3f}, {self.integral_error[2]:.3f}]'
             )
-
+    
     def trajectory_callback(self):
         """Timer callback for trajectory execution at EXACTLY 100Hz"""
         if self.current_idx >= len(self.time_data):
             self.get_logger().info('='*70)
             self.get_logger().info('TRAJECTORY EXECUTION COMPLETED')
             self.get_logger().info('='*70)
-
             if self.trajectory_timer:
                 self.trajectory_timer.cancel()
             self.trajectory_active = False
@@ -475,57 +467,38 @@ class TorquePublisher(Node):
             return
         
         self.get_logger().info(f'Current position: [{self.current_joint_pos[0]:.4f}, {self.current_joint_pos[1]:.4f}, {self.current_joint_pos[2]:.4f}] rad')
-
-        target_pos = [self.dp1[0], self.dp2[0], self.dp3[0]]
-        initial_errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
-        initial_max_error = max(abs(e) for e in initial_errors)
-        skip_stabilization = initial_max_error <= self.skip_stabilization_threshold_rad
         
-        if skip_stabilization:
-            self.get_logger().info('='*70)
-            self.get_logger().info('PHASE 1: SKIPPED (Already near CSV start pose)')
-            self.get_logger().info('='*70)
-            self.get_logger().info(
-                f'Initial max error: {math.degrees(initial_max_error):.4f} deg '
-                f'<= threshold {math.degrees(self.skip_stabilization_threshold_rad):.4f} deg'
-            )
-        else:
-            # Phase 1: Move to initial position using PID control
-            self.get_logger().info('='*70)
-            self.get_logger().info('PHASE 1: STABILIZATION (Moving to initial position)')
-            self.get_logger().info('='*70)
-            self.get_logger().info('Target: 0.5° convergence with full PID + gravity compensation')
-            self.get_logger().info(
-                f'Initial max error: {math.degrees(initial_max_error):.4f} deg '
-                f'> threshold {math.degrees(self.skip_stabilization_threshold_rad):.4f} deg'
-            )
-            self.stabilization_iterations = 0
-            self.stabilization_complete = False
-            self.integral_error = [0.0, 0.0, 0.0]  # Reset integral error
-            self.stabilization_timer = self.create_timer(0.01, self.stabilization_callback)  # 100 Hz
-
-            # Wait for stabilization to complete
-            while not self.stabilization_complete and rclpy.ok():
-                rclpy.spin_once(self, timeout_sec=0.001)
-
-            if not rclpy.ok():
+        # Phase 1: Move to initial position using PID control
+        self.get_logger().info('='*70)
+        self.get_logger().info('PHASE 1: STABILIZATION (Moving to initial position)')
+        self.get_logger().info('='*70)
+        self.get_logger().info('Target: 0.5° convergence with full PID + gravity compensation')
+        self.stabilization_iterations = 0
+        self.stabilization_complete = False
+        self.integral_error = [0.0, 0.0, 0.0]  # Reset integral error
+        self.stabilization_timer = self.create_timer(0.01, self.stabilization_callback)  # 100 Hz
+        
+        # Wait for stabilization to complete
+        while not self.stabilization_complete and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
+        
+        if not rclpy.ok():
+            return
+        
+        self.get_logger().info('Holding position for 1 second...')
+        # Hold with timer (100Hz)
+        hold_iterations = [0]
+        def hold_callback():
+            hold_iterations[0] += 1
+            if hold_iterations[0] >= 100:  # 1 second
+                hold_timer.cancel()
                 return
-
-            self.get_logger().info('Holding position for 1 second...')
-            # Hold with timer (100Hz)
-            hold_iterations = [0]
-
-            def hold_callback():
-                hold_iterations[0] += 1
-                if hold_iterations[0] >= 100:  # 1 second
-                    hold_timer.cancel()
-                    return
-                # Keep publishing last stabilization torque
-                self.stabilization_callback()
-
-            hold_timer = self.create_timer(0.01, hold_callback)
-            while hold_iterations[0] < 100 and rclpy.ok():
-                rclpy.spin_once(self, timeout_sec=0.001)
+            # Keep publishing last stabilization torque
+            self.stabilization_callback()
+        
+        hold_timer = self.create_timer(0.01, hold_callback)
+        while hold_iterations[0] < 100 and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
         
         # Launch logger subprocess
         self.get_logger().info('='*70)
@@ -580,19 +553,10 @@ def main(args=None):
         default=None,
         help='Path to the CSV file containing trajectory data (default: path_001_joint_states_modified.csv)'
     )
-    parser.add_argument(
-        '--skip-stabilization-threshold-deg',
-        type=float,
-        default=1.0,
-        help='Skip stabilization if initial max joint error is <= this threshold in degrees (default: 1.0)'
-    )
     parsed_args = parser.parse_args()
     
     rclpy.init(args=args)
-    node = TorquePublisher(
-        csv_path=parsed_args.csv_path,
-        skip_stabilization_threshold_deg=parsed_args.skip_stabilization_threshold_deg,
-    )
+    node = TorquePublisher(csv_path=parsed_args.csv_path)
     try:
         node.run()
     except KeyboardInterrupt:
@@ -600,7 +564,7 @@ def main(args=None):
     finally:
         # Shutdown logger if running
         node.shutdown_logger()
-
+        
         # Zero out torques on shutdown
         zero_msg = Float64MultiArray()
         zero_msg.data = [0.0]
