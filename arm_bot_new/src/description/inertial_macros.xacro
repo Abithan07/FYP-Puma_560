@@ -1,0 +1,86 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <!-- =====================================================================
+       Inertia Macros — 3-DOF Modified PUMA 560
+       All values sourced from the Stanford PUMA 560 paper, matching the
+       MATLAB Euler-Lagrange model exactly.
+
+       Motor inertia is included in Izz (dominant rotational axis):
+         I1zz = 0.35 + Im1(1.14) = 1.49  kg·m²
+         I2zz = 0.539 + Im2(4.71) = 5.249 kg·m²
+         I3zz = 0.086 + Im3(0.83) = 0.916 kg·m²
+
+       Ixx = Iyy = Izz/2 (minimum values satisfying the Gazebo triangle
+       inequality Ixx+Iyy≥Izz while preserving the critical Izz exactly).
+       This matches the values used in the MATLAB model.
+
+       CoG positions are in each link's body frame (DH frame convention).
+       ===================================================================== -->
+
+  <material name="white">  <color rgba="1 1 1 1"/>        </material>
+  <material name="orange"> <color rgba="1 0.3 0.1 1"/>    </material>
+  <material name="blue">   <color rgba="0.2 0.2 1 1"/>    </material>
+  <material name="yellow"> <color rgba="1 1 0 1"/>         </material>
+  <material name="green">  <color rgba="0.2 1 0.2 1"/>    </material>
+  <material name="purple"> <color rgba="1 0 1 1"/>         </material>
+
+  <!-- Generic helpers -->
+  <xacro:macro name="inertial_cylinder" params="mass length radius *origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="${mass}"/>
+      <inertia
+        ixx="${(1/12)*mass*(3*radius*radius+length*length)}"
+        ixy="0" ixz="0"
+        iyy="${(1/12)*mass*(3*radius*radius+length*length)}"
+        iyz="0"
+        izz="${(1/2)*mass*radius*radius}"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- =================================================================
+       Link 1 (shoulder):  m1=0.01 kg,  CoG at joint origin [0,0,0]
+       Izz = 0.35 + 1.14 = 1.49 kg·m²   Ixx = Iyy = 0.745
+       ================================================================= -->
+  <xacro:macro name="inertial_link1" params="*origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="0.01"/>
+      <inertia ixx="0.745"  ixy="0" ixz="0"
+               iyy="0.745"  iyz="0"
+               izz="1.49"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- =================================================================
+       Link 2 (upper arm):  m2=17.4 kg
+       CoG in body frame: [0.068, 0.006, -0.016] m
+       Izz = 0.539 + 4.71 = 5.249 kg·m²   Ixx = Iyy = 2.6245
+       ================================================================= -->
+  <xacro:macro name="inertial_link2" params="*origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="17.4"/>
+      <inertia ixx="2.6245" ixy="0" ixz="0"
+               iyy="2.6245" iyz="0"
+               izz="5.249"/>
+    </inertial>
+  </xacro:macro>
+
+  <!-- =================================================================
+       Link 3 (forearm):  m3=4.8 kg
+       CoG in body frame: [0.000, -0.143, 0.014] m
+       Izz = 0.086 + 0.83 = 0.916 kg·m²   Ixx = Iyy = 0.458
+       ================================================================= -->
+  <xacro:macro name="inertial_link3" params="*origin">
+    <inertial>
+      <xacro:insert_block name="origin"/>
+      <mass value="4.8"/>
+      <inertia ixx="0.458" ixy="0" ixz="0"
+               iyy="0.458" iyz="0"
+               izz="0.916"/>
+    </inertial>
+  </xacro:macro>
+
+</robot>
