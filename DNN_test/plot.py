@@ -3,13 +3,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 import re
+import argparse
 
 
-# ----------------------------- CONFIG -----------------------------
-# csv_path = "/home/priyankan/Desktop/arm_bot/src/scripts/Joint_states/path_601_joint_states.csv"
-# csv_path = "/home/priyankan/Downloads/path_451-600/path_564_joint_states_1.csv"
-csv_path = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test/Data/path_602_joint_states.csv"
-# -----------------------------------------------------------------
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Plot dp/dv/da/tau series from path_<id>_joint_states.csv"
+    )
+    parser.add_argument(
+        "id",
+        type=int,
+        help="Path id (example: 603 for path_603_joint_states.csv)",
+    )
+    return parser.parse_args()
 
 
 def normalize_name(name: str) -> str:
@@ -63,6 +69,13 @@ def plot_group(ax, t, ys, labels, title, y_label):
 
 
 def main():
+    args = parse_args()
+    script_dir = Path(__file__).resolve().parent
+    csv_path = script_dir / "Data" / f"path_{args.id:03d}_joint_states.csv"
+
+    if not csv_path.exists():
+        raise FileNotFoundError(f"Input file not found: {csv_path}")
+
     data = load_row_wise_csv(csv_path)
 
     t = get_series(data, "t")
@@ -139,7 +152,7 @@ def main():
     output_path = Path(csv_path).with_name(f"path_{count}_joint_states_data_plot.png")
     plt.savefig(output_path, dpi=300, bbox_inches="tight")
     print(f"Saved plot to {output_path}")
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":

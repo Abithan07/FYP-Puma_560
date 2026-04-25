@@ -8,6 +8,7 @@ and outputs the final predicted torques.
 
 import os
 import time
+import argparse
 import torch
 import torch.nn as nn
 import pandas as pd
@@ -20,18 +21,41 @@ import haiku as hk
 import functools
 import matplotlib.pyplot as plt
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Hybrid DeLaN + GRU inference for torque prediction"
+    )
+    parser.add_argument(
+        "id",
+        type=int,
+        help="Trajectory id, used to build path_<id>_trajectories.csv (example: 461)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Optional full path to output CSV; default is auto-generated from input name",
+    )
+    return parser.parse_args()
+
 # ============================================================================
 # ⚙️ 1. USER CONFIGURATION (Update paths & column names if needed)
 # ============================================================================
-# ... (around line 20)
-CSV_INPUT_PATH = "/home/priyankan/Desktop/FYP-Puma_560/DNN_test/Data/Trajectory/path_602_trajectories.csv"
+args = parse_args()
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+CSV_INPUT_PATH = os.path.join(script_dir, "Data", "Trajectory", f"path_{args.id:03d}_trajectories.csv")
 
 # --- Auto-generate output path ---
-output_dir = "Data"
-base_filename = os.path.basename(CSV_INPUT_PATH)
-name, ext = os.path.splitext(base_filename)
-name_out = name.replace("_trajectories", "_joint_states")
-CSV_OUTPUT_PATH = os.path.join(output_dir, f"{name_out}{ext}")
+if args.output:
+    CSV_OUTPUT_PATH = args.output
+else:
+    output_dir = "Data"
+    base_filename = os.path.basename(CSV_INPUT_PATH)
+    name, ext = os.path.splitext(base_filename)
+    name_out = name.replace("_trajectories", "_joint_states")
+    CSV_OUTPUT_PATH = os.path.join(output_dir, f"{name_out}{ext}")
 
 # Paths to your trained models (from residual_training.py)
 DELAN_MODEL_PATH = "fyp_jax_delan_50.jax"

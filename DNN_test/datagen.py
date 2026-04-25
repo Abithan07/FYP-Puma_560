@@ -5,7 +5,7 @@ import os
 
 # ---------------- USER INPUT ----------------
 dt = 0.01
-possible_T = np.arange(8, 21, 4)
+possible_T = np.arange(12, 25, 4)
 v_max = 2
 a_max = 7
 
@@ -28,6 +28,7 @@ xyz_dir   = os.path.join(base_dir, "XYZ")
 traj_dir  = os.path.join(base_dir, "Trajectory")
 
 summary_file = os.path.join(summary_dir, "summary.csv")
+summary_deg_file = os.path.join(summary_dir, "summary_deg.csv")
 
 for d in [angle_dir, xyz_dir, traj_dir]:
     os.makedirs(d, exist_ok=True)
@@ -134,4 +135,13 @@ df.to_csv(traj_file, index=False, header=False)
 summary = np.vstack([summary, candidate])
 pd.DataFrame(summary).to_csv(summary_file, index=False, header=False)
 
+# Keep a derived file where columns 1-3 are converted to degrees.
+# This is refreshed every time summary.csv is updated.
+summary_deg = summary.copy()
+summary_deg[:, :3] = np.degrees(summary_deg[:, :3])
+pd.DataFrame(summary_deg).to_csv(summary_deg_file, index=False, header=False)
+
 print(f"Trajectory {path_id} generated and saved.")
+print(f"Start (deg): {np.degrees(q_start)}")
+print(f"End   (deg): {np.degrees(q_end)}")
+print(f"T_total (s): {T_total:.4f}")
