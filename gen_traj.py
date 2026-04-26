@@ -5,7 +5,7 @@ import argparse
 
 # ===================== SETTINGS =====================
 
-dt = 0.001
+dt = 0.01
 possible_T = np.arange(12, 25, 4)
 
 v_max = 2
