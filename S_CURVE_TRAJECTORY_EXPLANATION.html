@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>S-Curve (Minimum-Jerk) Derivation</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #132033;
+      --muted: #4b607a;
+      --accent: #1f6feb;
+      --border: #d9e2ef;
+      --code-bg: #f1f5fb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at top right, #e8f0ff, var(--bg) 42%);
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 980px;
+      margin: 32px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 10px 28px rgba(19, 32, 51, 0.08);
+    }
+
+    h1, h2, h3 {
+      line-height: 1.25;
+      margin-top: 1.3em;
+      margin-bottom: 0.5em;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.9rem;
+      color: #0f2a4a;
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      color: #12345a;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 6px;
+    }
+
+    h3 {
+      font-size: 1.1rem;
+      color: #1a4575;
+    }
+
+    p {
+      margin: 0.7em 0;
+    }
+
+    ul, ol {
+      margin-top: 0.4em;
+      margin-bottom: 0.8em;
+    }
+
+    li {
+      margin-bottom: 0.35em;
+    }
+
+    code {
+      font-family: Consolas, Monaco, "Courier New", monospace;
+      background: var(--code-bg);
+      border: 1px solid #e3eaf5;
+      border-radius: 6px;
+      padding: 0.1em 0.35em;
+      font-size: 0.95em;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .note {
+      border-left: 4px solid var(--accent);
+      background: #f3f8ff;
+      padding: 10px 12px;
+      border-radius: 8px;
+    }
+  </style>
+
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+</head>
+<body>
+  <main class="container">
+    <article class="card">
+      <h1>S-Curve (Minimum-Jerk) Derivation</h1>
+
+      <p>
+        This note explains exactly how the trajectory profile in is derived,
+        including where the coefficients come from and how they are used for each generated trajectory.
+      </p>
+
+      <h2>1. Problem Setup Per Trajectory</h2>
+
+      <p>For each trajectory, the code samples a target joint vector:</p>
+      <p>$$
+        q_{end} = [q_{1,end}, q_{2,end}, q_{3,end}]^T
+      $$</p>
+
+      <p>with fixed start point:</p>
+      <p>$$
+        q_{start} = [q_{1,start}, q_{2,start}, q_{3,start}]^T
+      $$</p>
+
+      <p>Define displacement per joint:</p>
+      <p>$$
+        \Delta q_j = q_{j,end} - q_{j,start}
+      $$</p>
+
+      <p>
+        Then all joints follow the same normalized scalar profile $f(t)$, scaled by each joint's displacement.
+      </p>
+
+      <h2>2. Why a 5th-Order Polynomial?</h2>
+
+      <p>A rest-to-rest smooth motion requires these 6 boundary constraints:</p>
+      <ul>
+        <li>Position at start and end.</li>
+        <li>Velocity at start and end equals zero.</li>
+        <li>Acceleration at start and end equals zero.</li>
+      </ul>
+
+      <p>
+        So we need at least 6 polynomial coefficients, which means degree 5:
+      </p>
+      <p>$$
+        f(\tau) = a_0 + a_1\tau + a_2\tau^2 + a_3\tau^3 + a_4\tau^4 + a_5\tau^5,
+        \quad \tau = \frac{t}{T}
+      $$</p>
+
+      <p>Boundary conditions in normalized form:</p>
+      <p>$$
+        f(0)=0,\; f(1)=1,\; f'(0)=0,\; f'(1)=0,\; f''(0)=0,\; f''(1)=0
+      $$</p>
+
+      <p>From conditions at $\tau=0$:</p>
+      <p>$$
+        a_0=0,\; a_1=0,\; a_2=0
+      $$</p>
+
+      <p>So:</p>
+      <p>$$
+        f(\tau)=a_3\tau^3+a_4\tau^4+a_5\tau^5
+      $$</p>
+
+      <p>Apply end conditions at $\tau=1$:</p>
+      <p>$$ a_3 + a_4 + a_5 = 1 $$</p>
+      <p>$$ 3a_3 + 4a_4 + 5a_5 = 0 $$</p>
+      <p>$$ 6a_3 + 12a_4 + 20a_5 = 0 $$</p>
+
+      <p>Solving gives:</p>
+      <p>$$
+        a_3=10,\quad a_4=-15,\quad a_5=6
+      $$</p>
+
+      <p>Therefore:</p>
+      <p>$$
+        \boxed{f(\tau)=10\tau^3-15\tau^4+6\tau^5}
+      $$</p>
+
+      <p>These are the exact coefficients used in code.</p>
+
+      <h2>3. Time Derivatives and Code Formulas</h2>
+
+      <p>In <code>min_jerk(t, T)</code>:</p>
+      <p>$$
+        \tau=\frac{t}{T}
+      $$</p>
+
+      <h3>Position profile</h3>
+      <p>$$
+        f(\tau)=10\tau^3-15\tau^4+6\tau^5
+      $$</p>
+
+      <h3>Velocity profile</h3>
+      <p>Differentiate with chain rule $\frac{d}{dt}=\frac{1}{T}\frac{d}{d\tau}$:</p>
+      <p>$$
+        \dot f(t)=\frac{30\tau^2-60\tau^3+30\tau^4}{T}
+      $$</p>
+
+      <h3>Acceleration profile</h3>
+      <p>$$
+        \ddot f(t)=\frac{60\tau-180\tau^2+120\tau^3}{T^2}
+      $$</p>
+
+      <p>These match the script exactly:</p>
+      <ul>
+        <li><code>f = 10*tau**3 - 15*tau**4 + 6*tau**5</code></li>
+        <li><code>fd = (30*tau**2 - 60*tau**3 + 30*tau**4) / T</code></li>
+        <li><code>fdd = (60*tau - 180*tau**2 + 120*tau**3) / T**2</code></li>
+      </ul>
+
+      <h2>4. Derivation of the Constants 1.875 and 5.77</h2>
+
+      <p>The timing constraints in code use:</p>
+      <ul>
+        <li><code>1.875</code> for velocity bound.</li>
+        <li><code>5.77</code> for acceleration bound.</li>
+      </ul>
+
+      <p>These come from maxima of normalized derivatives.</p>
+
+      <h3>4.1 Velocity constant (1.875)</h3>
+
+      <p>Normalized velocity shape:</p>
+      <p>$$
+        g(\tau)=30\tau^2-60\tau^3+30\tau^4
+      $$</p>
+
+      <p>Its maximum occurs at $\tau=0.5$ (symmetry or by setting derivative to zero), giving:</p>
+      <p>$$
+        g(0.5)=30(0.25)-60(0.125)+30(0.0625)=1.875
+      $$</p>
+
+      <p>Hence:</p>
+      <p>$$
+        \max |\dot f| = \frac{1.875}{T}
+      $$</p>
+
+      <p>So per joint:</p>
+      <p>$$
+        \max|\dot q_j| = \frac{1.875\,|\Delta q_j|}{T}
+      $$</p>
+
+      <p>which yields the code bound:</p>
+      <p>$$
+        T \ge \frac{1.875\,|\Delta q_j|}{v_{max}}
+      $$</p>
+
+      <p>and across joints:</p>
+      <p>$$
+        T_{vel}=\max_j\left(\frac{1.875\,|\Delta q_j|}{v_{max}}\right)
+      $$</p>
+
+      <h3>4.2 Acceleration constant (5.77)</h3>
+
+      <p>Normalized acceleration shape:</p>
+      <p>$$
+        h(\tau)=60\tau-180\tau^2+120\tau^3
+      $$</p>
+
+      <p>Set derivative to zero:</p>
+      <p>$$ h'(\tau)=60-360\tau+360\tau^2=0 $$</p>
+      <p>$$
+        6\tau^2-6\tau+1=0
+        \Rightarrow
+        \tau=\frac{3\pm\sqrt3}{6}
+      $$</p>
+
+      <p>At those points, the peak magnitude is:</p>
+      <p>$$
+        \max |h(\tau)| = \frac{10}{\sqrt3} \approx 5.7735
+      $$</p>
+
+      <p>So:</p>
+      <p>$$
+        \max |\ddot f| = \frac{5.7735}{T^2} \approx \frac{5.77}{T^2}
+      $$</p>
+
+      <p>and per joint:</p>
+      <p>$$
+        \max|\ddot q_j| = \frac{5.77\,|\Delta q_j|}{T^2}
+      $$</p>
+
+      <p>Thus:</p>
+      <p>$$
+        T \ge \sqrt{\frac{5.77\,|\Delta q_j|}{a_{max}}},
+        \quad
+        T_{acc}=\max_j\sqrt{\frac{5.77\,|\Delta q_j|}{a_{max}}}
+      $$</p>
+
+      <h2>5. Final Trajectory Equations Used for Each Path</h2>
+
+      <p>For each sampled endpoint and selected $T_{total}$:</p>
+      <p>$$ q_j(t)=q_{j,start}+f(t)\,\Delta q_j $$</p>
+      <p>$$ \dot q_j(t)=\dot f(t)\,\Delta q_j $$</p>
+      <p>$$ \ddot q_j(t)=\ddot f(t)\,\Delta q_j $$</p>
+
+      <p>Vector form (matching <code>np.outer</code> implementation):</p>
+      <p>$$ q(t)=q_{start}+f(t)\,\Delta q $$</p>
+      <p>$$ \dot q(t)=\dot f(t)\,\Delta q $$</p>
+      <p>$$ \ddot q(t)=\ddot f(t)\,\Delta q $$</p>
+
+      <p>where $\Delta q = q_{end}-q_{start}$.</p>
+
+      <h2>6. How This Maps to <code>gen_traj.py</code></h2>
+
+      <p>Per generated trajectory:</p>
+      <ol>
+        <li>Sample <code>q_end</code> within joint limits.</li>
+        <li>Compute $\Delta q = |q_{end}-q_{start}|$ for timing constraints.</li>
+        <li>Compute <code>T_vel</code> and <code>T_acc</code> from the derived constants.</li>
+        <li>Set <code>T_min = max(T_vel, T_acc)</code>.</li>
+        <li>Sample <code>T_rand</code> from <code>{12, 16, 20, 24}</code> and set <code>T_total = max(T_min, T_rand)</code>.</li>
+        <li>Build <code>t = np.arange(0, T_total + dt, dt)</code>.</li>
+        <li>Evaluate <code>f, fd, fdd = min_jerk(t, T_total)</code>.</li>
+        <li>Scale by signed displacement <code>dq = q_end - q_start</code> to produce <code>q</code>, <code>qd</code>, <code>qdd</code>.</li>
+      </ol>
+
+      <p class="note">
+        That is why every trajectory has the same polynomial coefficients, but different shape in joint space due to different
+        $\Delta q$ and $T_{total}$.
+      </p>
+
+      <p class="muted">Generated from the Markdown derivation for browser viewing with equation rendering.</p>
+    </article>
+  </main>
+</body>
+</html>

@@ -91,6 +91,11 @@ Every 10 ms (100 Hz):
 
 ## Quick Start
 
+### For the first run the following first in each terminal
+```bash
+cd ~/Desktop/FYP-Puma_560/arm_bot && colcon build --packages-select arm_bot && source install/setup.bash
+```
+
 ```bash
 # Terminal 1 — Gazebo
 cd ~/Desktop/FYP-Puma_560/arm_bot && source install/setup.bash
@@ -99,11 +104,15 @@ ros2 launch arm_bot gazebo.launch.py
 # Terminal 2 — DNN controller
 cd ~/Desktop/FYP-Puma_560/arm_bot && source install/setup.bash
 ros2 run arm_bot torque_publisher_dnn.py \
-  --csv-path src/scripts/script_resources/path_461_trajectory.csv
+  --csv-path src/scripts/Joint_states/path_462_joint_states.csv
 
 # Terminal 3 — Analyse after run
 python3 src/scripts/analyze_dnn_performance.py \
   src/scripts/logs/path_461_joint_states_dnn_log_1.csv --summary
+
+# or
+python3 src/scripts/analyze_dnn_performance.py \
+  src/scripts/logs/path_461_joint_states_dnn_log_1.csv --plots
 ```
 
 ---
