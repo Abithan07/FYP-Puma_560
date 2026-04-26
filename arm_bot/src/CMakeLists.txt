@@ -38,6 +38,15 @@ install(
 )
 
 install(
+  PROGRAMS
+    scripts/torque_publisher_ctc.py
+    scripts/inverse_dynamics_model.py
+    scripts/analyze_ctc_performance.py
+    scripts/continuous_logger_triggered.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
   PROGRAMS launch/line_drawer.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME line_drawer
