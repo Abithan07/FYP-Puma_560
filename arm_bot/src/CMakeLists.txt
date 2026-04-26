@@ -40,6 +40,8 @@ install(
 install(
   PROGRAMS
     scripts/torque_publisher_ctc.py
+    scripts/torque_publisher_dnn.py
+    scripts/analyze_dnn_performance.py
     scripts/inverse_dynamics_model.py
     scripts/analyze_ctc_performance.py
     scripts/continuous_logger_triggered.py

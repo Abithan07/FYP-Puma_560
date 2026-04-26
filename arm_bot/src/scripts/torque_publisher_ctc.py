@@ -166,11 +166,14 @@ class TorquePublisher(Node):
             f'({self.skip_stabilization_threshold_rad:.6f} rad)'
         )
 
+    # Fixed directory for all trajectories and logs
+    LOGS_DIR = '/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs'
+
     @staticmethod
     def _build_incremental_log_path(csv_path: str) -> str:
-        """Generate path_<id>_trajectory_ctc_log_<run>.csv in trajectory directory."""
+        """Generate <trajectory_name>_ctc_log_<run>.csv in the fixed logs directory."""
         csv_path_expanded = os.path.expanduser(csv_path)
-        base_dir = os.path.dirname(csv_path_expanded) or '.'
+        base_dir = TorquePublisher.LOGS_DIR
         os.makedirs(base_dir, exist_ok=True)
 
         trajectory_name = os.path.splitext(os.path.basename(csv_path_expanded))[0]
@@ -281,6 +284,68 @@ class TorquePublisher(Node):
         self.marker_pub.publish(marker)
         self.get_logger().info(f'Published expected end-effector path ({len(marker.points)} points)')
     
+    @staticmethod
+    def generate_and_save_trajectory(q_start, q_end, save_path,
+                                     dt=0.01, v_max=2.0, a_max=7.0,
+                                     possible_T=None):
+        """Generate a minimum-jerk trajectory from q_start to q_end and save as a CTC-compatible CSV.
+
+        Returns (save_path, T_total).
+        """
+        if possible_T is None:
+            possible_T = np.arange(12, 25, 5)  # [12, 17, 22] seconds
+
+        q_start = np.array(q_start, dtype=float)
+        q_end   = np.array(q_end,   dtype=float)
+        dq_abs  = np.abs(q_end - q_start)
+
+        # Kinematic lower bound on duration
+        T_vel = float(np.max(1.875 * dq_abs / v_max))
+        T_acc = float(np.max(np.sqrt(5.77 * dq_abs / a_max)))
+        T_min = max(T_vel, T_acc)
+
+        T_rand  = float(np.random.choice(possible_T))
+        T_total = max(T_min, T_rand)
+
+        t   = np.arange(0, T_total + dt, dt)
+        tau = t / T_total
+
+        # Minimum-jerk profile
+        f   = 10*tau**3 - 15*tau**4 + 6*tau**5
+        fd  = (30*tau**2 - 60*tau**3 + 30*tau**4) / T_total
+        fdd = (60*tau    - 180*tau**2 + 120*tau**3) / T_total**2
+
+        dq_vec = q_end - q_start
+        q   = q_start + np.outer(f,   dq_vec)
+        qd  =           np.outer(fd,  dq_vec)
+        qdd =           np.outer(fdd, dq_vec)
+
+        traj = np.vstack([
+            t,
+            q[:, 0],  q[:, 1],  q[:, 2],
+            qd[:, 0], qd[:, 1], qd[:, 2],
+            qdd[:, 0],qdd[:, 1],qdd[:, 2],
+        ])
+
+        labels = np.array(
+            ["t", "dp1", "dp2", "dp3", "dv1", "dv2", "dv3", "da1", "da2", "da3"]
+        ).reshape(-1, 1)
+
+        traj_str = []
+        for i, row in enumerate(traj):
+            fmt = '%.3f' if i == 0 else '%.8f'
+            traj_str.append(np.char.mod(fmt, row))
+        traj_str = np.array(traj_str)
+
+        os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+        np.savetxt(
+            save_path,
+            np.hstack((labels, traj_str)),
+            delimiter=",",
+            fmt="%s",
+        )
+        return save_path, T_total
+
     def load_trajectory_data(self):
         """Load trajectory data from CSV file (executed once at startup)"""
         data = {}
@@ -925,8 +990,50 @@ def main(args=None):
         default=None,
         help='Output path for log CSV file'
     )
+    parser.add_argument(
+        '--q-end',
+        type=float,
+        nargs=3,
+        default=None,
+        metavar=('Q1_DEG', 'Q2_DEG', 'Q3_DEG'),
+        help=(
+            'End joint positions in degrees [q1, q2, q3]. '
+            'Generates a min-jerk trajectory on the fly and saves it before running CTC. '
+            'Mutually exclusive with --csv-path.'
+        ),
+    )
+    parser.add_argument(
+        '--q-start',
+        type=float,
+        nargs=3,
+        default=[0.0, 45.0, 135.0],
+        metavar=('Q1_DEG', 'Q2_DEG', 'Q3_DEG'),
+        help='Start joint positions in degrees for on-the-fly generation (default: 0 45 135)',
+    )
     parsed_args = parser.parse_args()
-    
+
+    # --- On-the-fly trajectory generation from end-point ---
+    if parsed_args.q_end is not None:
+        if parsed_args.csv_path is not None:
+            print('Error: --q-end and --csv-path are mutually exclusive.', file=sys.stderr)
+            sys.exit(1)
+
+        q_start_rad = np.deg2rad(parsed_args.q_start)
+        q_end_rad   = np.deg2rad(parsed_args.q_end)
+
+        save_dir = TorquePublisher.LOGS_DIR
+        os.makedirs(save_dir, exist_ok=True)
+
+        q_tag = '_'.join(f'{v:.1f}' for v in parsed_args.q_end)
+        save_path = os.path.join(save_dir, f'gen_traj_qend_{q_tag}.csv')
+
+        print(f'Generating min-jerk trajectory: q_start={parsed_args.q_start} deg -> q_end={parsed_args.q_end} deg')
+        _, T_total = TorquePublisher.generate_and_save_trajectory(
+            q_start_rad, q_end_rad, save_path
+        )
+        print(f'Trajectory saved ({T_total:.2f}s): {save_path}')
+        parsed_args.csv_path = save_path
+
     rclpy.init(args=args)
     node = TorquePublisher(
         csv_path=parsed_args.csv_path,

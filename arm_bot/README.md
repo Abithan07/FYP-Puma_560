@@ -29,6 +29,7 @@ ros2 launch arm_bot robot_gui.launch.py
 
 python3 /home/abithan_ubuntu/ros2_ws2/arm_bot/scripts/torque_publisher.py
 
+colcon build && source install/setup.bash && ros2 launch arm_bot robot_gui.launch.py
 # run for a single indexed file (zero-padded)
 ./src/scripts/dataset_generator.sh 1
 
