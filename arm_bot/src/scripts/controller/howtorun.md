@@ -1,5 +1,22 @@
-python3 src/scripts/controller/dnn_controller.py --target 0 45 90 --delan-model /path/to/fyp_jax_delan_50.jax --gru-model /path/to/best_GRUResidual.pt --scaler /path/to/feature_scaler.pkl
+# Option 1: From the dnn_controller directory
+## Terminal at 
+```
+cd /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/dnn_controller
+```
+python3 dnn_controller.py --target 150 0 90 \
+  --delan-model /home/priyankan/Desktop/FYP-Puma_560/DNN_test/fyp_jax_delan_50.jax \
+  --gru-model /home/priyankan/Desktop/FYP-Puma_560/DNN_test/best_GRUResidual.pt \
+  --scaler /home/priyankan/Desktop/FYP-Puma_560/DNN_test/feature_scaler.pkl
+
+# Option 2: From arm_bot directory with module syntax
+```
+cd /home/priyankan/Desktop/FYP-Puma_560/arm_bot 
+```
+python3 -m src.scripts.controller.dnn_controller.dnn_controller --target 150 0 90 \
+  --delan-model /home/priyankan/Desktop/FYP-Puma_560/DNN_test/fyp_jax_delan_50.jax \
+  --gru-model /home/priyankan/Desktop/FYP-Puma_560/DNN_test/best_GRUResidual.pt \
+  --scaler /home/priyankan/Desktop/FYP-Puma_560/DNN_test/feature_scaler.pkl
 
 
-python3 /data/ros2/ros2_ws2/arm_bot/src/scripts/controller/pid_controller/pid_controller.py \
-  --target 150 0 90
+python3 src/scripts/controller/pid_controller/pid_controller.py --target 150 0 90
+

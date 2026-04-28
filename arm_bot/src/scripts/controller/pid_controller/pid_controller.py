@@ -44,7 +44,7 @@ class PIDTorqueController(Node):
         self.ki = np.array(ki if ki is not None else [5.0, 25.0, 20.0], dtype=np.float64)
         self.kd = np.array(kd if kd is not None else [12.0, 35.0, 10.0], dtype=np.float64)
         self.torque_limits = np.array(
-            torque_limits if torque_limits is not None else [100.0, 100.0, 50.0],
+            torque_limits if torque_limits is not None else [2.0, 45.0, 10.0],
             dtype=np.float64,
         )
 
