@@ -56,13 +56,12 @@ class DNNTorqueController(Node):
         self.n_points = 0
         self.current_idx = 0
 
-        # logging (buffer in memory; write on shutdown)
+        # logging (row-wise format; write on shutdown)
         os.makedirs(self.LOGS_DIR, exist_ok=True)
-        self.log_rows = []
-        self.log_header = ['t', 'q_des_1','q_des_2','q_des_3','qd_des_1','qd_des_2','qd_des_3',
-                           'qdd_des_1','qdd_des_2','qdd_des_3','q_act_1','q_act_2','q_act_3',
-                           'qd_act_1','qd_act_2','qd_act_3','tau_delan_1','tau_delan_2','tau_delan_3',
-                           'tau_dnn_1','tau_dnn_2','tau_dnn_3','tau_fb_1','tau_fb_2','tau_fb_3','tau_total_1','tau_total_2','tau_total_3','gru_active']
+        self.log_t = []; self.log_dp1 = []; self.log_dp2 = []; self.log_dp3 = []
+        self.log_dv1 = []; self.log_dv2 = []; self.log_dv3 = []
+        self.log_da1 = []; self.log_da2 = []; self.log_da3 = []
+        self.log_tau1 = []; self.log_tau2 = []; self.log_tau3 = []
 
         self.msg1 = Float64MultiArray(); self.msg2 = Float64MultiArray(); self.msg3 = Float64MultiArray()
 
@@ -134,21 +133,27 @@ class DNNTorqueController(Node):
         self.msg1.data = [float(tau_total[0])]; self.msg2.data=[float(tau_total[1])]; self.msg3.data=[float(tau_total[2])]
         self.pub1.publish(self.msg1); self.pub2.publish(self.msg2); self.pub3.publish(self.msg3)
 
-        # buffer log row
-        row = [f'{self.t[self.current_idx]:.3f}', *[f'{v:.8f}' for v in q_des], *[f'{v:.8f}' for v in qd_des], *[f'{v:.8f}' for v in qdd_des], *[f'{v:.8f}' for v in self.current_joint_pos], *[f'{v:.8f}' for v in self.current_joint_vel], *[f'{v:.8f}' for v in tau_delan], *[f'{v:.8f}' for v in tau_dnn], *[f'{v:.8f}' for v in tau_fb], *[f'{v:.8f}' for v in tau_total], '1' if gru_active else '0']
-        self.log_rows.append(row)
+        # buffer log values (row-wise format)
+        self.log_t.append(f'{self.t[self.current_idx]:.3f}')
+        self.log_dp1.append(f'{q_des[0]:.8f}'); self.log_dp2.append(f'{q_des[1]:.8f}'); self.log_dp3.append(f'{q_des[2]:.8f}')
+        self.log_dv1.append(f'{qd_des[0]:.8f}'); self.log_dv2.append(f'{qd_des[1]:.8f}'); self.log_dv3.append(f'{qd_des[2]:.8f}')
+        self.log_da1.append(f'{qdd_des[0]:.8f}'); self.log_da2.append(f'{qdd_des[1]:.8f}'); self.log_da3.append(f'{qdd_des[2]:.8f}')
+        self.log_tau1.append(f'{tau_total[0]:.8f}'); self.log_tau2.append(f'{tau_total[1]:.8f}'); self.log_tau3.append(f'{tau_total[2]:.8f}')
 
         self.current_idx += 1
 
     def save_log_on_shutdown(self):
-        # write entire buffer to file
+        # write log file in row-wise format (each row is one variable)
         try:
             name = f'traj_log_{int(time.time())}.csv'
             path = os.path.join(self.LOGS_DIR, name)
             with open(path, 'w', newline='') as f:
                 w = csv.writer(f)
-                w.writerow(self.log_header)
-                w.writerows(self.log_rows)
+                w.writerow(['t'] + self.log_t)
+                w.writerow(['dp1'] + self.log_dp1); w.writerow(['dp2'] + self.log_dp2); w.writerow(['dp3'] + self.log_dp3)
+                w.writerow(['dv1'] + self.log_dv1); w.writerow(['dv2'] + self.log_dv2); w.writerow(['dv3'] + self.log_dv3)
+                w.writerow(['da1'] + self.log_da1); w.writerow(['da2'] + self.log_da2); w.writerow(['da3'] + self.log_da3)
+                w.writerow(['tau1'] + self.log_tau1); w.writerow(['tau2'] + self.log_tau2); w.writerow(['tau3'] + self.log_tau3)
             self.get_logger().info(f'✓ Log saved: {path}')
         except Exception as e:
             self.get_logger().error(f'Failed to save log: {e}')
@@ -183,8 +188,11 @@ def main():
     finally:
         # on termination, save log and publish zeros
         node.save_log_on_shutdown()
-        zero = Float64MultiArray(); zero.data=[0.0]
-        node.pub1.publish(zero); node.pub2.publish(zero); node.pub3.publish(zero)
+        try:
+            zero = Float64MultiArray(); zero.data=[0.0]
+            node.pub1.publish(zero); node.pub2.publish(zero); node.pub3.publish(zero)
+        except Exception:
+            pass
         node.destroy_node(); rclpy.shutdown()
 
 if __name__ == '__main__':
