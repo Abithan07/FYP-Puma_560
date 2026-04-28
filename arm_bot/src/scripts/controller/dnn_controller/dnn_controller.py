@@ -5,6 +5,12 @@ with `dnn_predictor.DNNInferenceEngine`.
 
 Usage: ros2 run ... or run directly with --target 0 45 90 (degrees)
 """
+import sys
+import os
+
+# Add current directory to path to allow direct execution
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import Float64MultiArray, Bool
@@ -13,10 +19,15 @@ from geometry_msgs.msg import Point
 from sensor_msgs.msg import JointState
 from std_srvs.srv import Trigger
 import numpy as np
-import argparse, os, math, time, csv
+import argparse, math, time, csv
 
-from scripts.controller.dnn_controller.path_planner import generate_min_jerk_trajectory
-from scripts.controller.dnn_controller.dnn_predictor import DNNInferenceEngine
+try:
+    from .path_planner import generate_min_jerk_trajectory
+    from .dnn_predictor import DNNInferenceEngine
+except ImportError:
+    # Fallback for direct execution
+    from path_planner import generate_min_jerk_trajectory
+    from dnn_predictor import DNNInferenceEngine
 
 
 class DNNTorqueController(Node):
