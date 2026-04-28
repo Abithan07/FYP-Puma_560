@@ -15,8 +15,8 @@ from std_srvs.srv import Trigger
 import numpy as np
 import argparse, os, math, time, csv
 
-from path_planner import generate_min_jerk_trajectory
-from dnn_predictor import DNNInferenceEngine
+from scripts.controller.dnn_controller.path_planner import generate_min_jerk_trajectory
+from scripts.controller.dnn_controller.dnn_predictor import DNNInferenceEngine
 
 
 class DNNTorqueController(Node):

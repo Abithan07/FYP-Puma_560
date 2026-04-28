@@ -10,6 +10,8 @@ scripts/joint_states_dof/
 scripts/plots_dof/
 scripts/joint_states_2dof/
 scripts/plots_2dof/
+scripts/controller/*/__pycache__/
+scripts/controller/*/logs/
 
 trajectory comparison plots/
 
