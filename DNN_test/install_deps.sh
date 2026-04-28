@@ -45,6 +45,7 @@ pip install --user torch==2.1.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
 # Haiku separately (needs --no-deps)
+pip install --user tabulate
 pip install --user dm-haiku==0.0.16 --no-deps
 
 echo "====================================="

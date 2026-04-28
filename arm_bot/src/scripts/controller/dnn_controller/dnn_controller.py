@@ -26,9 +26,19 @@ class DNNTorqueController(Node):
         super().__init__('dnn_torque_controller')
         self.target = np.array(target_rad)
         self.dt = dt
+        
+        # Trajectory execution gains (Kp, Kd, Ki)
         self.kp = np.array([5.0, 20.0, 10.0])
         self.kd = np.array([1.0, 3.0, 2.0])
+        self.ki = np.array([0.05, 0.2, 0.1])
+        
+        # Stabilization gains (higher for reaching start position)
+        self.kp_stab = np.array([50.0, 200.0, 150.0])
+        self.ki_stab = np.array([5.0, 25.0, 20.0])
+        self.kd_stab = np.array([12.0, 35.0, 10.0])
+        
         self.torque_limits = np.array([100.0, 100.0, 60.0])
+        self.vel_filter_alpha = 0.25  # velocity low-pass filter
 
         # pubs
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
@@ -42,7 +52,9 @@ class DNNTorqueController(Node):
         # state
         self.current_joint_pos = np.zeros(3)
         self.current_joint_vel = np.zeros(3)
+        self.filtered_joint_vel = np.zeros(3)
         self.joint_states_received = False
+        self.traj_integral_error = np.zeros(3)
 
         # planner + predictor
         self.dnn = DNNInferenceEngine(delan, gru, scaler)
@@ -72,7 +84,10 @@ class DNNTorqueController(Node):
             i3 = msg.name.index('joint_3')
             self.current_joint_pos = np.array([msg.position[i1], msg.position[i2], msg.position[i3]])
             if len(msg.velocity) >= 3:
-                self.current_joint_vel = np.array([msg.velocity[i1], msg.velocity[i2], msg.velocity[i3]])
+                raw_vel = np.array([msg.velocity[i1], msg.velocity[i2], msg.velocity[i3]])
+                # Low-pass filter velocity
+                a = self.vel_filter_alpha
+                self.filtered_joint_vel = (1.0 - a) * self.filtered_joint_vel + a * raw_vel
             self.joint_states_received = True
         except ValueError:
             pass
@@ -93,25 +108,28 @@ class DNNTorqueController(Node):
         self.marker_pub.publish(mk)
 
     def plan_and_start(self):
-        # compute time horizon heuristics based on delta
+        """Plan trajectory and start execution directly."""
         dq = np.abs(self.target - self.current_joint_pos)
         v_max = 2.0; a_max = 7.0
         T_vel = np.max(1.875 * dq / v_max)
         T_acc = np.max(np.sqrt(5.77 * dq / a_max))
         T_min = max(T_vel, T_acc, 0.5)
-        # pick a comfortable total time
-        T_total = max(T_min, 2.0)
-        self.t, self.q, self.qd, self.qdd, self.xyz = generate_min_jerk_trajectory(self.current_joint_pos, self.target, T_total, self.dt)
+        # Use longer, more conservative trajectory (min 3.0s)
+        T_total = max(T_min * 1.5, 3.0)
+        
+        self.get_logger().info(f'Planning trajectory: dq={np.degrees(dq).tolist()} deg, T_total={T_total:.2f}s')
+        self.t, self.q, self.qd, self.qdd, self.xyz = generate_min_jerk_trajectory(
+            self.current_joint_pos, self.target, T_total, self.dt)
         self.n_points = len(self.t)
         self.current_idx = 0
         self.publish_expected_path_marker()
-
-        # start timer
-        self.timer = self.create_timer(self.dt, self.trajectory_cb)
+        
+        # Start trajectory execution directly
+        self.start_trajectory_execution()
 
     def trajectory_cb(self):
         if self.current_idx >= self.n_points:
-            # hold at final position (publish zero velocity torques) and stop timer
+            # hold at final position and stop timer
             if hasattr(self, 'timer'):
                 self.timer.cancel()
             return
@@ -126,8 +144,15 @@ class DNNTorqueController(Node):
             tau_dnn = tau_delan = np.zeros(3); gru_active = False
 
         e_pos = q_des - self.current_joint_pos
-        e_vel = qd_des - self.current_joint_vel
-        tau_fb = self.kp * e_pos + self.kd * e_vel
+        e_vel = qd_des - self.filtered_joint_vel
+        
+        # PD + I feedback control
+        self.traj_integral_error += e_pos * self.dt
+        self.traj_integral_error = np.clip(
+            self.traj_integral_error,
+            -np.array([0.3, 0.5, 0.5]), np.array([0.3, 0.5, 0.5]))
+        
+        tau_fb = self.kp * e_pos + self.kd * e_vel + self.ki * self.traj_integral_error
         tau_total = np.clip(tau_dnn + tau_fb, -self.torque_limits, self.torque_limits)
 
         self.msg1.data = [float(tau_total[0])]; self.msg2.data=[float(tau_total[1])]; self.msg3.data=[float(tau_total[2])]
@@ -140,7 +165,26 @@ class DNNTorqueController(Node):
         self.log_da1.append(f'{qdd_des[0]:.8f}'); self.log_da2.append(f'{qdd_des[1]:.8f}'); self.log_da3.append(f'{qdd_des[2]:.8f}')
         self.log_tau1.append(f'{tau_total[0]:.8f}'); self.log_tau2.append(f'{tau_total[1]:.8f}'); self.log_tau3.append(f'{tau_total[2]:.8f}')
 
+        if self.current_idx % 50 == 0 and self.current_idx < self.n_points:
+            max_err_deg = math.degrees(np.max(np.abs(e_pos)))
+            self.get_logger().info(
+                f't={self.t[self.current_idx]:.1f}s | '
+                f'idx={self.current_idx}/{self.n_points} | '
+                f'τ=[{tau_total[0]:.1f},{tau_total[1]:.1f},{tau_total[2]:.1f}] Nm | '
+                f'err={max_err_deg:.2f}°')
+
         self.current_idx += 1
+
+    def start_trajectory_execution(self):
+        """Start trajectory execution with DNN + PD+I feedback."""
+        self.get_logger().info('=' * 80)
+        self.get_logger().info('TRAJECTORY EXECUTION (DNN + PD+I feedback)')
+        self.get_logger().info('=' * 80)
+        self.get_logger().info(f'{self.n_points} steps | dt={self.dt*1000:.1f}ms')
+        
+        self.current_idx = 0
+        self.traj_integral_error = np.zeros(3)
+        self.timer = self.create_timer(self.dt, self.trajectory_cb)
 
     def save_log_on_shutdown(self):
         # write log file in row-wise format (each row is one variable)
@@ -180,9 +224,19 @@ def main():
             node.get_logger().error('No joint states received, exiting')
             return
 
+        node.get_logger().info(
+            f'Current position: {np.degrees(node.current_joint_pos).tolist()} deg')
+        
+        # Plan and start (Phase 1: stabilization or skip, Phase 2: execution)
         node.plan_and_start()
+        
+        # Main spin loop: trajectory execution
         while rclpy.ok():
-            rclpy.spin_once(node, timeout_sec=0.1)
+            rclpy.spin_once(node, timeout_sec=0.01)
+            # Check if trajectory execution is done
+            if hasattr(node, 'timer') and node.current_idx >= node.n_points:
+                break
+                
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
     finally:
