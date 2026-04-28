@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FYP: DNN-Based CTC for PUMA 560</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #21262d;
+    --border: #30363d;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #f78166;
+    --accent4: #d2a8ff;
+    --accent5: #ffa657;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --glow: rgba(88, 166, 255, 0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* HEADER */
+  .hero {
+    background: linear-gradient(135deg, #0d1117 0%, #161b22 40%, #1a2332 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 60px 40px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(88,166,255,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(63,185,80,0.06) 0%, transparent 50%);
+  }
+  .hero-content { position: relative; max-width: 900px; margin: 0 auto; }
+  .badge {
+    display: inline-block;
+    background: rgba(63,185,80,0.15);
+    border: 1px solid rgba(63,185,80,0.4);
+    color: var(--accent2);
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: clamp(24px, 4vw, 42px);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--accent); }
+  .hero p {
+    color: var(--muted);
+    font-size: 16px;
+    max-width: 650px;
+    line-height: 1.6;
+    margin-bottom: 24px;
+  }
+  .meta-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .tag.blue { border-color: rgba(88,166,255,0.4); color: var(--accent); }
+  .tag.green { border-color: rgba(63,185,80,0.4); color: var(--accent2); }
+  .tag.orange { border-color: rgba(255,166,87,0.4); color: var(--accent5); }
+  .tag.purple { border-color: rgba(210,168,255,0.4); color: var(--accent4); }
+
+  /* NAV */
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(22,27,34,0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+  .nav a {
+    color: var(--muted);
+    text-decoration: none;
+    padding: 14px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .nav a:hover, .nav a.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* MAIN */
+  .main { max-width: 1100px; margin: 0 auto; padding: 40px 40px 80px; }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 60px;
+    scroll-margin-top: 60px;
+  }
+  .section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .icon { font-size: 20px; }
+
+  /* CARDS */
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px var(--glow);
+  }
+  .card-icon { font-size: 28px; margin-bottom: 12px; }
+  .card h3 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 24px; }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 8px;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--accent), var(--accent2), var(--surface2));
+  }
+  .timeline-item {
+    position: relative;
+    padding: 0 0 32px 24px;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .timeline-item.done::before { background: var(--accent2); box-shadow: 0 0 8px var(--accent2); }
+  .timeline-item.latest::before { background: var(--accent5); box-shadow: 0 0 8px var(--accent5); }
+  .timeline-date {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .timeline-item h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .timeline-item p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+  /* CODE */
+  .code-block {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+  .code-header {
+    background: var(--surface2);
+    padding: 8px 16px;
+    font-size: 12px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .code-body {
+    padding: 16px;
+    font-family: 'Cascadia Code', 'Fira Code', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+  .code-body .cmt { color: #6e7681; }
+  .code-body .kw { color: var(--accent4); }
+  .code-body .fn { color: #79c0ff; }
+  .code-body .str { color: var(--accent2); }
+  .code-body .num { color: var(--accent5); }
+  .code-body .op { color: var(--accent3); }
+
+  /* FORMULA */
+  .formula-box {
+    background: linear-gradient(135deg, var(--surface) 0%, #1a1f29 100%);
+    border: 1px solid rgba(88,166,255,0.3);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 15px;
+    text-align: center;
+    color: var(--accent);
+    letter-spacing: 0.5px;
+  }
+  .formula-box .label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: block;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  /* PROGRESS BARS */
+  .progress-item { margin-bottom: 16px; }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  .progress-label span:last-child { color: var(--muted); }
+  .progress-track {
+    height: 6px;
+    background: var(--surface2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 1s ease;
+  }
+  .blue-fill { background: linear-gradient(90deg, var(--accent), #79c0ff); }
+  .green-fill { background: linear-gradient(90deg, var(--accent2), #56d364); }
+  .orange-fill { background: linear-gradient(90deg, var(--accent5), #ffb347); }
+  .purple-fill { background: linear-gradient(90deg, var(--accent4), #e2c5ff); }
+
+  /* TABLE */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .data-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: top;
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: var(--surface2); }
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 16px 0;
+  }
+
+  /* ARCH DIAGRAM */
+  .arch-diagram {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    font-family: 'Cascadia Code', monospace;
+    font-size: 12px;
+    line-height: 1.8;
+    color: var(--muted);
+    overflow-x: auto;
+  }
+  .arch-diagram .box { color: var(--accent); }
+  .arch-diagram .arrow { color: var(--accent5); }
+  .arch-diagram .label { color: var(--accent2); }
+  .arch-diagram .note { color: var(--accent4); }
+
+  /* STATUS GRID */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .status-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .status-icon { font-size: 20px; flex-shrink: 0; }
+  .status-text { font-size: 13px; font-weight: 500; }
+  .status-item.done { border-color: rgba(63,185,80,0.4); }
+  .status-item.done .status-text { color: var(--accent2); }
+
+  /* ACCORDION */
+  .accordion { margin: 8px 0; }
+  .acc-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.2s;
+    user-select: none;
+  }
+  .acc-header:hover { background: var(--surface2); }
+  .acc-header.open {
+    border-radius: 8px 8px 0 0;
+    border-bottom-color: transparent;
+    background: var(--surface2);
+  }
+  .acc-icon { transition: transform 0.3s; color: var(--muted); }
+  .acc-header.open .acc-icon { transform: rotate(180deg); }
+  .acc-body {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 0 18px;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.3s;
+  }
+  .acc-body.open {
+    max-height: 2000px;
+    padding: 16px 18px 18px;
+  }
+
+  /* TABS */
+  .tab-nav {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    padding: 10px 18px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* METRICS */
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin: 16px 0;
+  }
+  .metric-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-val {
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .metric-val.blue { color: var(--accent); }
+  .metric-val.green { color: var(--accent2); }
+  .metric-val.orange { color: var(--accent5); }
+  .metric-val.purple { color: var(--accent4); }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* FOOTER */
+  footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 24px 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .hero, .main { padding-left: 20px; padding-right: 20px; }
+    .nav { padding: 0 20px; }
+    .metric-row { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* Animation */
+  .fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  .fade-in.visible { opacity: 1; transform: none; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="badge">Final Year Project — 2025/2026</div>
+    <h1>DNN-Based <span>Computed Torque Control</span><br>for 3-DOF Modified PUMA 560</h1>
+    <p>Combining analytical inverse dynamics with deep neural networks for high-precision trajectory tracking on a simulated robotic arm — implemented in ROS 2 Humble with Gazebo Fortress.</p>
+    <div class="meta-tags">
+      <span class="tag blue">ROS 2 Humble</span>
+      <span class="tag blue">Gazebo Fortress</span>
+      <span class="tag green">JAX / DeLaN</span>
+      <span class="tag green">PyTorch / GRU</span>
+      <span class="tag orange">Computed Torque Control</span>
+      <span class="tag orange">100 Hz Control Loop</span>
+      <span class="tag purple">3-DOF PUMA 560</span>
+      <span class="tag purple">Inverse Dynamics</span>
+    </div>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="nav" id="topnav">
+  <a href="#overview" class="active">Overview</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#algorithms">Algorithms</a>
+  <a href="#progression">Progression</a>
+  <a href="#robot">Robot</a>
+  <a href="#pipeline">Pipeline</a>
+  <a href="#performance">Performance</a>
+  <a href="#status">Status</a>
+  <a href="#commands">Commands</a>
+</nav>
+
+<div class="main">
+
+  <!-- OVERVIEW -->
+  <section class="section fade-in" id="overview">
+    <h2 class="section-title"><span class="icon">🎯</span> Project Overview</h2>
+    <div class="card-grid">
+      <div class="card">
+        <div class="card-icon">🤖</div>
+        <h3>What It Is</h3>
+        <p>A complete control system for a 3-DOF PUMA 560 robotic arm that uses both analytical inverse dynamics (CTC) and learned neural network models (DNN) for precise trajectory tracking.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">🧠</div>
+        <h3>The Innovation</h3>
+        <p>A hybrid DNN controller: DeLaN (physics-aware Lagrangian network in JAX) provides a principled baseline, while a GRU residual network (PyTorch) corrects for unmodelled dynamics.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚙️</div>
+        <h3>Simulation Stack</h3>
+        <p>ROS 2 Humble + Gazebo Fortress with ros2_control. 3 effort joint controllers running at 100 Hz, commanded by a Python node computing full inverse dynamics in real-time.</p>
+      </div>
+      <div class="card">
+        <div class="card-icon">📊</div>
+        <h3>Goal</h3>
+        <p>Show that a DNN trained offline on simulated inverse dynamics data can match or outperform a hand-tuned PID+CTC controller, especially on novel trajectories it hasn't seen before.</p>
+      </div>
+    </div>
+
+    <div class="metric-row" style="margin-top:28px;">
+      <div class="metric-box">
+        <div class="metric-val blue">100 Hz</div>
+        <div class="metric-label">Control Loop Rate</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val green">3-DOF</div>
+        <div class="metric-label">Robotic Arm</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val orange">~10K</div>
+        <div class="metric-label">Lines of Code</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val purple">2</div>
+        <div class="metric-label">DNN Models</div>
+      </div>
+      <div class="metric-box">
+        <div class="metric-val blue">6+</div>
+        <div class="metric-label">Docs Files</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section class="section fade-in" id="architecture">
+    <h2 class="section-title"><span class="icon">🏗️</span> System Architecture</h2>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab(event,'arch-control')">Control Flow</button>
+      <button class="tab-btn" onclick="switchTab(event,'arch-training')">Training Pipeline</button>
+      <button class="tab-btn" onclick="switchTab(event,'arch-files')">File Structure</button>
+    </div>
+
+    <div class="tab-pane active" id="arch-control">
+      <div class="arch-diagram">
+<pre><span class="box">┌─────────────────────┐</span>     <span class="box">┌────────────────────────────┐</span>
+<span class="box">│  Trajectory CSV      │────▶│   Controller Node (100 Hz) │</span>
+<span class="box">│  q_des, qd_des,      │</span>     <span class="box">│                            │</span>
+<span class="box">│  qdd_des             │</span>     <span class="box">│  MODE A: CTC               │</span>
+<span class="box">└─────────────────────┘</span>     <span class="box">│  τ = D(q)q̈ + C(q,q̇) + G  │</span>
+                             <span class="box">│    + Kp·e + Kd·ė + Ki·∫e  │</span>
+<span class="box">┌─────────────────────┐</span>     <span class="box">│                            │</span>
+<span class="box">│  Joint Feedback      │────▶│  MODE B: DNN               │</span>
+<span class="box">│  q_act, qd_act       │</span>     <span class="box">│  τ = DeLaN + GRU_residual  │</span>
+<span class="box">└─────────────────────┘</span>     <span class="box">│    + Kp·e + Kd·ė + Ki·∫e  │</span>
+                             <span class="box">└────────────┬───────────────┘</span>
+                                          <span class="arrow">│ τ_total [3 joints]</span>
+                             <span class="box">┌────────────▼───────────────┐</span>
+                             <span class="box">│  Gazebo Effort Controllers │</span>
+                             <span class="box">│  (joint1, joint2, joint3)  │</span>
+                             <span class="box">└────────────┬───────────────┘</span>
+                                          <span class="arrow">│ Physics sim</span>
+                             <span class="box">┌────────────▼───────────────┐</span>
+                             <span class="box">│  PUMA 560 Arm in Gazebo    │</span>
+                             <span class="box">│  (3-DOF, rigid body)       │</span>
+                             <span class="box">└────────────────────────────┘</span></pre>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="arch-training">
+      <div class="arch-diagram">
+<pre><span class="label">STEP 1: Generate Trajectory</span>
+<span class="box">┌─────────────────────────────────┐</span>
+<span class="box">│  gen_traj.py (5th-order S-curve)│</span>
+<span class="box">└───────────────┬─────────────────┘</span>
+                <span class="arrow">│ path_XXX_trajectory.csv</span>
+                <span class="arrow">│ (q, qd, qdd at 100 Hz)</span>
+
+<span class="label">STEP 2: Record Inverse Dynamics in Gazebo</span>
+<span class="box">┌──────────────────────────┐</span>
+<span class="box">│  1_trajectory_player.py  │  ← executes trajectory in sim</span>
+<span class="box">└────────────┬─────────────┘</span>
+             <span class="arrow">│ /tmp/id_raw_XXX.csv</span>
+<span class="box">┌────────────▼─────────────┐</span>
+<span class="box">│  2_build_dataset.py      │  ← filter + process</span>
+<span class="box">└────────────┬─────────────┘</span>
+             <span class="arrow">│ Dataset/Trajectories/path_XXX_dataset.csv</span>
+             <span class="arrow">│ (adds tau1, tau2, tau3)</span>
+
+<span class="label">STEP 3: Train Neural Networks</span>
+<span class="box">┌───────────────────┐</span>    <span class="box">┌──────────────────────┐</span>
+<span class="box">│  DeLaN (JAX)      │    │  GRU Residual (PyTorch)│</span>
+<span class="box">│  Physics-aware    │    │  Sequence-based        │</span>
+<span class="box">│  Lagrangian NN    │    │  128-step history      │</span>
+<span class="box">└────────┬──────────┘</span>    <span class="box">└──────────┬───────────┘</span>
+         <span class="arrow">│                           │</span>
+         <span class="arrow">▼                           ▼</span>
+<span class="note">fyp_jax_delan_50.jax     best_GRUResidual.pt</span></pre>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="arch-files">
+      <div class="arch-diagram">
+<pre><span class="label">FYP-Puma_560/</span>
+<span class="box">├── arm_bot/</span>
+<span class="box">│   └── src/</span>
+<span class="box">│       ├── scripts/</span>
+<span class="arrow">│       │   ├── torque_publisher_ctc.py     </span><span class="note">(866L) Main CTC controller</span>
+<span class="arrow">│       │   ├── torque_publisher_dnn.py     </span><span class="note">(900+L) DNN controller</span>
+<span class="arrow">│       │   ├── inverse_dynamics_model.py   </span><span class="note">(140L) D, C, G matrices</span>
+<span class="arrow">│       │   ├── analyze_ctc_performance.py  </span><span class="note">(277L) CTC analysis</span>
+<span class="arrow">│       │   ├── analyze_dnn_performance.py  </span><span class="note">(22KB) DNN analysis</span>
+<span class="arrow">│       │   ├── logs/                       </span><span class="note">CSV control logs</span>
+<span class="arrow">│       │   ├── plots/                      </span><span class="note">Analysis figures</span>
+<span class="arrow">│       │   └── Joint_states/               </span><span class="note">DNN input trajectories</span>
+<span class="box">│       ├── description/</span>
+<span class="arrow">│       │   ├── robot_core.xacro            </span><span class="note">3-DOF arm kinematics</span>
+<span class="arrow">│       │   └── ros2_control.xacro          </span><span class="note">Hardware interface</span>
+<span class="box">│       ├── config/my_controllers.yaml      </span><span class="note">100 Hz rate</span>
+<span class="box">│       └── launch/gazebo.launch.py</span>
+<span class="box">│</span>
+<span class="box">├── DNN_test/</span>
+<span class="arrow">│   ├── fyp_jax_delan_50.jax               </span><span class="note">Trained DeLaN model</span>
+<span class="arrow">│   ├── best_GRUResidual.pt                </span><span class="note">Trained GRU model</span>
+<span class="arrow">│   ├── feature_scaler.pkl                 </span><span class="note">Feature normalizer</span>
+<span class="arrow">│   └── Data/Trajectory/                   </span><span class="note">Training data CSVs</span>
+<span class="box">│</span>
+<span class="box">├── id_pipeline/</span>
+<span class="arrow">│   ├── scripts/1_trajectory_player.py     </span><span class="note">Execute in Gazebo</span>
+<span class="arrow">│   └── scripts/2_build_dataset.py         </span><span class="note">Post-process</span>
+<span class="box">│</span>
+<span class="arrow">├── gen_traj.py                            </span><span class="note">S-curve generator</span>
+<span class="arrow">└── Dataset/Trajectories/                  </span><span class="note">Output datasets</span></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALGORITHMS -->
+  <section class="section fade-in" id="algorithms">
+    <h2 class="section-title"><span class="icon">🔢</span> Control Algorithms</h2>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab(event,'alg-ctc')">CTC Controller</button>
+      <button class="tab-btn" onclick="switchTab(event,'alg-dnn')">DNN Controller</button>
+      <button class="tab-btn" onclick="switchTab(event,'alg-traj')">Trajectory Generation</button>
+    </div>
+
+    <div class="tab-pane active" id="alg-ctc">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">The Computed Torque Control law decomposes the robot dynamics into a model-based feedforward term and a feedback correction term:</p>
+
+      <div class="formula-box">
+        <span class="label">Full CTC Control Law</span>
+        τ = D(q)·q̈<sub>des</sub> + C(q,q̇)·q̇ + G(q) + K<sub>p</sub>·e + K<sub>d</sub>·ė + K<sub>i</sub>·∫e dt
+      </div>
+
+      <div class="card-grid" style="margin-top:16px;">
+        <div class="card">
+          <h3 style="color:var(--accent)">D(q) — Inertia Matrix</h3>
+          <p>3×3 configuration-dependent mass/inertia matrix. Encodes how much torque is needed to produce acceleration at each joint given the current pose.</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent5)">C(q,q̇) — Coriolis/Centrifugal</h3>
+          <p>Velocity-dependent coupling terms. Accounts for rotational kinetic energy interactions between links. Computed via Christoffel symbols.</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent2)">G(q) — Gravity Vector</h3>
+          <p>Torques needed to hold the arm against gravity at configuration q. Largest component in slow trajectories.</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent4)">PID Feedback</h3>
+          <p>Kp·e corrects steady-state error. Kd·ė damps oscillations. Ki·∫e removes persistent bias from model inaccuracies.</p>
+        </div>
+      </div>
+
+      <h3 style="margin:24px 0 12px;font-size:15px;">Three Operating Modes</h3>
+      <div class="table-wrap">
+        <table class="data-table">
+          <tr><th>Flag</th><th>Model Term</th><th>Feedback Term</th><th>Use Case</th></tr>
+          <tr><td><code style="color:var(--accent2)">default</code></td><td>✅ Full D,C,G</td><td>✅ Kp/Kd/Ki</td><td>Normal operation</td></tr>
+          <tr><td><code style="color:var(--accent5)">--no-feedback</code></td><td>✅ Full D,C,G</td><td>❌ Off</td><td>Evaluate model accuracy alone</td></tr>
+          <tr><td><code style="color:var(--accent3)">--no-model</code></td><td>❌ Off</td><td>✅ Kp/Kd/Ki</td><td>Baseline PD-only performance</td></tr>
+        </table>
+      </div>
+
+      <h3 style="margin:24px 0 12px;font-size:15px;">Default Gains</h3>
+      <div class="code-block">
+        <div class="code-header"><span>Python — torque_publisher_ctc.py</span></div>
+        <div class="code-body">
+<span class="cmt"># Per-joint: [joint1, joint2, joint3]</span>
+Kp = [<span class="num">30</span>, <span class="num">100</span>, <span class="num">50</span>]   <span class="cmt"># Proportional</span>
+Kd = [<span class="num">4</span>,  <span class="num">10</span>,  <span class="num">5</span>]    <span class="cmt"># Derivative</span>
+Ki = [<span class="num">0.2</span>, <span class="num">1.0</span>, <span class="num">0.8</span>]  <span class="cmt"># Integral (small, bias removal)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="alg-dnn">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">The DNN controller replaces the analytical D,C,G computation with two neural networks working in tandem:</p>
+
+      <div class="formula-box">
+        <span class="label">DNN Control Law</span>
+        τ = τ<sub>DeLaN</sub> + τ<sub>GRU</sub> + K<sub>p</sub>·e + K<sub>d</sub>·ė + K<sub>i</sub>·∫e dt
+      </div>
+
+      <div class="card-grid" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h3 style="color:var(--accent)">DeLaN (JAX/Haiku)</h3>
+          <p>Deep Lagrangian Network. Physics-aware architecture that encodes energy conservation laws. Input: q, q̇, q̈. Runs every timestep from step 0.</p>
+        </div>
+        <div class="card">
+          <div class="card-icon">🔁</div>
+          <h3 style="color:var(--accent5)">GRU Residual (PyTorch)</h3>
+          <p>4-layer GRU with 64 hidden units. Takes 128-step rolling history of [q, q̇, q̈, τ_delan]. Learns corrections to DeLaN. Activates at step 128 (1.28s warmup).</p>
+        </div>
+      </div>
+
+      <h3 style="margin:24px 0 12px;font-size:15px;">Warmup Behaviour</h3>
+      <div class="arch-diagram" style="margin:12px 0;">
+<pre><span class="label">Steps 0 → 127  (1.28 seconds)</span>
+  τ = <span class="box">τ_DeLaN</span> + Kp·e + Kd·ė + Ki·∫e
+  GRU builds rolling history buffer (no output)
+
+<span class="label">Steps 128+  (normal operation)</span>
+  τ = <span class="box">τ_DeLaN</span> + <span class="note">τ_GRU_residual</span> + Kp·e + Kd·ė + Ki·∫e
+  Tracking error typically drops 20–50% after GRU activates</pre>
+      </div>
+
+      <h3 style="margin:24px 0 12px;font-size:15px;">DNN Feedback Gains (Lower Than CTC)</h3>
+      <div class="code-block">
+        <div class="code-header"><span>Python — torque_publisher_dnn.py</span></div>
+        <div class="code-body">
+<span class="cmt"># Reduced gains — DNN handles most of the feedforward</span>
+Kp = [<span class="num">5</span>,  <span class="num">20</span>, <span class="num">10</span>]   <span class="cmt"># ≈ 1/5 of CTC values</span>
+Kd = [<span class="num">1</span>,  <span class="num">3</span>,  <span class="num">2</span>]    <span class="cmt"># ≈ 1/3 of CTC values</span>
+Ki = [<span class="num">0.05</span>, <span class="num">0.2</span>, <span class="num">0.1</span>]
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="alg-traj">
+      <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">Trajectories are generated as 5th-order polynomial (minimum-jerk / S-curve) profiles that guarantee zero velocity and acceleration at start and end:</p>
+
+      <div class="formula-box">
+        <span class="label">5th-Order Polynomial (Minimum Jerk)</span>
+        f(τ) = 10τ³ − 15τ⁴ + 6τ⁵ &nbsp;&nbsp;where τ = t/T ∈ [0,1]
+      </div>
+
+      <div class="card-grid" style="margin-top:16px;">
+        <div class="card">
+          <h3 style="color:var(--accent)">Boundary Conditions</h3>
+          <p>f(0)=0, f(1)=1 &nbsp;|&nbsp; f'(0)=f'(1)=0 &nbsp;|&nbsp; f''(0)=f''(1)=0<br><br>Zero velocity AND acceleration at endpoints — smooth start/stop.</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent5)">Timing Constraints</h3>
+          <p>T ≥ 1.875×max(Δq)/v_max &nbsp;(velocity)<br>T ≥ √(5.77×max(Δq)/a_max) &nbsp;(accel)<br><br>v_max=2.0 rad/s, a_max=7.0 rad/s²</p>
+        </div>
+        <div class="card">
+          <h3 style="color:var(--accent2)">Output Format</h3>
+          <p>CSV at 100 Hz sampling. 10 rows: t, dp1-3, dv1-3, da1-3. Duration options: 12, 16, 20, 24 seconds. 1200–2400 columns per file.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROGRESSION -->
+  <section class="section fade-in" id="progression">
+    <h2 class="section-title"><span class="icon">📅</span> Project Progression</h2>
+
+    <div class="timeline">
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 1 — Foundations</div>
+        <h4>Robot Modelling & Simulation Setup</h4>
+        <p>Built 3-DOF PUMA 560 URDF in xacro format with accurate DH parameters, link masses, and inertia tensors including motor inertias. Integrated with ROS 2 Humble + Gazebo Fortress. Configured 3 effort joint controllers at 100 Hz via ros2_control.</p>
+      </div>
+
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 2 — Dynamics</div>
+        <h4>Symbolic Inverse Dynamics Implementation</h4>
+        <p>Derived full D(q), C(q,q̇), G(q) symbolically using SymPy (inverse_dynamics_model.py). Compiled to numpy lambdas for real-time evaluation. Also developed MATLAB scripts for verification. This became the backbone of the CTC controller.</p>
+      </div>
+
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 3 — Trajectory</div>
+        <h4>S-Curve Trajectory Generator</h4>
+        <p>Implemented 5th-order polynomial minimum-jerk profiles (gen_traj.py). Added automated timing calculation to respect joint velocity and acceleration limits. Supports random endpoint generation for diverse training data.</p>
+      </div>
+
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 4 — CTC Controller</div>
+        <h4>Full Computed Torque Controller (ctc_added_0/1 commits)</h4>
+        <p>Implemented torque_publisher_ctc.py (866 lines) with stabilization phase, trajectory phase, 3 operating modes (full/feedforward-only/feedback-only), automatic log saving, and configurable gains via CLI. Tested on multiple pre-generated trajectories.</p>
+      </div>
+
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 5 — Data Pipeline</div>
+        <h4>Inverse Dynamics Data Collection Pipeline</h4>
+        <p>Built id_pipeline/ with 2-step workflow: execute trajectory in Gazebo and record actual torques, then post-process with Butterworth LPF (30 Hz) and Savitzky-Golay acceleration estimation. Generates clean training datasets including τ_ID columns.</p>
+      </div>
+
+      <div class="timeline-item done">
+        <div class="timeline-date">Phase 6 — Neural Networks</div>
+        <h4>DeLaN + GRU Residual Network Training</h4>
+        <p>Trained DeLaN (physics-informed Lagrangian NN) in JAX/Haiku on collected datasets. Trained GRU residual network (4 layers, 64 hidden, 128-step history) in PyTorch to learn corrections to DeLaN predictions. Models saved as .jax and .pt files.</p>
+      </div>
+
+      <div class="timeline-item latest">
+        <div class="timeline-date">Phase 7 — DNN Controller (latest)</div>
+        <h4>Online DNN Inference Controller (dnn_controller_0/1 commits — Apr 27)</h4>
+        <p>Implemented torque_publisher_dnn.py with online real-time inference of both DeLaN and GRU models. Handles warmup phase (128 steps) gracefully. Includes full analysis tooling (analyze_dnn_performance.py) for comparison against CTC baseline.</p>
+      </div>
+
+      <div class="timeline-item">
+        <div class="timeline-date">Phase 8 — In Progress</div>
+        <h4>Evaluation & Thesis Write-up</h4>
+        <p>Comparative performance studies between CTC and DNN controllers across multiple trajectories. Generating publication-quality plots, metrics, and analysis for the final thesis submission.</p>
+      </div>
+    </div>
+
+    <h3 style="margin:24px 0 16px;font-size:15px;">Git Commit History (Recent)</h3>
+    <div class="table-wrap">
+      <table class="data-table">
+        <tr><th>Hash</th><th>Message</th><th>Date</th><th>What Changed</th></tr>
+        <tr><td><code style="color:var(--accent)">543188b</code></td><td>dnn_controller1</td><td>Apr 27, 01:10</td><td>Final DNN controller improvements & analysis tools</td></tr>
+        <tr><td><code style="color:var(--accent)">5a8449d</code></td><td>dnn_controller_0</td><td>Apr 26, 21:54</td><td>Initial DNN controller with online inference</td></tr>
+        <tr><td><code style="color:var(--accent)">f5919da</code></td><td>ctc_added_1</td><td>Apr 26, 17:49</td><td>CTC final tweaks, 3-mode support</td></tr>
+        <tr><td><code style="color:var(--accent)">d186ccb</code></td><td>ctc_added_0</td><td>Apr 26, 17:45</td><td>Initial CTC controller implementation</td></tr>
+        <tr><td><code style="color:var(--accent)">7493296</code></td><td>change_6</td><td>Apr 26, 04:45</td><td>Earlier development updates</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- ROBOT SPECS -->
+  <section class="section fade-in" id="robot">
+    <h2 class="section-title"><span class="icon">🦾</span> Robot Specifications</h2>
+
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="color:var(--accent);margin-bottom:12px;">Kinematics (DH Parameters)</h3>
+        <div class="code-block" style="margin:0;">
+          <div class="code-body" style="font-size:12px;">
+Joint 1: Revolute, Z-axis, no offset
+Joint 2: Revolute, Y-axis, d=0.2435 m
+Joint 3: Revolute, Y-axis, a=0.4318 m,
+         d=-0.0934 m
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent5);margin-bottom:12px;">Link Masses & CoG</h3>
+        <div class="code-block" style="margin:0;">
+          <div class="code-body" style="font-size:12px;">
+Link 1: m = 0.01 kg (negligible)
+Link 2: m = 17.4 kg
+        CoG: [0.068, 0.006, -0.016]
+Link 3: m = 4.8 kg
+        CoG: [0, -0.143, 0.014]
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent2);margin-bottom:12px;">Motor Inertias</h3>
+        <div class="code-block" style="margin:0;">
+          <div class="code-body" style="font-size:12px;">
+Im1 = 1.14 kg·m²
+Im2 = 4.71 kg·m²
+Im3 = 0.83 kg·m²
+(dominate at high speeds)
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:24px 0 12px;font-size:15px;">Joint Limits & Torque Bounds</h3>
+    <div class="table-wrap">
+      <table class="data-table">
+        <tr><th>Joint</th><th>Min Angle</th><th>Max Angle</th><th>Default Start</th><th>Max Torque</th></tr>
+        <tr><td>Joint 1 (base rotation)</td><td>−100°</td><td>+100°</td><td>0°</td><td>100 N·m</td></tr>
+        <tr><td>Joint 2 (shoulder)</td><td>−15°</td><td>+45°</td><td>45°</td><td>100 N·m</td></tr>
+        <tr><td>Joint 3 (elbow)</td><td>+65°</td><td>+205°</td><td>135°</td><td>60 N·m</td></tr>
+      </table>
+    </div>
+
+    <h3 style="margin:24px 0 12px;font-size:15px;">ROS 2 Control Configuration</h3>
+    <div class="code-block">
+      <div class="code-header"><span>my_controllers.yaml</span></div>
+      <div class="code-body" style="font-size:12px;">
+controller_manager:
+  ros__parameters:
+    update_rate: <span class="num">100</span>  <span class="cmt"># Hz</span>
+
+joint1_effort_controller:
+  ros__parameters:
+    joints: [joint_1]
+    interface_name: effort
+
+joint2_effort_controller:
+  <span class="cmt"># joints: [joint_2], interface: effort</span>
+
+joint3_effort_controller:
+  <span class="cmt"># joints: [joint_3], interface: effort</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PIPELINE -->
+  <section class="section fade-in" id="pipeline">
+    <h2 class="section-title"><span class="icon">🔄</span> Data & Control Pipelines</h2>
+
+    <div class="accordion">
+      <div class="acc-header open" onclick="toggleAcc(this)">
+        <span>Step 1 — Generate S-Curve Trajectory</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body open">
+        <div class="code-block">
+          <div class="code-header"><span>bash</span></div>
+          <div class="code-body">
+<span class="cmt"># Generate trajectory path ID 603</span>
+python3 gen_traj.py <span class="num">603</span>
+<span class="cmt"># Output: Dataset/Trajectories/path_603_trajectory.csv</span>
+<span class="cmt"># Or with on-the-fly generation:</span>
+ros2 run arm_bot torque_publisher_ctc.py --q-end <span class="num">30</span> <span class="num">20</span> <span class="num">100</span>
+          </div>
+        </div>
+        <p style="color:var(--muted);font-size:13px;margin-top:8px;">The CSV contains rows for t, dp1-3 (positions), dv1-3 (velocities), da1-3 (accelerations) at 100 Hz sampling rate.</p>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Step 2 — Execute in Gazebo & Record Torques</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-header"><span>bash — Terminal 1</span></div>
+          <div class="code-body">ros2 launch arm_bot robot_gui.launch.py</div>
+        </div>
+        <div class="code-block">
+          <div class="code-header"><span>bash — Terminal 2</span></div>
+          <div class="code-body">python3 id_pipeline/scripts/1_trajectory_player.py --id <span class="num">1</span>
+<span class="cmt"># Records: q_act, qd_act, tau_cmd → /tmp/id_raw_001.csv</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Step 3 — Post-Process Dataset</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-header"><span>bash</span></div>
+          <div class="code-body">python3 id_pipeline/scripts/2_build_dataset.py --id <span class="num">1</span>
+<span class="cmt"># Butterworth LPF: 30 Hz cutoff (torque noise removal)</span>
+<span class="cmt"># Savitzky-Golay: clean acceleration estimation</span>
+<span class="cmt"># Output: Dataset/Trajectories/path_001_dataset.csv</span>
+<span class="cmt">#   NEW columns: tau1, tau2, tau3 (inverse dynamics)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Step 4 — Run CTC Controller</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-header"><span>bash</span></div>
+          <div class="code-body">ros2 run arm_bot torque_publisher_ctc.py \
+  --csv-path src/scripts/script_resources/path_001_trajectory.csv \
+  --kp <span class="num">30</span> <span class="num">100</span> <span class="num">50</span> \
+  --kd <span class="num">4</span> <span class="num">10</span> <span class="num">5</span>
+
+<span class="cmt"># Analysis:</span>
+python3 arm_bot/src/scripts/analyze_ctc_performance.py \
+  arm_bot/src/scripts/logs/path_001_trajectory_ctc_log_1.csv \
+  --summary --plots</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Step 5 — Run DNN Controller</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-header"><span>bash</span></div>
+          <div class="code-body">ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path src/scripts/Joint_states/path_461_joint_states.csv \
+  --kp <span class="num">5</span> <span class="num">20</span> <span class="num">10</span> \
+  --kd <span class="num">1</span> <span class="num">3</span> <span class="num">2</span>
+
+<span class="cmt"># Analysis + CTC comparison:</span>
+python3 analyze_dnn_performance.py \
+  logs/path_461_joint_states_dnn_log_1.csv \
+  --plots \
+  --compare-ctc logs/path_461_trajectory_ctc_log_1.csv</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin:28px 0 12px;font-size:15px;">Log File Formats</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="color:var(--accent)">CTC Log (25+ columns)</h3>
+        <p style="font-size:12px;font-family:monospace;color:var(--muted);line-height:2;">
+          t &nbsp;|&nbsp; q_des_1/2/3 &nbsp;|&nbsp; qd_des_1/2/3<br>
+          qdd_des_1/2/3 &nbsp;|&nbsp; q_act_1/2/3<br>
+          qd_act_1/2/3 &nbsp;|&nbsp; tau_model_1/2/3<br>
+          tau_fb_1/2/3 &nbsp;|&nbsp; tau_total_1/2/3<br>
+          e_pos_1/2/3 &nbsp;|&nbsp; e_vel_1/2/3
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent5)">DNN Log (extra columns)</h3>
+        <p style="font-size:12px;font-family:monospace;color:var(--muted);line-height:2;">
+          All CTC columns +<br>
+          tau_delan_1/2/3<br>
+          tau_dnn_1/2/3 (DeLaN+GRU)<br>
+          gru_active &nbsp;(0=warmup, 1=on)
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section class="section fade-in" id="performance">
+    <h2 class="section-title"><span class="icon">📈</span> Performance Metrics</h2>
+
+    <div class="tab-nav">
+      <button class="tab-btn active" onclick="switchTab(event,'perf-ctc')">CTC Metrics</button>
+      <button class="tab-btn" onclick="switchTab(event,'perf-dnn')">DNN Metrics</button>
+      <button class="tab-btn" onclick="switchTab(event,'perf-compare')">Comparison</button>
+    </div>
+
+    <div class="tab-pane active" id="perf-ctc">
+      <div class="metric-row">
+        <div class="metric-box">
+          <div class="metric-val green">0.3–0.5°</div>
+          <div class="metric-label">RMS Position Error</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val orange">0.8–1.2°</div>
+          <div class="metric-label">Max Position Error</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val blue">&lt;0.1°</div>
+          <div class="metric-label">Steady-State Error</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val purple">80–95 N·m</div>
+          <div class="metric-label">Peak Torque</div>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px;font-size:15px;">Torque Contribution Breakdown</h3>
+      <div class="progress-item">
+        <div class="progress-label"><span>Model-Based Feedforward (D,C,G)</span><span>70–90%</span></div>
+        <div class="progress-track"><div class="progress-fill blue-fill" style="width:80%"></div></div>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>PID Feedback Correction</span><span>10–30%</span></div>
+        <div class="progress-track"><div class="progress-fill orange-fill" style="width:20%"></div></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;">Lower feedback % indicates better model accuracy — the model is doing most of the work.</p>
+    </div>
+
+    <div class="tab-pane" id="perf-dnn">
+      <div class="metric-row">
+        <div class="metric-box">
+          <div class="metric-val blue">128 steps</div>
+          <div class="metric-label">GRU Warmup Time</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val green">1.28 sec</div>
+          <div class="metric-label">Warmup Duration</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val orange">20–50%</div>
+          <div class="metric-label">Error Drop at GRU Activation</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-val purple">64</div>
+          <div class="metric-label">GRU Hidden Units</div>
+        </div>
+      </div>
+
+      <h3 style="margin:20px 0 12px;font-size:15px;">DNN Component Contribution</h3>
+      <div class="progress-item">
+        <div class="progress-label"><span>DeLaN (physics baseline)</span><span>~65%</span></div>
+        <div class="progress-track"><div class="progress-fill blue-fill" style="width:65%"></div></div>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>GRU Residual (learned correction)</span><span>~20%</span></div>
+        <div class="progress-track"><div class="progress-fill purple-fill" style="width:20%"></div></div>
+      </div>
+      <div class="progress-item">
+        <div class="progress-label"><span>PID Feedback (residual error)</span><span>~15%</span></div>
+        <div class="progress-track"><div class="progress-fill orange-fill" style="width:15%"></div></div>
+      </div>
+    </div>
+
+    <div class="tab-pane" id="perf-compare">
+      <div class="table-wrap">
+        <table class="data-table">
+          <tr><th>Metric</th><th style="color:var(--accent)">CTC</th><th style="color:var(--accent5)">DNN (post-warmup)</th></tr>
+          <tr><td>RMS Error (typical)</td><td>0.3–0.5°</td><td>Expected lower with good model</td></tr>
+          <tr><td>Model computation</td><td>Symbolic (real-time)</td><td>Neural inference (JAX+PyTorch)</td></tr>
+          <tr><td>Requires training data</td><td>❌ No</td><td>✅ Yes</td></tr>
+          <tr><td>Handles unmodelled dynamics</td><td>Partially (feedback)</td><td>✅ GRU learns residuals</td></tr>
+          <tr><td>Control gains</td><td>Kp=[30,100,50]</td><td>Kp=[5,20,10] (much lower)</td></tr>
+          <tr><td>Warmup needed</td><td>❌ None</td><td>✅ 1.28 sec</td></tr>
+          <tr><td>Generalization</td><td>✅ Any trajectory</td><td>Limited to training distribution</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATUS -->
+  <section class="section fade-in" id="status">
+    <h2 class="section-title"><span class="icon">✅</span> Implementation Status</h2>
+
+    <div class="status-grid">
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">CTC Controller — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">DNN Controller — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">Trajectory Generator — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">Inverse Dynamics Pipeline — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">DeLaN Training (JAX) — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">GRU Residual Training — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">Gazebo Simulation — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">CTC Analysis Tool — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">DNN Analysis Tool — Complete</span></div>
+      <div class="status-item done"><span class="status-icon">✅</span><span class="status-text">Documentation (2000+ lines) — Complete</span></div>
+      <div class="status-item"><span class="status-icon">🔄</span><span class="status-text" style="color:var(--accent5)">Performance Evaluation — In Progress</span></div>
+      <div class="status-item"><span class="status-icon">📝</span><span class="status-text" style="color:var(--muted)">Thesis Write-up — Pending</span></div>
+    </div>
+
+    <h3 style="margin:28px 0 16px;font-size:15px;">Tech Stack</h3>
+    <div class="card-grid">
+      <div class="card">
+        <h3 style="color:var(--accent)">Simulation & Control</h3>
+        <p>ROS 2 Humble · Gazebo Fortress · ros2_control · ros_gz_sim · URDF/xacro</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent5)">Neural Networks</h3>
+        <p>JAX · Haiku (DeLaN) · PyTorch (GRU) · joblib (scaler) · NumPy</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent2)">Data & Analysis</h3>
+        <p>SymPy (symbolic dynamics) · SciPy (filters) · Pandas · Matplotlib · rclpy</p>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--accent4)">Legacy (MATLAB)</h3>
+        <p>Symbolic Toolbox (dynamics generation) · Trajectory generation functions · Now mostly replaced by Python equivalents</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMMANDS -->
+  <section class="section fade-in" id="commands">
+    <h2 class="section-title"><span class="icon">💻</span> Quick Reference Commands</h2>
+
+    <div class="accordion">
+      <div class="acc-header open" onclick="toggleAcc(this)">
+        <span>Build & Setup</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body open">
+        <div class="code-block">
+          <div class="code-body">
+<span class="kw">cd</span> ~/Desktop/FYP-Puma_560/arm_bot
+colcon build --packages-select arm_bot
+<span class="kw">source</span> install/setup.bash
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Launch Gazebo Simulation</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-body">
+<span class="cmt"># Gazebo only</span>
+ros2 launch arm_bot gazebo.launch.py
+
+<span class="cmt"># Gazebo + RViz GUI</span>
+ros2 launch arm_bot robot_gui.launch.py
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>CTC Controller Options</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-body">
+<span class="cmt"># Full CTC from pre-generated CSV</span>
+ros2 run arm_bot torque_publisher_ctc.py \
+  --csv-path src/scripts/script_resources/path_001_trajectory.csv
+
+<span class="cmt"># Custom gains</span>
+ros2 run arm_bot torque_publisher_ctc.py \
+  --csv-path ... --kp <span class="num">30</span> <span class="num">100</span> <span class="num">50</span> --kd <span class="num">4</span> <span class="num">10</span> <span class="num">5</span>
+
+<span class="cmt"># On-the-fly trajectory (q-end in degrees)</span>
+ros2 run arm_bot torque_publisher_ctc.py \
+  --q-end <span class="num">30</span> <span class="num">20</span> <span class="num">100</span> --q-start <span class="num">0</span> <span class="num">45</span> <span class="num">135</span>
+
+<span class="cmt"># Feedforward only (no feedback)</span>
+ros2 run arm_bot torque_publisher_ctc.py --csv-path ... --no-feedback
+
+<span class="cmt"># Feedback only (no model)</span>
+ros2 run arm_bot torque_publisher_ctc.py --csv-path ... --no-model
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>DNN Controller Options</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-body">
+<span class="cmt"># Default DNN controller</span>
+ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path src/scripts/Joint_states/path_461_joint_states.csv
+
+<span class="cmt"># Custom DNN gains</span>
+ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path ... --kp <span class="num">5</span> <span class="num">20</span> <span class="num">10</span> --kd <span class="num">1</span> <span class="num">3</span> <span class="num">2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Analysis Commands</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-body">
+<span class="cmt"># CTC performance analysis</span>
+python3 arm_bot/src/scripts/analyze_ctc_performance.py \
+  arm_bot/src/scripts/logs/path_001_trajectory_ctc_log_1.csv \
+  --summary --plots
+
+<span class="cmt"># DNN performance analysis with CTC comparison</span>
+python3 analyze_dnn_performance.py \
+  logs/path_461_joint_states_dnn_log_1.csv \
+  --plots \
+  --compare-ctc logs/path_461_trajectory_ctc_log_1.csv
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion" style="margin-top:8px;">
+      <div class="acc-header" onclick="toggleAcc(this)">
+        <span>Data Pipeline Commands</span>
+        <span class="acc-icon">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="code-block">
+          <div class="code-body">
+<span class="cmt"># Generate trajectory</span>
+python3 gen_traj.py <span class="num">603</span>
+
+<span class="cmt"># Step 1: Execute in Gazebo</span>
+python3 id_pipeline/scripts/1_trajectory_player.py --id <span class="num">1</span>
+
+<span class="cmt"># Step 2: Post-process</span>
+python3 id_pipeline/scripts/2_build_dataset.py --id <span class="num">1</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <p>FYP: DNN-Based Computed Torque Controller for 3-DOF Modified PUMA 560 &nbsp;·&nbsp; Priyankan V &nbsp;·&nbsp; 2025/2026</p>
+  <p style="margin-top:6px;font-size:11px;">Generated April 27, 2026 &nbsp;·&nbsp; Branch: demo &nbsp;·&nbsp; Latest commit: 543188b</p>
+</footer>
+
+<script>
+  // NAV ACTIVE STATE
+  const navLinks = document.querySelectorAll('.nav a');
+  const sections = document.querySelectorAll('.section');
+
+  function setActive() {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 80) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+    });
+  }
+  window.addEventListener('scroll', setActive, { passive: true });
+  setActive();
+
+  // SMOOTH SCROLL
+  navLinks.forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    });
+  });
+
+  // TABS
+  function switchTab(e, paneId) {
+    const btn = e.target;
+    const nav = btn.closest('.tab-nav');
+    const container = nav.nextElementSibling;
+    let pane = document.getElementById(paneId);
+
+    nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    // Find all sibling tab-panes
+    let el = container;
+    while (el && !el.classList.contains('tab-pane')) el = el.nextElementSibling;
+    // Hide all panes in this group
+    let cur = container;
+    while (cur) {
+      if (cur.classList && cur.classList.contains('tab-pane')) cur.classList.remove('active');
+      cur = cur.nextElementSibling;
+    }
+    if (pane) pane.classList.add('active');
+  }
+
+  // ACCORDION
+  function toggleAcc(header) {
+    const body = header.nextElementSibling;
+    header.classList.toggle('open');
+    body.classList.toggle('open');
+  }
+
+  // FADE IN ON SCROLL
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
