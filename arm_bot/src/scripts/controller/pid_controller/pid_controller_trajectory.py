@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""PID-only ROS 2 torque controller.
+"""PID Trajectory-Tracking ROS 2 Torque Controller.
 
-This controller waits for joint states, then drives the arm toward a single
-target joint configuration using only PID control. No DNN, no CTC, no planner.
+This controller tracks joint trajectories using PID control.
+Supports two modes:
+1. Generated trajectories: --target 0 45 30 --T 24
+2. Loaded from CSV file: --trajectory-csv /path/to/trajectory.csv
 
-For trajectory tracking, use pid_controller_trajectory.py instead.
+The trajectory must be in row-wise format with minimum jerk profile.
 """
 
 import argparse
@@ -12,9 +14,10 @@ import math
 import csv
 import os
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy as np
+import pandas as pd
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
@@ -23,12 +26,189 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker
 
 
-class PIDTorqueController(Node):
+# ===================== TRAJECTORY GENERATION HELPERS =====================
+
+def min_jerk_profile(t: np.ndarray, T: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Compute minimum jerk trajectory profile.
+    
+    Parameters:
+    -----------
+    t : ndarray
+        Time vector
+    T : float
+        Total trajectory duration
+        
+    Returns:
+    --------
+    f : ndarray
+        Position profile (normalized 0 to 1)
+    fd : ndarray
+        Velocity profile
+    fdd : ndarray
+        Acceleration profile
+    """
+    tau = t / T
+    
+    f = 10*tau**3 - 15*tau**4 + 6*tau**5
+    fd = (30*tau**2 - 60*tau**3 + 30*tau**4) / T
+    fdd = (60*tau - 180*tau**2 + 120*tau**3) / (T**2)
+    
+    return f, fd, fdd
+
+
+def generate_trajectory(target_deg: np.ndarray, T_total: float, 
+                       dt: float = 0.01, 
+                       q_start_deg: np.ndarray = None) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Generate minimum jerk trajectory from start to target.
+    
+    Parameters:
+    -----------
+    target_deg : ndarray
+        Target joint angles in degrees [q1, q2, q3]
+    T_total : float
+        Trajectory duration in seconds
+    dt : float
+        Sampling time
+    q_start_deg : ndarray
+        Starting joint angles in degrees (default: [0, 45, 135])
+        
+    Returns:
+    --------
+    t : ndarray
+        Time vector
+    q : ndarray
+        Joint positions (N, 3) in radians
+    qd : ndarray
+        Joint velocities (N, 3) in rad/s
+    qdd : ndarray
+        Joint accelerations (N, 3) in rad/s^2
+    """
+    if q_start_deg is None:
+        q_start_deg = np.array([0.0, 45.0, 135.0])
+    
+    q_start = np.deg2rad(q_start_deg)
+    q_end = np.deg2rad(target_deg)
+    
+    # Generate time vector
+    t = np.arange(0, T_total + dt, dt)
+    N = len(t)
+    
+    # Compute minimum jerk profile
+    f, fd, fdd = min_jerk_profile(t, T_total)
+    
+    # Compute joint trajectories
+    dq = q_end - q_start
+    
+    q = np.zeros((N, 3))
+    qd = np.zeros((N, 3))
+    qdd = np.zeros((N, 3))
+    
+    for j in range(3):
+        dqj = dq[j]
+        q[:, j] = q_start[j] + dqj * f
+        qd[:, j] = dqj * fd
+        qdd[:, j] = dqj * fdd
+    
+    return t, q, qd, qdd
+
+
+def load_trajectory_from_csv(csv_path: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Load trajectory from row-wise CSV file.
+    
+    Expected format:
+        row 0: t, t0, t1, ...
+        row 1: dp1, dp1_0, dp1_1, ...
+        row 2: dp2, dp2_0, dp2_1, ...
+        row 3: dp3, dp3_0, dp3_1, ...
+        row 4: dv1, dv1_0, dv1_1, ...
+        row 5: dv2, dv2_0, dv2_1, ...
+        row 6: dv3, dv3_0, dv3_1, ...
+        row 7: da1, da1_0, da1_1, ... (optional)
+        row 8: da2, da2_0, da2_1, ... (optional)
+        row 9: da3, da3_0, da3_1, ... (optional)
+    
+    Parameters:
+    -----------
+    csv_path : str
+        Path to trajectory CSV file
+        
+    Returns:
+    --------
+    t : ndarray
+        Time vector
+    q : ndarray
+        Joint positions (N, 3) in radians
+    qd : ndarray
+        Joint velocities (N, 3) in rad/s
+    qdd : ndarray
+        Joint accelerations (N, 3) in rad/s^2 (zeros if not in CSV)
+    """
+    df = pd.read_csv(csv_path, header=None, dtype=str)
+    
+    series = {}
+    for i in range(df.shape[0]):
+        raw_name = df.iat[i, 0]
+        if pd.isna(raw_name):
+            continue
+        
+        # Normalize name: "dp1", "dp 1", "DP1" -> "dp1"
+        key = "".join(ch for ch in str(raw_name).lower() if ch.isalnum())
+        row_vals = pd.to_numeric(df.iloc[i, 1:], errors="coerce").to_numpy(dtype=float)
+        series[key] = row_vals
+    
+    # Extract time and joint data
+    t = series.get('t', None)
+    if t is None:
+        raise ValueError("Time vector 't' not found in CSV")
+    
+    # Extract positions (dp1, dp2, dp3)
+    dp1 = series.get('dp1', None)
+    dp2 = series.get('dp2', None)
+    dp3 = series.get('dp3', None)
+    
+    if any(v is None for v in [dp1, dp2, dp3]):
+        raise ValueError("Missing position data (dp1, dp2, dp3) in CSV")
+    
+    # Extract velocities (dv1, dv2, dv3)
+    dv1 = series.get('dv1', None)
+    dv2 = series.get('dv2', None)
+    dv3 = series.get('dv3', None)
+    
+    if any(v is None for v in [dv1, dv2, dv3]):
+        raise ValueError("Missing velocity data (dv1, dv2, dv3) in CSV")
+    
+    # Extract accelerations (da1, da2, da3) - optional
+    da1 = series.get('da1', None)
+    da2 = series.get('da2', None)
+    da3 = series.get('da3', None)
+    
+    # Ensure all arrays have same length
+    n = len(t)
+    dp1, dp2, dp3 = dp1[:n], dp2[:n], dp3[:n]
+    dv1, dv2, dv3 = dv1[:n], dv2[:n], dv3[:n]
+    
+    q = np.column_stack([dp1, dp2, dp3])
+    qd = np.column_stack([dv1, dv2, dv3])
+    
+    if any(v is None for v in [da1, da2, da3]):
+        # Use finite differences to compute accelerations
+        qdd = np.diff(qd, axis=0) / np.diff(t)[:, np.newaxis]
+        qdd = np.vstack([qdd[0], qdd])  # Replicate first row
+    else:
+        da1, da2, da3 = da1[:n], da2[:n], da3[:n]
+        qdd = np.column_stack([da1, da2, da3])
+    
+    return t, q, qd, qdd
+
+
+class PIDTrajectoryController(Node):
     LOGS_DIR = os.path.join(os.path.dirname(__file__), 'logs')
 
     def __init__(
         self,
-        target_rad,
         kp=None,
         ki=None,
         kd=None,
@@ -36,13 +216,14 @@ class PIDTorqueController(Node):
         dt=0.01,
         vel_filter_alpha=0.25,
         settle_tolerance_deg=1.0,
+        use_feedforward=True,
     ):
-        super().__init__('pid_torque_controller')
+        super().__init__('pid_trajectory_controller')
 
-        self.target = np.array(target_rad, dtype=np.float64)
         self.dt = float(dt)
         self.vel_filter_alpha = float(np.clip(vel_filter_alpha, 0.0, 1.0))
         self.settle_tolerance_rad = math.radians(float(settle_tolerance_deg))
+        self.use_feedforward = bool(use_feedforward)
 
         self.kp = np.array(kp if kp is not None else [50.0, 200.0, 150.0], dtype=np.float64)
         self.ki = np.array(ki if ki is not None else [5.0, 25.0, 20.0], dtype=np.float64)
@@ -72,11 +253,16 @@ class PIDTorqueController(Node):
         self.effort_received = False
 
         self.integral_error = np.zeros(3, dtype=np.float64)
-        self.current_idx = 0
-        self.settled = False
-        self.settled_counter = 0
-        self.settle_required_cycles = max(1, int(0.5 / self.dt))
+        self.traj_idx = 0
+        self.trajectory_complete = False
         self.timer = None
+
+        # Trajectory data
+        self.traj_t = None  # Time vector
+        self.traj_q = None  # Position trajectory (N, 3)
+        self.traj_qd = None  # Velocity trajectory (N, 3)
+        self.traj_qdd = None  # Acceleration trajectory (N, 3)
+        self.traj_n = 0  # Number of points
 
         os.makedirs(self.LOGS_DIR, exist_ok=True)
         self.log_t = []
@@ -100,12 +286,12 @@ class PIDTorqueController(Node):
         self.log_tau_sensed3 = []
 
         self.get_logger().info('=' * 70)
-        self.get_logger().info('PID TORQUE CONTROLLER (Point-to-Point)')
+        self.get_logger().info('PID TRAJECTORY CONTROLLER')
         self.get_logger().info('=' * 70)
-        self.get_logger().info(f'Target (deg): {np.degrees(self.target).tolist()}')
         self.get_logger().info(f'Kp={self.kp.tolist()}  Ki={self.ki.tolist()}  Kd={self.kd.tolist()}')
         self.get_logger().info(f'Torque limits: {self.torque_limits.tolist()} Nm')
         self.get_logger().info(f'Control rate: {1.0 / self.dt:.1f} Hz')
+        self.get_logger().info(f'Feedforward enabled: {self.use_feedforward}')
 
     @staticmethod
     def _mat_mul(a, b):
@@ -143,9 +329,9 @@ class PIDTorqueController(Node):
 
     @staticmethod
     def _compose(r, p, r_local, p_local):
-        rp = PIDTorqueController._mat_vec_mul(r, p_local)
+        rp = PIDTrajectoryController._mat_vec_mul(r, p_local)
         p_new = [p[0] + rp[0], p[1] + rp[1], p[2] + rp[2]]
-        r_new = PIDTorqueController._mat_mul(r, r_local)
+        r_new = PIDTrajectoryController._mat_mul(r, r_local)
         return r_new, p_new
 
     def _fk_tip_world(self, q1, q2, q3):
@@ -168,6 +354,10 @@ class PIDTorqueController(Node):
         return [p[0] + tip_world[0], p[1] + tip_world[1], p[2] + tip_world[2]]
 
     def publish_expected_path_marker(self):
+        if self.traj_q is None:
+            self.get_logger().warning('No trajectory set; cannot publish expected path')
+            return
+
         marker = Marker()
         marker.header.frame_id = 'world'
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -182,13 +372,7 @@ class PIDTorqueController(Node):
         marker.color.a = 0.95
         marker.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
 
-        # For point-to-point: interpolate from current to target
-        n = 50
-        start_q = self.current_joint_pos.copy()
-        end_q = self.target.copy()
-        for i in range(n):
-            alpha = i / (n - 1)
-            q = start_q * (1 - alpha) + end_q * alpha
+        for q in self.traj_q:
             xyz = self._fk_tip_world(q[0], q[1], q[2])
             pt = Point()
             pt.x = xyz[0]
@@ -198,6 +382,31 @@ class PIDTorqueController(Node):
 
         self.marker_pub.publish(marker)
         self.get_logger().info(f'Published expected end-effector path ({len(marker.points)} points)')
+
+    def set_trajectory(self, t: np.ndarray, q: np.ndarray, qd: np.ndarray, qdd: np.ndarray):
+        """
+        Set the trajectory to track.
+        
+        Parameters:
+        -----------
+        t : ndarray
+            Time vector
+        q : ndarray
+            Position trajectory (N, 3) in radians
+        qd : ndarray
+            Velocity trajectory (N, 3) in rad/s
+        qdd : ndarray
+            Acceleration trajectory (N, 3) in rad/s^2
+        """
+        self.traj_t = np.array(t, dtype=np.float64)
+        self.traj_q = np.array(q, dtype=np.float64)
+        self.traj_qd = np.array(qd, dtype=np.float64)
+        self.traj_qdd = np.array(qdd, dtype=np.float64)
+        self.traj_n = len(t)
+        
+        self.get_logger().info(f'Trajectory set: {self.traj_n} points, duration: {t[-1]:.2f}s')
+        self.get_logger().info(f'Target start: {np.degrees(q[0]).tolist()}')
+        self.get_logger().info(f'Target end: {np.degrees(q[-1]).tolist()}')
 
     def joint_state_callback(self, msg: JointState):
         try:
@@ -230,20 +439,48 @@ class PIDTorqueController(Node):
             pass
 
     def start(self):
+        if self.traj_n == 0:
+            self.get_logger().error('No trajectory set. Use set_trajectory() first.')
+            return
+        
         self.integral_error[:] = 0.0
-        self.current_idx = 0
-        self.settled = False
-        self.settled_counter = 0
+        self.traj_idx = 0
+        self.trajectory_complete = False
         self.timer = self.create_timer(self.dt, self.control_callback)
 
     def control_callback(self):
-        error_pos = self.target - self.current_joint_pos
-        error_vel = -self.current_joint_vel
-
+        # Check if trajectory is complete
+        if self.traj_idx >= self.traj_n - 1:
+            if not self.trajectory_complete:
+                self.trajectory_complete = True
+                self.get_logger().info(
+                    f'Trajectory complete at t={self.traj_t[self.traj_idx]:.3f}s'
+                )
+            self.traj_idx = self.traj_n - 1  # Stay at last point
+        
+        # Get reference trajectory at current index
+        idx = min(self.traj_idx, self.traj_n - 1)
+        q_ref = self.traj_q[idx]
+        qd_ref = self.traj_qd[idx]
+        qdd_ref = self.traj_qdd[idx] if self.traj_qdd is not None else np.zeros(3)
+        
+        # Compute tracking errors
+        error_pos = q_ref - self.current_joint_pos
+        error_vel = qd_ref - self.current_joint_vel
+        
+        # PID control with optional feedforward
         self.integral_error += error_pos * self.dt
         self.integral_error = np.clip(self.integral_error, -0.75, 0.75)
-
-        tau = self.kp * error_pos + self.kd * error_vel + self.ki * self.integral_error
+        
+        tau_feedback = self.kp * error_pos + self.kd * error_vel + self.ki * self.integral_error
+        
+        # Feedforward from reference acceleration (optional)
+        if self.use_feedforward:
+            tau_ff = 0.1 * qdd_ref  # Small feedforward gain
+            tau = tau_feedback + tau_ff
+        else:
+            tau = tau_feedback
+        
         tau = np.clip(tau, -self.torque_limits, self.torque_limits)
 
         self.msg1.data = [float(tau[0])]
@@ -254,31 +491,20 @@ class PIDTorqueController(Node):
         self.pub3.publish(self.msg3)
 
         max_err = float(np.max(np.abs(error_pos)))
-        self.current_idx += 1
 
-        if max_err <= self.settle_tolerance_rad:
-            self.settled_counter += 1
-            if not self.settled and self.settled_counter >= self.settle_required_cycles:
-                self.settled = True
-                self.get_logger().info(
-                    f'Target reached and held: max error {math.degrees(max_err):.4f} deg'
-                )
-        else:
-            self.settled_counter = 0
-
-        self.log_t.append(f'{self.current_idx * self.dt:.3f}')
-        self.log_dp1.append(f'{self.target[0]:.8f}')
-        self.log_dp2.append(f'{self.target[1]:.8f}')
-        self.log_dp3.append(f'{self.target[2]:.8f}')
+        self.log_t.append(f'{self.traj_t[idx]:.3f}')
+        self.log_dp1.append(f'{q_ref[0]:.8f}')
+        self.log_dp2.append(f'{q_ref[1]:.8f}')
+        self.log_dp3.append(f'{q_ref[2]:.8f}')
         self.log_q1.append(f'{self.current_joint_pos[0]:.8f}')
         self.log_q2.append(f'{self.current_joint_pos[1]:.8f}')
         self.log_q3.append(f'{self.current_joint_pos[2]:.8f}')
         self.log_qd1.append(f'{self.current_joint_vel[0]:.8f}')
         self.log_qd2.append(f'{self.current_joint_vel[1]:.8f}')
         self.log_qd3.append(f'{self.current_joint_vel[2]:.8f}')
-        self.log_dv1.append('0.00000000')
-        self.log_dv2.append('0.00000000')
-        self.log_dv3.append('0.00000000')
+        self.log_dv1.append(f'{qd_ref[0]:.8f}')
+        self.log_dv2.append(f'{qd_ref[1]:.8f}')
+        self.log_dv3.append(f'{qd_ref[2]:.8f}')
         self.log_tau1.append(f'{tau[0]:.8f}')
         self.log_tau2.append(f'{tau[1]:.8f}')
         self.log_tau3.append(f'{tau[2]:.8f}')
@@ -286,15 +512,18 @@ class PIDTorqueController(Node):
         self.log_tau_sensed2.append(f'{self.current_joint_eff[1]:.8f}')
         self.log_tau_sensed3.append(f'{self.current_joint_eff[2]:.8f}')
 
-        if self.current_idx % 50 == 0:
+        if self.traj_idx % 50 == 0:
             self.get_logger().info(
-                f'idx={self.current_idx} | err_deg={math.degrees(max_err):.3f} | '
+                f'idx={self.traj_idx} t={self.traj_t[idx]:.3f}s | err_deg={math.degrees(max_err):.3f} | '
                 f'tau=[{tau[0]:.2f}, {tau[1]:.2f}, {tau[2]:.2f}]'
             )
+        
+        # Increment trajectory index for next control cycle
+        self.traj_idx += 1
 
     def save_log(self) -> Optional[str]:
         try:
-            filename = f'pid_log_{int(time.time())}.csv'
+            filename = f'pid_traj_log_{int(time.time())}.csv'
             path = os.path.join(self.LOGS_DIR, filename)
             with open(path, 'w', newline='') as f:
                 writer = csv.writer(f)
@@ -396,7 +625,7 @@ class PIDTorqueController(Node):
             if log_path:
                 png_path = os.path.splitext(log_path)[0] + '_tracking.png'
             else:
-                png_path = os.path.join(self.LOGS_DIR, f'pid_log_{int(time.time())}_tracking.png')
+                png_path = os.path.join(self.LOGS_DIR, f'pid_traj_log_{int(time.time())}_tracking.png')
             plt.savefig(png_path, dpi=300, bbox_inches='tight')
             plt.close(fig)
             self.get_logger().info(f'✓ Tracking plots saved: {png_path}')
@@ -417,8 +646,25 @@ class PIDTorqueController(Node):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='PID-only torque controller (point-to-point)')
-    parser.add_argument('--target', type=float, nargs=3, required=True, help='Target joint angles (deg)')
+    parser = argparse.ArgumentParser(description='PID trajectory-tracking torque controller')
+    
+    # Trajectory input: either generate or load
+    traj_group = parser.add_mutually_exclusive_group(required=True)
+    traj_group.add_argument(
+        '--target',
+        type=float,
+        nargs=3,
+        help='Target joint angles (deg) to generate trajectory: --target 0 45 30'
+    )
+    traj_group.add_argument(
+        '--trajectory-csv',
+        type=str,
+        help='Load trajectory from CSV file'
+    )
+    
+    # Optional parameters
+    parser.add_argument('--T', type=float, default=None, help='Trajectory duration (seconds) - only with --target')
+    parser.add_argument('--start', type=float, nargs=3, default=None, help='Start configuration (deg) for generated trajectory')
     parser.add_argument('--kp', type=float, nargs=3, default=None, help='PID Kp gains [j1 j2 j3]')
     parser.add_argument('--ki', type=float, nargs=3, default=None, help='PID Ki gains [j1 j2 j3]')
     parser.add_argument('--kd', type=float, nargs=3, default=None, help='PID Kd gains [j1 j2 j3]')
@@ -426,11 +672,12 @@ def main():
     parser.add_argument('--dt', type=float, default=0.01, help='Controller period in seconds')
     parser.add_argument('--vel-filter-alpha', type=float, default=0.25, help='Velocity filter alpha')
     parser.add_argument('--settle-tolerance-deg', type=float, default=1.0, help='Tolerance for settled state')
+    parser.add_argument('--no-feedforward', action='store_true', help='Disable feedforward term')
+    
     args = parser.parse_args()
 
     rclpy.init()
-    node = PIDTorqueController(
-        target_rad=np.deg2rad(np.array(args.target, dtype=np.float64)),
+    node = PIDTrajectoryController(
         kp=args.kp,
         ki=args.ki,
         kd=args.kd,
@@ -438,9 +685,45 @@ def main():
         dt=args.dt,
         vel_filter_alpha=args.vel_filter_alpha,
         settle_tolerance_deg=args.settle_tolerance_deg,
+        use_feedforward=not args.no_feedforward,
     )
 
     try:
+        # Load or generate trajectory
+        if args.target is not None:
+            # Generate trajectory
+            target_deg = np.array(args.target, dtype=np.float64)
+            T_total = args.T
+            
+            # Compute minimum duration if not specified
+            if T_total is None:
+                # Default constraint-based calculation
+                v_max = 2.0
+                a_max = 7.0
+                q_start_deg = args.start if args.start is not None else np.array([0.0, 45.0, 135.0])
+                dq = np.abs(np.deg2rad(target_deg) - np.deg2rad(q_start_deg))
+                T_vel = np.max(1.875 * dq / v_max)
+                T_acc = np.max(np.sqrt(5.77 * dq / a_max))
+                T_total = max(T_vel, T_acc)
+                node.get_logger().info(f'Auto-computed trajectory duration: {T_total:.2f}s')
+            
+            node.get_logger().info(f'Generating trajectory to {target_deg}° with T={T_total}s')
+            t, q, qd, qdd = generate_trajectory(
+                target_deg,
+                T_total,
+                dt=args.dt,
+                q_start_deg=args.start
+            )
+            node.set_trajectory(t, q, qd, qdd)
+            
+        else:
+            # Load trajectory from CSV
+            csv_path = args.trajectory_csv
+            node.get_logger().info(f'Loading trajectory from: {csv_path}')
+            t, q, qd, qdd = load_trajectory_from_csv(csv_path)
+            node.set_trajectory(t, q, qd, qdd)
+
+        # Wait for joint states
         node.get_logger().info('Waiting for joint states...')
         while not node.joint_states_received and rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.1)
@@ -448,7 +731,7 @@ def main():
             node.get_logger().error('No joint states received, exiting')
             return
 
-        node.get_logger().info('Publishing expected path and starting PID control loop')
+        node.get_logger().info('Publishing expected path and starting trajectory tracking')
         try:
             node.publish_expected_path_marker()
         except Exception:
@@ -458,6 +741,8 @@ def main():
             rclpy.spin_once(node, timeout_sec=0.1)
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
+    except Exception as e:
+        node.get_logger().error(f'Error: {e}')
     finally:
         node.shutdown()
         node.destroy_node()
