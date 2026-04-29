@@ -93,6 +93,37 @@ class CTCAnalyzer:
         
         return evolution
     
+    def has_sensed_torques(self) -> bool:
+        """Check if log file contains sensed torques from Gazebo"""
+        return all(f'tau_sensed_{j}' in self.data.columns for j in [1, 2, 3])
+    
+    def compute_sensed_vs_commanded_error(self) -> Dict[str, float]:
+        """Compute error between commanded and sensed torques from Gazebo"""
+        errors = {}
+        
+        if not self.has_sensed_torques():
+            return errors
+        
+        for joint in [1, 2, 3]:
+            tau_cmd_col = f'tau_total_{joint}'
+            tau_sen_col = f'tau_sensed_{joint}'
+            
+            if tau_cmd_col in self.data.columns and tau_sen_col in self.data.columns:
+                tau_cmd = self.data[tau_cmd_col].values
+                tau_sen = self.data[tau_sen_col].values
+                tau_error = tau_cmd - tau_sen
+                
+                errors[f'joint_{joint}_rms'] = np.sqrt(np.mean(tau_error**2))
+                errors[f'joint_{joint}_max'] = np.max(np.abs(tau_error))
+                errors[f'joint_{joint}_mean'] = np.mean(np.abs(tau_error))
+                errors[f'joint_{joint}_std'] = np.std(tau_error)
+                
+                # Peak torques
+                errors[f'joint_{joint}_tau_cmd_peak'] = np.max(np.abs(tau_cmd))
+                errors[f'joint_{joint}_tau_sen_peak'] = np.max(np.abs(tau_sen))
+        
+        return errors
+    
     def print_summary(self):
         """Print performance summary"""
         errors = self.compute_errors()
@@ -142,6 +173,30 @@ class CTCAnalyzer:
             print("◐ Moderate feedback - Normal for real systems")
         else:
             print("✓ Low feedback contribution - Model is accurate")
+        
+        # Sensed vs Commanded Torque Analysis
+        if self.has_sensed_torques():
+            print("\n--- SENSED vs COMMANDED TORQUES (from Gazebo) ---")
+            sensed_errors = self.compute_sensed_vs_commanded_error()
+            for joint in [1, 2, 3]:
+                print(f"\nJoint {joint}:")
+                print(f"  RMS Error: {sensed_errors.get(f'joint_{joint}_rms', 0):.4f} N⋅m")
+                print(f"  Max Error: {sensed_errors.get(f'joint_{joint}_max', 0):.4f} N⋅m")
+                print(f"  Mean Error: {sensed_errors.get(f'joint_{joint}_mean', 0):.4f} N⋅m")
+                print(f"  Std Dev: {sensed_errors.get(f'joint_{joint}_std', 0):.4f} N⋅m")
+                print(f"  Commanded Peak: {sensed_errors.get(f'joint_{joint}_tau_cmd_peak', 0):.2f} N⋅m")
+                print(f"  Sensed Peak: {sensed_errors.get(f'joint_{joint}_tau_sen_peak', 0):.2f} N⋅m")
+            
+            avg_sensed_error = np.mean([sensed_errors.get(f'joint_{j}_rms', 0) for j in [1,2,3]])
+            print(f"\nAverage Sensed-Commanded Error: {avg_sensed_error:.4f} N⋅m")
+            if avg_sensed_error < 1.0:
+                print("✓ Excellent torque tracking")
+            elif avg_sensed_error < 5.0:
+                print("✓ Good torque tracking")
+            elif avg_sensed_error < 10.0:
+                print("◐ Acceptable torque tracking")
+            else:
+                print("✗ Poor torque tracking - Check controller/actuator")
     
     def plot_trajectory_tracking(self, output_file: str = None):
         """Plot desired vs actual trajectory"""
@@ -187,7 +242,7 @@ class CTCAnalyzer:
             plt.show()
     
     def plot_torque_breakdown(self, output_file: str = None):
-        """Plot model-based, feedback, and total torques"""
+        """Plot model-based, feedback, total, and sensed torques"""
         fig, axes = plt.subplots(3, 1, figsize=(12, 10))
         t = self.data['t'].to_numpy()
         
@@ -197,7 +252,14 @@ class CTCAnalyzer:
             tau_total = self.data[f'tau_total_{joint_idx}'].to_numpy()
             ax.plot(t, tau_model, 'b-', label='Model', linewidth=2)
             ax.plot(t, tau_fb, 'g-', label='Feedback', linewidth=1.5, alpha=0.7)
-            ax.plot(t, tau_total, 'r-', label='Total', linewidth=2, alpha=0.8)
+            ax.plot(t, tau_total, 'r-', label='Total Commanded', linewidth=2, alpha=0.8)
+            
+            # Add sensed torques if available
+            if self.has_sensed_torques():
+                tau_sensed = self.data[f'tau_sensed_{joint_idx}'].to_numpy()
+                ax.plot(t, tau_sensed, 'purple', linestyle='--', label='Sensed (Gazebo)', 
+                        linewidth=1.5, alpha=0.7)
+            
             ax.set_xlabel('Time (s)')
             ax.set_ylabel(f'Torque Joint {joint_idx} (N⋅m)')
             ax.legend()
@@ -231,6 +293,61 @@ class CTCAnalyzer:
             print(f"✓ Saved: {output_file}")
         else:
             plt.show()
+    
+    def plot_sensed_vs_commanded_torques(self, output_file: str = None):
+        """Plot commanded vs sensed torques from Gazebo"""
+        if not self.has_sensed_torques():
+            print("⚠ Sensed torques not available in log file")
+            return
+        
+        fig, axes = plt.subplots(3, 1, figsize=(12, 10))
+        t = self.data['t'].to_numpy()
+        
+        for joint_idx, ax in enumerate(axes, 1):
+            tau_cmd = self.data[f'tau_total_{joint_idx}'].to_numpy()
+            tau_sen = self.data[f'tau_sensed_{joint_idx}'].to_numpy()
+            ax.plot(t, tau_cmd, 'b-', label='Commanded', linewidth=2)
+            ax.plot(t, tau_sen, 'r--', label='Sensed (Gazebo)', alpha=0.7, linewidth=1.5)
+            ax.axhline(y=0, color='k', linestyle=':', alpha=0.3)
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel(f'Torque Joint {joint_idx} (N⋅m)')
+            ax.legend()
+            ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        if output_file:
+            plt.savefig(output_file, dpi=150)
+            print(f"✓ Saved: {output_file}")
+        else:
+            plt.show()
+    
+    def plot_torque_tracking_error(self, output_file: str = None):
+        """Plot error between commanded and sensed torques"""
+        if not self.has_sensed_torques():
+            print("⚠ Sensed torques not available in log file")
+            return
+        
+        fig, axes = plt.subplots(3, 1, figsize=(12, 10))
+        t = self.data['t'].to_numpy()
+        
+        for joint_idx, ax in enumerate(axes, 1):
+            tau_cmd = self.data[f'tau_total_{joint_idx}'].to_numpy()
+            tau_sen = self.data[f'tau_sensed_{joint_idx}'].to_numpy()
+            tau_error = tau_cmd - tau_sen
+            ax.plot(t, tau_error, 'purple', linewidth=2)
+            ax.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+            ax.fill_between(t, tau_error, 0, alpha=0.2, color='purple')
+            ax.set_xlabel('Time (s)')
+            ax.set_ylabel(f'Torque Error Joint {joint_idx} (N⋅m)')
+            ax.grid(True, alpha=0.3)
+            ax.set_title(f'Joint {joint_idx} - RMS Error: {np.sqrt(np.mean(tau_error**2)):.4f} N⋅m')
+        
+        plt.tight_layout()
+        if output_file:
+            plt.savefig(output_file, dpi=150)
+            print(f"✓ Saved: {output_file}")
+        else:
+            plt.show()
 
 
 def main():
@@ -244,6 +361,8 @@ def main():
     parser.add_argument('--plot-errors', type=str, metavar='FILE', help='Save error plot')
     parser.add_argument('--plot-torques', type=str, metavar='FILE', help='Save torque breakdown plot')
     parser.add_argument('--plot-velocity', type=str, metavar='FILE', help='Save velocity plot')
+    parser.add_argument('--plot-sensed-torques', type=str, metavar='FILE', help='Save sensed vs commanded torques plot')
+    parser.add_argument('--plot-torque-error', type=str, metavar='FILE', help='Save torque tracking error plot')
     parser.add_argument('--output-dir', type=str, default=None, help='Directory to save all plots')
     
     args = parser.parse_args()
@@ -262,7 +381,7 @@ def main():
         prefix = Path(args.log_file).stem
     
     # Print summary
-    if args.summary or not (args.plot_trajectory or args.plot_errors or args.plot_torques or args.plot_velocity or args.plots):
+    if args.summary or not (args.plot_trajectory or args.plot_errors or args.plot_torques or args.plot_velocity or args.plot_sensed_torques or args.plot_torque_error or args.plots):
         analyzer.print_summary()
     
     # Generate plots
@@ -271,6 +390,9 @@ def main():
         analyzer.plot_tracking_errors(f'{prefix}_errors.png')
         analyzer.plot_torque_breakdown(f'{prefix}_torques.png')
         analyzer.plot_velocity_tracking(f'{prefix}_velocity.png')
+        if analyzer.has_sensed_torques():
+            analyzer.plot_sensed_vs_commanded_torques(f'{prefix}_sensed_torques.png')
+            analyzer.plot_torque_tracking_error(f'{prefix}_torque_error.png')
     else:
         if args.plot_trajectory:
             analyzer.plot_trajectory_tracking(args.plot_trajectory)
@@ -280,6 +402,10 @@ def main():
             analyzer.plot_torque_breakdown(args.plot_torques)
         if args.plot_velocity:
             analyzer.plot_velocity_tracking(args.plot_velocity)
+        if args.plot_sensed_torques:
+            analyzer.plot_sensed_vs_commanded_torques(args.plot_sensed_torques)
+        if args.plot_torque_error:
+            analyzer.plot_torque_tracking_error(args.plot_torque_error)
     
     return 0
 

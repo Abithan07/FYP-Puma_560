@@ -63,6 +63,37 @@ class DNNAnalyzer:
         missing  = [c for c in required if c not in self.data.columns]
         if missing:
             raise ValueError(f'Missing columns: {missing}')
+    
+    def has_sensed_torques(self) -> bool:
+        """Check if log file contains sensed torques from Gazebo"""
+        return all(f'tau_sensed_{j}' in self.data.columns for j in [1, 2, 3])
+    
+    def compute_sensed_vs_commanded_error(self) -> Dict:
+        """Compute error between commanded and sensed torques from Gazebo"""
+        errors = {}
+        
+        if not self.has_sensed_torques():
+            return errors
+        
+        for joint in [1, 2, 3]:
+            tau_cmd_col = f'tau_total_{joint}'
+            tau_sen_col = f'tau_sensed_{joint}'
+            
+            if tau_cmd_col in self.data.columns and tau_sen_col in self.data.columns:
+                tau_cmd = self.data[tau_cmd_col].values
+                tau_sen = self.data[tau_sen_col].values
+                tau_error = tau_cmd - tau_sen
+                
+                errors[f'j{joint}_rms'] = np.sqrt(np.mean(tau_error**2))
+                errors[f'j{joint}_max'] = np.max(np.abs(tau_error))
+                errors[f'j{joint}_mean'] = np.mean(np.abs(tau_error))
+                errors[f'j{joint}_std'] = np.std(tau_error)
+                
+                # Peak torques
+                errors[f'j{joint}_tau_cmd_peak'] = np.max(np.abs(tau_cmd))
+                errors[f'j{joint}_tau_sen_peak'] = np.max(np.abs(tau_sen))
+        
+        return errors
 
     # ------------------------------------------------------------------ #
     #  Metric helpers                                                      #
@@ -173,6 +204,29 @@ class DNNAnalyzer:
         if avg_fb > 40:     print('  ⚠ High feedback fraction — DNN may not fit this trajectory well')
         elif avg_fb > 15:   print('  ◐ Moderate feedback — normal for residual correction')
         else:               print('  ✓ Low feedback — DNN feedforward is dominant')
+        
+        # Sensed vs Commanded Torque Analysis
+        if self.has_sensed_torques():
+            print('\n── SENSED vs COMMANDED TORQUES (from Gazebo) ────────────')
+            sensed_errors = self.compute_sensed_vs_commanded_error()
+            for joint in [1, 2, 3]:
+                print(f'\n  Joint {joint}:')
+                print(f'    RMS Error       : {sensed_errors.get(f"j{joint}_rms", 0):.4f} N⋅m')
+                print(f'    Max Error       : {sensed_errors.get(f"j{joint}_max", 0):.4f} N⋅m')
+                print(f'    Mean Error      : {sensed_errors.get(f"j{joint}_mean", 0):.4f} N⋅m')
+                print(f'    Commanded Peak  : {sensed_errors.get(f"j{joint}_tau_cmd_peak", 0):.2f} N⋅m')
+                print(f'    Sensed Peak     : {sensed_errors.get(f"j{joint}_tau_sen_peak", 0):.2f} N⋅m')
+            
+            avg_sensed_error = np.mean([sensed_errors.get(f'j{j}_rms', 0) for j in [1,2,3]])
+            print(f'\n  Average Sensed-Commanded Error: {avg_sensed_error:.4f} N⋅m')
+            if avg_sensed_error < 1.0:
+                print('  ✓ Excellent torque tracking')
+            elif avg_sensed_error < 5.0:
+                print('  ✓ Good torque tracking')
+            elif avg_sensed_error < 10.0:
+                print('  ◐ Acceptable torque tracking')
+            else:
+                print('  ✗ Poor torque tracking — Check controller/actuator')
 
     # ------------------------------------------------------------------ #
     #  Plots                                                               #
@@ -227,6 +281,13 @@ class DNNAnalyzer:
             ax.plot(self.t, tau_dnn,   'b-',  linewidth=2,   label='DNN (DeLaN+GRU)')
             ax.plot(self.t, tau_fb,    'g-',  linewidth=1.5, label='PD+I feedback', alpha=0.8)
             ax.plot(self.t, tau_total, 'r--', linewidth=1.5, label='Total commanded', alpha=0.8)
+            
+            # Add sensed torques if available
+            if self.has_sensed_torques():
+                tau_sensed = self._col('tau_sensed', j)
+                ax.plot(self.t, tau_sensed, 'purple', linestyle=':', linewidth=2, 
+                        label='Sensed (Gazebo)', alpha=0.75)
+            
             self._warmup_shade(ax)
             ax.set_ylabel(f'Joint {j} torque (Nm)')
             ax.legend(loc='upper right', fontsize=9)
@@ -318,6 +379,54 @@ class DNNAnalyzer:
                     f'{bar.get_height():.3f}°', ha='center', va='bottom', fontsize=9)
         plt.tight_layout()
         self._save_or_show(fig, output_file)
+    
+    def plot_sensed_vs_commanded_torques(self, output_file: str = None):
+        """Plot commanded vs sensed torques from Gazebo"""
+        if not self.has_sensed_torques():
+            print('⚠ Sensed torques not available in log file')
+            return
+        
+        fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+        fig.suptitle(f'{self.title_prefix}Commanded vs Sensed Torques (Gazebo)',
+                     fontsize=14, fontweight='bold')
+        for j, ax in enumerate(axes, 1):
+            tau_cmd = self._col('tau_total', j)
+            tau_sen = self._col('tau_sensed', j)
+            ax.plot(self.t, tau_cmd, 'b-', linewidth=2, label='Commanded')
+            ax.plot(self.t, tau_sen, 'r--', linewidth=1.5, label='Sensed (Gazebo)', alpha=0.8)
+            ax.axhline(y=0, color='k', linestyle=':', alpha=0.3)
+            self._warmup_shade(ax)
+            ax.set_ylabel(f'Joint {j} torque (N⋅m)')
+            ax.legend(loc='upper right', fontsize=9)
+            ax.grid(True, alpha=0.3)
+        axes[-1].set_xlabel('Time (s)')
+        plt.tight_layout()
+        self._save_or_show(fig, output_file)
+    
+    def plot_torque_tracking_error(self, output_file: str = None):
+        """Plot error between commanded and sensed torques"""
+        if not self.has_sensed_torques():
+            print('⚠ Sensed torques not available in log file')
+            return
+        
+        fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+        fig.suptitle(f'{self.title_prefix}Torque Tracking Error (Commanded - Sensed)',
+                     fontsize=14, fontweight='bold')
+        for j, ax in enumerate(axes, 1):
+            tau_cmd = self._col('tau_total', j)
+            tau_sen = self._col('tau_sensed', j)
+            tau_error = tau_cmd - tau_sen
+            ax.plot(self.t, tau_error, color='purple', linewidth=2)
+            ax.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+            ax.fill_between(self.t, tau_error, 0, alpha=0.2, color='purple')
+            self._warmup_shade(ax)
+            rms = np.sqrt(np.mean(tau_error**2))
+            ax.set_ylabel(f'Joint {j} error (N⋅m)')
+            ax.set_title(f'Joint {j}  RMS Error: {rms:.4f} N⋅m', fontsize=10)
+            ax.grid(True, alpha=0.3)
+        axes[-1].set_xlabel('Time (s)')
+        plt.tight_layout()
+        self._save_or_show(fig, output_file)
 
     # ------------------------------------------------------------------ #
     #  CTC comparison                                                      #
@@ -386,6 +495,10 @@ def main():
     parser.add_argument('--plot-gru-residual',type=str, metavar='FILE')
     parser.add_argument('--plot-velocity',    type=str, metavar='FILE')
     parser.add_argument('--plot-warmup',      type=str, metavar='FILE')
+    parser.add_argument('--plot-sensed-torques', type=str, metavar='FILE',
+                        help='Save sensed vs commanded torques plot')
+    parser.add_argument('--plot-torque-error', type=str, metavar='FILE',
+                        help='Save torque tracking error plot')
     args = parser.parse_args()
 
     try:
@@ -407,6 +520,7 @@ def main():
         args.plot_trajectory, args.plot_errors, args.plot_torques,
         args.plot_delan_vs_dnn, args.plot_gru_residual,
         args.plot_velocity, args.plot_warmup,
+        args.plot_sensed_torques, args.plot_torque_error,
     ])
 
     # Always print summary unless suppressed by individual plot-only flags
@@ -422,6 +536,9 @@ def main():
         analyzer.plot_gru_residual(       f'{prefix}_gru_residual.png')
         analyzer.plot_velocity_tracking(  f'{prefix}_velocity.png')
         analyzer.plot_warmup_effect(      f'{prefix}_warmup_effect.png')
+        if analyzer.has_sensed_torques():
+            analyzer.plot_sensed_vs_commanded_torques(f'{prefix}_sensed_torques.png')
+            analyzer.plot_torque_tracking_error(f'{prefix}_torque_error.png')
         if args.compare_ctc:
             analyzer.plot_compare_ctc(args.compare_ctc,
                                       f'{prefix}_vs_ctc.png')
@@ -433,6 +550,8 @@ def main():
         if args.plot_gru_residual: analyzer.plot_gru_residual(args.plot_gru_residual)
         if args.plot_velocity:     analyzer.plot_velocity_tracking(args.plot_velocity)
         if args.plot_warmup:       analyzer.plot_warmup_effect(args.plot_warmup)
+        if args.plot_sensed_torques: analyzer.plot_sensed_vs_commanded_torques(args.plot_sensed_torques)
+        if args.plot_torque_error: analyzer.plot_torque_tracking_error(args.plot_torque_error)
         if args.compare_ctc:
             out = f'{prefix}_vs_ctc.png' if not any_individual else None
             analyzer.plot_compare_ctc(args.compare_ctc, out)

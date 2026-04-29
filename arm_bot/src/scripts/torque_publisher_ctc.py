@@ -45,7 +45,7 @@ except ImportError:
 class TorquePublisher(Node):
     def __init__(self, csv_path=None, skip_stabilization_threshold_deg=1.0, 
                  kp=None, kd=None, ki=None, use_feedback=True, use_model=True,
-                 dynamics_frame='actual', torque_limits=None,
+                 dynamics_frame='desired', torque_limits=None,
                  vel_filter_alpha=0.25, log_path=None):
         super().__init__('torque_publisher')
         
@@ -57,12 +57,14 @@ class TorquePublisher(Node):
         
         # Control gains (can be overridden by arguments)
         if kp is None:
-            self.kp = np.array([30.0, 100.0, 50.0])  # Proportional gains
+            # self.kp = np.array([30.0, 100.0, 50.0])  # Proportional gains
+            self.kp = np.array([30.0, 100.0, 200.0])  # Proportional gains
         else:
             self.kp = np.array(kp)
             
         if kd is None:
-            self.kd = np.array([4.0, 10.0, 5.0])  # Derivative gains
+            # self.kd = np.array([4.0, 10.0, 5.0])  # Derivative gains
+            self.kd = np.array([4.0, 10.0, 20.0])  # Derivative gains
         else:
             self.kd = np.array(kd)
 
@@ -117,6 +119,7 @@ class TorquePublisher(Node):
         self.current_idx = 0
         self.current_joint_pos = np.array([0.0, 0.0, 0.0])
         self.current_joint_vel = np.array([0.0, 0.0, 0.0])
+        self.current_joint_efforts = np.array([0.0, 0.0, 0.0])  # Sensed torques from Gazebo
         self.joint_states_received = False
         self.trajectory_active = False
         self.trajectory_timer = None
@@ -154,7 +157,7 @@ class TorquePublisher(Node):
         self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
         self.get_logger().info(f'Model-based control: {self.use_model}')
         self.get_logger().info(f'Feedback control: {self.use_feedback}')
-        self.get_logger().info(f'Dynamics frame: {self.dynamics_frame}')
+        self.get_logger().info(f'Dynamics frame: {self.dynamics_frame} (for consistent model/feedback decomposition)')
         self.get_logger().info(
             f'Control gains: Kp={self.kp.tolist()}, Kd={self.kd.tolist()}, Ki={self.ki.tolist()}'
         )
@@ -407,6 +410,14 @@ class TorquePublisher(Node):
                     for i in range(3)
                 ])
             
+            # Extract sensed torques (efforts) from Gazebo
+            if len(msg.effort) >= 3:
+                self.current_joint_efforts = np.array([
+                    msg.effort[idx1],
+                    msg.effort[idx2],
+                    msg.effort[idx3]
+                ])
+            
             self.joint_states_received = True
         except (ValueError, IndexError):
             pass
@@ -538,7 +549,8 @@ class TorquePublisher(Node):
                 'qd_act_1', 'qd_act_2', 'qd_act_3',  # actual velocities
                 'tau_model_1', 'tau_model_2', 'tau_model_3',  # model-based torques
                 'tau_fb_1', 'tau_fb_2', 'tau_fb_3',  # feedback torques
-                'tau_total_1', 'tau_total_2', 'tau_total_3',  # total torques
+                'tau_total_1', 'tau_total_2', 'tau_total_3',  # total (commanded) torques
+                'tau_sensed_1', 'tau_sensed_2', 'tau_sensed_3',  # sensed torques from Gazebo
                 'e_pos_1', 'e_pos_2', 'e_pos_3',  # position tracking errors
                 'e_vel_1', 'e_vel_2', 'e_vel_3',  # velocity tracking errors
             ]
@@ -551,7 +563,7 @@ class TorquePublisher(Node):
             return False
     
     def log_timestep(self, t, q_des, qd_des, qdd_des, q_act, qd_act, 
-                     tau_model, tau_fb, tau_total, e_pos, e_vel):
+                     tau_model, tau_fb, tau_total, tau_sensed, e_pos, e_vel):
         """Buffer a timestep of data for logging"""
         row = [
             f'{t:.3f}',
@@ -574,6 +586,9 @@ class TorquePublisher(Node):
         for val in tau_fb:
             row.append(f'{val:.8f}')
         for val in tau_total:
+            row.append(f'{val:.8f}')
+        # Sensed torques from Gazebo
+        for val in tau_sensed:
             row.append(f'{val:.8f}')
         # Errors
         for val in e_pos:
@@ -779,7 +794,7 @@ class TorquePublisher(Node):
                 self.time_data[self.current_idx],
                 q_des, qd_des, qdd_des,
                 self.current_joint_pos, self.current_joint_vel,
-                tau_model, tau_fb, tau_total,
+                tau_model, tau_fb, tau_total, self.current_joint_efforts,
                 e_pos, e_vel
             )
         
@@ -958,8 +973,8 @@ def main(args=None):
         '--dynamics-frame',
         type=str,
         choices=['actual', 'desired'],
-        default='actual',
-        help='State used for D,C,G evaluation (default: actual)'
+        default='desired',
+        help='State used for D,C,G evaluation (default: desired for consistent model decomposition)'
     )
     parser.add_argument(
         '--torque-limits',

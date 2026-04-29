@@ -265,6 +265,7 @@ class DNNTorquePublisher(Node):
         self.current_idx       = 0
         self.current_joint_pos = np.zeros(3)
         self.current_joint_vel = np.zeros(3)
+        self.current_joint_efforts = np.zeros(3)  # Sensed torques from Gazebo
         self.joint_states_received  = False
         self.trajectory_active      = False
         self.trajectory_timer       = None
@@ -498,6 +499,7 @@ class DNNTorquePublisher(Node):
                 'tau_dnn_1',  'tau_dnn_2',  'tau_dnn_3',   # DeLaN + GRU
                 'tau_fb_1',   'tau_fb_2',   'tau_fb_3',    # PD+I correction
                 'tau_total_1','tau_total_2','tau_total_3',
+                'tau_sensed_1','tau_sensed_2','tau_sensed_3',  # Sensed torques from Gazebo
                 'e_pos_1',    'e_pos_2',    'e_pos_3',
                 'e_vel_1',    'e_vel_2',    'e_vel_3',
                 'gru_active',                               # 0=warmup, 1=GRU on
@@ -510,10 +512,10 @@ class DNNTorquePublisher(Node):
             return False
 
     def log_timestep(self, t, q_des, qd_des, qdd_des, q_act, qd_act,
-                     tau_delan, tau_dnn, tau_fb, tau_total, e_pos, e_vel, gru_active):
+                     tau_delan, tau_dnn, tau_fb, tau_total, tau_sensed, e_pos, e_vel, gru_active):
         row = [f'{t:.3f}']
         for v in [*q_des, *qd_des, *qdd_des, *q_act, *qd_act,
-                  *tau_delan, *tau_dnn, *tau_fb, *tau_total, *e_pos, *e_vel]:
+                  *tau_delan, *tau_dnn, *tau_fb, *tau_total, *tau_sensed, *e_pos, *e_vel]:
             row.append(f'{v:.8f}')
         row.append('1' if gru_active else '0')
         self.log_data.append(row)
@@ -653,7 +655,7 @@ class DNNTorquePublisher(Node):
                 self.time_data[self.current_idx],
                 q_des, qd_des, qdd_des,
                 self.current_joint_pos, self.current_joint_vel,
-                tau_delan, tau_dnn, tau_fb, tau_total,
+                tau_delan, tau_dnn, tau_fb, tau_total, self.current_joint_efforts,
                 e_pos, e_vel, gru_active)
 
         self.current_idx += 1

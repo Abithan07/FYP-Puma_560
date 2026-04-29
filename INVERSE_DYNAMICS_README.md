@@ -53,6 +53,8 @@ python3 inverse_dynamics_fast.py Dataset/Trajectories/path_5600_traj.csv -o Data
 **Process a single trajectory file:**
 ```bash
 python3 inverse_dynamics_fast.py Dataset/Trajectories/path_5600_traj.csv -o Dataset/Joint_states
+python3 inverse_dynamics_fast.py /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_662_joint_states.csv -o Dataset/Joint_states
+
 ```
 
 **Process all trajectories in a directory:**

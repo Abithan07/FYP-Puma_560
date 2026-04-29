@@ -1,0 +1,233 @@
+import numpy as np
+import os
+import argparse
+import sympy as sp
+
+# ===================== SYMBOLIC VARIABLES =====================
+
+q1, q2, q3 = sp.symbols('q1 q2 q3')
+qd1, qd2, qd3 = sp.symbols('qd1 qd2 qd3')
+
+q  = sp.Matrix([q1, q2, q3])
+qd = sp.Matrix([qd1, qd2, qd3])
+
+g = 9.81
+
+# ===================== DH PARAMETERS =====================
+
+a1, a2, a3 = 0, -sp.pi/2, 0
+L1, L2, L3 = 0, 0, 0.4318
+d1, d2, d3 = 0, 0.2435, -0.0934
+
+# ===================== COG =====================
+
+CoG1 = sp.Matrix([0, 0, 0])
+CoG2 = sp.Matrix([0.068, 0.006, -0.016])
+CoG3 = sp.Matrix([0, -0.143, 0.014])
+
+# ===================== MASSES =====================
+
+m1, m2, m3 = 0.01, 17.4, 4.8
+
+# ===================== ROTATIONAL / MOTOR INERTIAS (from MATLAB)
+Im1, Im2, Im3 = 1.14, 4.71, 0.83
+I1xx, I1yy, I1zz = 0.745, 0.745, 0.35 + Im1
+I2xx, I2yy, I2zz = 2.6245, 2.6245, 0.539 + Im2
+I3xx, I3yy, I3zz = 0.458, 0.458, 0.086 + Im3
+
+I1 = sp.Matrix([[I1xx, 0, 0], [0, I1yy, 0], [0, 0, I1zz]])
+I2 = sp.Matrix([[I2xx, 0, 0], [0, I2yy, 0], [0, 0, I2zz]])
+I3 = sp.Matrix([[I3xx, 0, 0], [0, I3yy, 0], [0, 0, I3zz]])
+
+# ===================== TRANSFORM =====================
+
+def T(alpha, a, d, th):
+    return sp.Matrix([
+        [sp.cos(th), -sp.sin(th), 0, a],
+        [sp.sin(th)*sp.cos(alpha), sp.cos(th)*sp.cos(alpha), -sp.sin(alpha), -sp.sin(alpha)*d],
+        [sp.sin(th)*sp.sin(alpha), sp.cos(th)*sp.sin(alpha),  sp.cos(alpha),  sp.cos(alpha)*d],
+        [0, 0, 0, 1]
+    ])
+
+T01 = T(a1, L1, d1, q1)
+T12 = T(a2, L2, d2, q2)
+T23 = T(a3, L3, d3, q3)
+
+T02 = T01 * T12
+T03 = T02 * T23
+
+R01 = T01[:3, :3]
+R02 = T02[:3, :3]
+R03 = T03[:3, :3]
+
+# ===================== CENTERS OF MASS =====================
+
+rc1 = T01[:3, 3] + R01 * CoG1
+rc2 = T02[:3, 3] + R02 * CoG2
+rc3 = T03[:3, 3] + R03 * CoG3
+
+# ===================== JACOBIANS =====================
+
+Jv1 = rc1.jacobian(q)
+Jv2 = rc2.jacobian(q)
+Jv3 = rc3.jacobian(q)
+
+# Angular Jacobians (match MATLAB definitions)
+Jw1 = sp.Matrix.hstack(R01[:,2], sp.zeros(3,1), sp.zeros(3,1))
+Jw2 = sp.Matrix.hstack(R01[:,2], R02[:,2], sp.zeros(3,1))
+Jw3 = sp.Matrix.hstack(R01[:,2], R02[:,2], R03[:,2])
+
+# ===================== INERTIA MATRIX =====================
+
+# Include translational (m*Jv^T Jv) and rotational (Jw^T * R * I * R^T * Jw)
+D = (m1*(Jv1.T*Jv1) + Jw1.T*R01*I1*R01.T*Jw1
+     + m2*(Jv2.T*Jv2) + Jw2.T*R02*I2*R02.T*Jw2
+     + m3*(Jv3.T*Jv3) + Jw3.T*R03*I3*R03.T*Jw3)
+
+# Simplify symbolic matrix (optional)
+D = sp.simplify(D)
+
+# ===================== GRAVITY =====================
+
+P = g*(m1*rc1[2] + m2*rc2[2] + m3*rc3[2])
+G = sp.Matrix([sp.diff(P, qi) for qi in q])
+
+# ===================== CHRISTOFFEL TENSOR =====================
+
+C = sp.MutableDenseNDimArray.zeros(3,3,3)
+
+for i in range(3):
+    for j in range(3):
+        for k in range(3):
+            C[i,j,k] = sp.Rational(1,2) * (
+                sp.diff(D[i,j], q[k]) +
+                sp.diff(D[i,k], q[j]) -
+                sp.diff(D[j,k], q[i])
+            )
+
+# ===================== CORIOLIS VECTOR =====================
+
+Cvec = sp.Matrix([0, 0, 0])
+
+for i in range(3):
+    for j in range(3):
+        for k in range(3):
+            Cvec[i] += C[i,j,k] * qd[j] * qd[k]
+
+# ===================== NUMERICAL FUNCTIONS =====================
+
+D_func = sp.lambdify((q1,q2,q3), D, 'numpy')
+G_func = sp.lambdify((q1,q2,q3), G, 'numpy')
+C_func = sp.lambdify((q1,q2,q3,qd1,qd2,qd3), Cvec, 'numpy')
+
+# ===================== PROCESS FUNCTION =====================
+
+def process_file(in_file, out_file):
+
+    data = np.loadtxt(in_file, delimiter=",", dtype=str)
+
+    # remove labels if present (first column)
+    if data.shape[1] > 1:
+        data = data[:,1:].astype(float)
+    else:
+        data = data.astype(float)
+
+    t  = data[0]
+    dp = data[1:4].T
+    dv = data[4:7].T
+    da = data[7:10].T
+
+    N = len(t)
+
+    tau = np.zeros((N,3))
+    Mv  = np.zeros((N,3))
+    Cv  = np.zeros((N,3))
+    Gv  = np.zeros((N,3))
+
+    for i in range(N):
+
+        qk  = dp[i]
+        dqk = dv[i]
+        ddq = da[i]
+
+        Dk = np.array(D_func(*qk), dtype=float)
+        Gk = np.array(G_func(*qk), dtype=float).flatten()
+        Ck = np.array(C_func(*qk, *dqk), dtype=float).flatten()
+
+        Mvec = Dk @ ddq
+
+        tau[i] = Mvec + Ck + Gk
+        Mv[i] = Mvec
+        Cv[i] = Ck
+        Gv[i] = Gk
+
+    out = np.vstack([
+        t,
+        dp[:,0], dp[:,1], dp[:,2],
+        dv[:,0], dv[:,1], dv[:,2],
+        da[:,0], da[:,1], da[:,2],
+        tau[:,0], tau[:,1], tau[:,2],
+        Mv[:,0], Mv[:,1], Mv[:,2],
+        Cv[:,0], Cv[:,1], Cv[:,2],
+        Gv[:,0], Gv[:,1], Gv[:,2],
+    ])
+
+    labels = np.array([
+        "t",
+        "dp1","dp2","dp3",
+        "dv1","dv2","dv3",
+        "da1","da2","da3",
+        "tau1","tau2","tau3",
+        "m1","m2","m3",
+        "c1","c2","c3",
+        "g1","g2","g3"
+    ]).reshape(-1,1)
+
+    out_str = np.zeros_like(out, dtype=object)
+
+    for i in range(out.shape[0]):
+        if i == 0:
+            out_str[i] = np.char.mod('%.3f', out[i])
+        else:
+            out_str[i] = np.char.mod('%.8f', out[i])
+
+    final = np.hstack((labels, out_str))
+
+    np.savetxt(out_file, final, delimiter=",", fmt="%s")
+
+# ===================== MAIN =====================
+
+def main(start_id, num_paths):
+
+    traj_dir = "Dataset/Trajectories"
+    out_dir  = "Dataset/JointStates"
+    os.makedirs(out_dir, exist_ok=True)
+
+    for i in range(num_paths):
+
+        pid = start_id + i
+
+        in_file  = os.path.join(traj_dir, f"path_{pid:03d}_trajectory.csv")
+        out_file = os.path.join(out_dir, f"path_{pid:03d}_joint_states.csv")
+
+        print(f"Processing {in_file}")
+
+        process_file(in_file, out_file)
+
+    print("All trajectories processed successfully.")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("start_id", type=int)
+    parser.add_argument("num_paths", type=int)
+
+    args = parser.parse_args()
+
+    main(args.start_id, args.num_paths)
+
+"""
+Usage:
+    python inv_dyn1.py <start_id> <num_paths>
+    Example: python3 inv_dyn1.py 1 10
+"""

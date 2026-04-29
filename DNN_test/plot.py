@@ -1,3 +1,31 @@
+"""
+Plot utility for row-wise joint-state CSV files.
+
+Run command:
+        python3 DNN_test/plot.py 603
+
+If you run it from inside DNN_test:
+        python3 plot.py 603
+
+You can also pass a CSV file directly:
+    python3 plot.py /home/priyankan/Desktop/FYP-Puma_560/Dataset/Joint_states/path_662_joint_states.csv
+
+Expected CSV layout:
+    row 0: t, t0, t1, ...
+    row 1: dp1, ...
+    row 2: dp2, ...
+    row 3: dp3, ...
+    row 4: dv1, ...
+    row 5: dv2, ...
+    row 6: dv3, ...
+    row 7: da1, ...
+    row 8: da2, ...
+    row 9: da3, ...
+    row 10: tau1, ...
+    row 11: tau2, ...
+    row 12: tau3, ...
+"""
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -8,14 +36,28 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Plot dp/dv/da/tau series from path_<id>_joint_states.csv"
+        description="Plot dp/dv/da/tau series from a joint-state CSV file or path id"
     )
     parser.add_argument(
-        "id",
-        type=int,
-        help="Path id (example: 603 for path_603_joint_states.csv)",
+        "input",
+        help="Path id (example: 603) or a CSV file path (example: /path/to/path_603_joint_states.csv)",
     )
     return parser.parse_args()
+
+
+def resolve_csv_path(script_dir: Path, input_arg: str) -> Path:
+    """Resolve either a numeric path id or a direct CSV file path."""
+    input_path = Path(input_arg).expanduser()
+
+    if input_path.exists():
+        return input_path.resolve()
+
+    if input_arg.isdigit():
+        return (script_dir / "Data" / f"path_{int(input_arg):03d}_joint_states.csv").resolve()
+
+    raise FileNotFoundError(
+        f"Input '{input_arg}' is neither an existing CSV file nor a numeric path id"
+    )
 
 
 def normalize_name(name: str) -> str:
@@ -71,7 +113,7 @@ def plot_group(ax, t, ys, labels, title, y_label):
 def main():
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
-    csv_path = script_dir / "Data" / f"path_{args.id:03d}_joint_states.csv"
+    csv_path = resolve_csv_path(script_dir, args.input)
 
     if not csv_path.exists():
         raise FileNotFoundError(f"Input file not found: {csv_path}")
