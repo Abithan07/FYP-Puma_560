@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(arm_bot)
+project(arm_bot_pos_control)
 
 # Default to C99
 if(NOT CMAKE_C_STANDARD)
@@ -31,6 +31,13 @@ if(BUILD_TESTING)
   #set(ament_cmake_cpplint_FOUND TRUE)
   ament_lint_auto_find_test_dependencies()
 endif()
+
+# Install Python executables
+install(
+  PROGRAMS launch/line_drawer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME line_drawer
+)
 
 install(
   DIRECTORY config description launch worlds meshes scripts

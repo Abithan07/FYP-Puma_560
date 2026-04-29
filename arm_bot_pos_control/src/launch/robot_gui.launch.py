@@ -12,7 +12,7 @@ from ament_index_python.packages import get_package_share_directory
 def generate_launch_description():
     
     # Get package directory
-    pkg_name = 'arm_bot'
+    pkg_name = 'arm_bot_pos_control'
     pkg_share = get_package_share_directory(pkg_name)
     
     # Path to XACRO file
@@ -24,6 +24,12 @@ def generate_launch_description():
 
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
+    marker_target_frame = LaunchConfiguration('marker_target_frame', default='world')
+    marker_link_frame = LaunchConfiguration('marker_link_frame', default='link_3')
+    marker_tip_offset_x = LaunchConfiguration('marker_tip_offset_x', default='0.0')
+    marker_tip_offset_y = LaunchConfiguration('marker_tip_offset_y', default='-0.32')
+    marker_tip_offset_z = LaunchConfiguration('marker_tip_offset_z', default='0.0')
+    marker_line_width = LaunchConfiguration('marker_line_width', default='0.01')
 
     # Set Gazebo resource path for meshes
     gz_resource_path = SetEnvironmentVariable(
@@ -69,7 +75,7 @@ def generate_launch_description():
         executable='create',
         arguments=[
             '-topic', 'robot_description',
-            '-name', 'arm_bot',
+            '-name', 'arm_bot_pos_control',
             '-allow_renaming', 'true'
         ],
         output='screen'
@@ -122,6 +128,23 @@ def generate_launch_description():
         parameters=[{'use_sim_time': use_sim_time}]
     )
 
+    # Line Drawer - Visualizes end effector trajectory
+    line_drawer_node = Node(
+        package='arm_bot_pos_control',
+        executable='line_drawer',
+        name='line_drawer',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time,
+            'target_frame': marker_target_frame,
+            'link_frame': marker_link_frame,
+            'tip_offset_x': marker_tip_offset_x,
+            'tip_offset_y': marker_tip_offset_y,
+            'tip_offset_z': marker_tip_offset_z,
+            'line_width': marker_line_width,
+        }]
+    )
+
     return LaunchDescription([
         # Set environment variables
         gz_resource_path,
@@ -131,6 +154,36 @@ def generate_launch_description():
             'use_sim_time',
             default_value='true',
             description='Use simulation time'
+        ),
+        DeclareLaunchArgument(
+            'marker_target_frame',
+            default_value='world',
+            description='Frame used for drawing the marker line'
+        ),
+        DeclareLaunchArgument(
+            'marker_link_frame',
+            default_value='link_3',
+            description='Link frame whose endpoint is tracked'
+        ),
+        DeclareLaunchArgument(
+            'marker_tip_offset_x',
+            default_value='0.0',
+            description='Tip offset X in marker_link_frame'
+        ),
+        DeclareLaunchArgument(
+            'marker_tip_offset_y',
+            default_value='-0.32',
+            description='Tip offset Y in marker_link_frame'
+        ),
+        DeclareLaunchArgument(
+            'marker_tip_offset_z',
+            default_value='0.0',
+            description='Tip offset Z in marker_link_frame'
+        ),
+        DeclareLaunchArgument(
+            'marker_line_width',
+            default_value='0.01',
+            description='Width of the trajectory line marker'
         ),
 
         # Launch Gazebo Sim
@@ -167,4 +220,7 @@ def generate_launch_description():
 
         # RViz2
         rviz_node,
+        
+        # Line Drawer
+        line_drawer_node,
     ])
