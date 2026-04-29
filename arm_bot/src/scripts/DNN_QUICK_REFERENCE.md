@@ -2,6 +2,34 @@
 
 ---
 
+## Quick Start
+### For the first time run the following in each terminal
+```bash
+cd ~/Desktop/FYP-Puma_560/arm_bot
+colcon build --symlink-install
+source install/setup.bash
+```
+
+```bash
+# Terminal 1 — Gazebo
+ros2 launch arm_bot gazebo.launch.py
+
+# Terminal 2 — DNN controller
+ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path src/scripts/Joint_states/path_559_joint_states.csv
+
+ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path src/scripts/Joint_states/Joint_states_601_1120/path_643_joint_states.csv
+
+# Terminal 3 — Analyse after run
+python3 src/scripts/analyze_dnn_performance.py \
+  src/scripts/logs/path_559_joint_states_dnn_log_1.csv --plots
+
+python3 src/scripts/analyze_dnn_performance.py \
+  src/scripts/logs/path_461_joint_states_dnn_log_1.csv --summary
+```
+
+
 ## File & Directory Map
 
 ```
@@ -95,34 +123,6 @@ Every 10 ms (100 Hz):
 ```bash
 cd ~/Desktop/FYP-Puma_560/arm_bot && colcon build --packages-select arm_bot && source install/setup.bash
 ```
-
-```bash
-# Terminal 1 — Gazebo
-cd ~/Desktop/FYP-Puma_560/arm_bot 
-colcon build --symlink-install
-source install/setup.bash
-ros2 launch arm_bot gazebo.launch.py
-
-# Terminal 2 — DNN controller
-source install/setup.bash
-ros2 run arm_bot torque_publisher_dnn.py \
-  --csv-path src/scripts/Joint_states/path_559_joint_states.csv
-
-ros2 run arm_bot torque_publisher_dnn.py \
-  --csv-path src/scripts/Joint_states/Joint_states_601_1120/path_643_joint_states.csv
-
-# Terminal 3 — Analyse after run
-python3 src/scripts/analyze_dnn_performance.py \
-  src/scripts/logs/path_461_joint_states_dnn_log_1.csv --summary
-
-# or
-python3 src/scripts/analyze_dnn_performance.py \
-  src/scripts/logs/path_559_joint_states_dnn_log_1.csv --plots
-
-python3 src/scripts/analyze_dnn_performance.py \
- src/scripts/logs/path_643_joint_states_dnn_log_1.csv
-```
-
 ---
 
 ## All CLI Options (`torque_publisher_dnn.py`)

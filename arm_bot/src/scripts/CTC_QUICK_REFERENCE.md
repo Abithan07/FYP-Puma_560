@@ -2,6 +2,57 @@
 
 ---
 
+## Quick Start
+### For the first time run the following in each terminal
+```bash
+cd ~/Desktop/FYP-Puma_560/arm_bot
+colcon build --symlink-install
+source install/setup.bash
+```
+
+```bash
+# Terminal 1 — Gazebo
+ros2 launch arm_bot gazebo.launch.py
+
+# Terminal 2 — CTC (pre-generated trajectory)
+ros2 run arm_bot torque_publisher_ctc.py \
+  --csv-path /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_610_joint_states.csv
+
+# Terminal 2 — CTC (on-the-fly trajectory from end position)
+ros2 run arm_bot torque_publisher_ctc.py \
+  --q-end 30 20 100          # joint end positions in degrees
+                             # q_start defaults to [0, 45, 135] deg; T selected from [12,17,22]s
+
+# Terminal 3 — Analyse after run
+cd ~/Desktop/FYP-Puma_560
+python3 src/scripts/analyze_ctc_performance.py \
+src/scripts/logs/path_870_joint_states_ctc_log_1.csv --plots  
+# use --summary to get text summary in the terminal
+
+```
+
+---
+
+## All CLI Options
+
+```
+--csv-path PATH                  Pre-generated trajectory CSV (mutually exclusive with --q-end)
+--q-end Q1 Q2 Q3                 End joint positions in degrees; generates trajectory on the fly
+--q-start Q1 Q2 Q3               Start joint positions in degrees (default: 0 45 135)
+--kp KP1 KP2 KP3                 Proportional gains (default: 30 100 50)
+--kd KD1 KD2 KD3                 Derivative gains   (default:  4  10  5)
+--ki KI1 KI2 KI3                 Integral gains     (default: 0.2 1.0 0.8)
+--torque-limits T1 T2 T3         Saturation limits in Nm (default: 100 100 60)
+--vel-filter-alpha ALPHA         Velocity low-pass alpha 0-1 (default: 0.25)
+--dynamics-frame {actual|desired} State used for D,C,G (default: actual)
+--skip-stabilization-threshold-deg DEG  Skip Phase 1 if error < DEG (default: 1.0)
+--no-feedback                    Disable PD feedback term (model feedforward only)
+--no-model                       Disable inverse-dynamics term (feedback only)
+--log-path PATH                  Override auto-generated log path
+```
+
+---
+
 ## File & Directory Map
 
 ```
@@ -97,59 +148,6 @@ Edit these when you want the change to persist across all runs without typing fl
 | **Max velocity** | same method → `v_max` | `2.0` rad/s |
 | **Max acceleration** | same method → `a_max` | `7.0` rad/s² |
 | **Default q_start** | `--q-start` CLI arg default | `[0, 45, 135]` deg |
-
----
-
-## Quick Start
-### For the first run the following first in each terminal
-```bash
-cd ~/Desktop/FYP-Puma_560/arm_bot && colcon build --packages-select arm_bot && source install/setup.bash
-```
-
-```bash
-# Terminal 1 — Gazebo
-ros2 launch arm_bot gazebo.launch.py
-
-# Terminal 2 — CTC (pre-generated trajectory)
-ros2 run arm_bot torque_publisher_ctc.py \
-  --csv-path src/scripts/script_resources/path_001_trajectory.csv
-
-ros2 run arm_bot torque_publisher_ctc.py \
-  --csv-path /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_662_joint_states.csv
-
-# Terminal 2 — CTC (on-the-fly trajectory from end position)
-ros2 run arm_bot torque_publisher_ctc.py \
-  --q-end 30 20 100          # joint end positions in degrees
-  # q_start defaults to [0, 45, 135] deg; T selected from [12,17,22]s
-
-# Terminal 3 — Analyse after run
-cd ~/Desktop/FYP-Puma_560
-python3 arm_bot/src/scripts/analyze_ctc_performance.py \
-  arm_bot/src/scripts/logs/<traj_name>_ctc_log_1.csv --summary
-
-python3 src/scripts/analyze_ctc_performance.py \
- /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_662_joint_states_ctc_log_1.csv
-```
-
----
-
-## All CLI Options
-
-```
---csv-path PATH                  Pre-generated trajectory CSV (mutually exclusive with --q-end)
---q-end Q1 Q2 Q3                 End joint positions in degrees; generates trajectory on the fly
---q-start Q1 Q2 Q3               Start joint positions in degrees (default: 0 45 135)
---kp KP1 KP2 KP3                 Proportional gains (default: 30 100 50)
---kd KD1 KD2 KD3                 Derivative gains   (default:  4  10  5)
---ki KI1 KI2 KI3                 Integral gains     (default: 0.2 1.0 0.8)
---torque-limits T1 T2 T3         Saturation limits in Nm (default: 100 100 60)
---vel-filter-alpha ALPHA         Velocity low-pass alpha 0-1 (default: 0.25)
---dynamics-frame {actual|desired} State used for D,C,G (default: actual)
---skip-stabilization-threshold-deg DEG  Skip Phase 1 if error < DEG (default: 1.0)
---no-feedback                    Disable PD feedback term (model feedforward only)
---no-model                       Disable inverse-dynamics term (feedback only)
---log-path PATH                  Override auto-generated log path
-```
 
 ---
 

@@ -363,7 +363,7 @@ def main():
     parser.add_argument('--plot-velocity', type=str, metavar='FILE', help='Save velocity plot')
     parser.add_argument('--plot-sensed-torques', type=str, metavar='FILE', help='Save sensed vs commanded torques plot')
     parser.add_argument('--plot-torque-error', type=str, metavar='FILE', help='Save torque tracking error plot')
-    parser.add_argument('--output-dir', type=str, default=None, help='Directory to save all plots')
+    parser.add_argument('--output-dir', type=str, default='/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/CTC_Analysis', help='Directory to save all plots')
     
     args = parser.parse_args()
     

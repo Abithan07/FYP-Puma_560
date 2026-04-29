@@ -22,7 +22,7 @@ import argparse
 from typing import Dict, Optional
 
 
-PLOTS_DIR = Path('/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/plots')
+PLOTS_DIR = Path('/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/DNN_Analysis')
 GRU_WARMUP = 128   # steps before GRU activates
 
 
