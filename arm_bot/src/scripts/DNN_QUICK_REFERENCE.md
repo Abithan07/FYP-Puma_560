@@ -27,7 +27,7 @@ ros2 run arm_bot torque_publisher_dnn.py \
 
 # Terminal 3 — Analyse after run
 python3 src/scripts/analyze_dnn_performance.py \
-  src/scripts/logs/path_559_joint_states_pid_dnn_log_1.csv --plots
+  src/scripts/logs/path_680_joint_states_pid_dnn_log_1.csv --plots
 
 python3 src/scripts/analyze_dnn_performance.py \
   src/scripts/logs/path_461_joint_states_pid_dnn_log_1.csv --summary

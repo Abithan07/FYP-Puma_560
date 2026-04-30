@@ -67,6 +67,13 @@ class DNNAnalyzer:
     def has_sensed_torques(self) -> bool:
         """Check if log file contains sensed torques from Gazebo"""
         return all(f'tau_sensed_{j}' in self.data.columns for j in [1, 2, 3])
+
+    def sensed_torques_look_empty(self) -> bool:
+        """Check whether sensed torque columns exist but are all near zero."""
+        if not self.has_sensed_torques():
+            return False
+        sensed = np.concatenate([self._col('tau_sensed', j) for j in [1, 2, 3]])
+        return np.all(np.abs(sensed) < 1e-9)
     
     def compute_sensed_vs_commanded_error(self) -> Dict:
         """Compute error between commanded and sensed torques from Gazebo"""
@@ -208,6 +215,9 @@ class DNNAnalyzer:
         # Sensed vs Commanded Torque Analysis
         if self.has_sensed_torques():
             print('\n── SENSED vs COMMANDED TORQUES (from Gazebo) ────────────')
+            if self.sensed_torques_look_empty():
+                print('  ⚠ Sensed torque columns are present but contain only zeros.')
+                print('    This usually means the controller did not populate JointState.effort.')
             sensed_errors = self.compute_sensed_vs_commanded_error()
             for joint in [1, 2, 3]:
                 print(f'\n  Joint {joint}:')

@@ -243,9 +243,12 @@ class DNNTorquePublisher(Node):
         self.use_gru         = use_gru
         self.mode_key, self.mode_label = self._resolve_mode()
         self.vel_filter_alpha = float(np.clip(vel_filter_alpha, 0.0, 1.0))
-        self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
-        self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
-        self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
+        # self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
+        # self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
+        # self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
+        self.kp = np.array(kp if kp is not None else [ 5.0, 20.0, 10.0 ])
+        self.kd = np.array(kd if kd is not None else [ 1.0,  3.0,  2.0 ])
+        self.ki = np.array(ki if ki is not None else [ 0.1, 0.2,  0.1 ])
         self.torque_limits = np.array(
             torque_limits if torque_limits is not None else [100.0, 100.0, 60.0])
 
@@ -573,6 +576,9 @@ class DNNTorquePublisher(Node):
                 raw = np.array([msg.velocity[i1], msg.velocity[i2], msg.velocity[i3]])
                 a   = self.vel_filter_alpha
                 self.current_joint_vel = (1.0 - a) * self.current_joint_vel + a * raw
+            if len(msg.effort) >= 3:
+                self.current_joint_efforts = np.array(
+                    [msg.effort[i1], msg.effort[i2], msg.effort[i3]])
             self.joint_states_received = True
         except (ValueError, IndexError):
             pass
@@ -726,6 +732,10 @@ class DNNTorquePublisher(Node):
             tau_fb = (self.kp * e_pos
                       + self.kd * e_vel
                       + self.ki * self.traj_integral_error)
+            if not self.use_model:
+                q2, q3 = self.current_joint_pos[1], self.current_joint_pos[2]
+                gravity = np.array([0.0, -44.0 * np.cos(q2), -12.0 * np.cos(q2 + q3)])
+                tau_fb = tau_fb + gravity
 
         tau_total = np.clip(tau_dnn + tau_fb, -self.torque_limits, self.torque_limits)
         return tau_dnn, tau_delan, tau_fb, tau_total, q_des, qd_des, qdd_des, e_pos, e_vel, gru_active
