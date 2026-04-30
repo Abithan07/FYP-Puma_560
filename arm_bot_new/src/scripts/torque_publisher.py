@@ -84,7 +84,7 @@ def fk_tip(q1, q2, q3):
     R, p = _cmp(R, p, _rz(q2), [0.0,  0.0,    0.0   ])  # joint_2 rotation
     R, p = _cmp(R, p, _rz(0),  [0.4318, 0.0, -0.0934])  # joint_3 origin (a3, d3)
     R, p = _cmp(R, p, _rz(q3), [0.0,  0.0,    0.0   ])  # joint_3 rotation
-    tip  = _mv(R, [0.0, -0.32, 0.0])
+    tip  = _mv(R, [0.0, -0.233, 0.0])
     return [p[i]+tip[i] for i in range(3)]
 
 

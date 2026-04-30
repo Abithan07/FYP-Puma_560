@@ -125,8 +125,8 @@
         <parent link="shoulder"/>
         <child link="link_2"/>
         <axis xyz="0 0 1"/>
-        <limit lower="${-5*pi/4}" upper="${pi/4}" velocity="2" effort="1000"/> 
-        <dynamics damping="0" friction="0"/>
+        <limit lower="${-5*pi/4}" upper="${pi/3}" velocity="2" effort="1000"/> 
+        <dynamics damping="1" friction="0"/>
     </joint> 
     
 
@@ -180,7 +180,7 @@
         <child link="link_3"/>
         <axis xyz="0 0 1"/>
         <limit lower="${-pi/4}" upper="${5*pi/4}" velocity="2" effort="1000"/> 
-        <dynamics damping="0" friction="0"/>
+        <dynamics damping="1" friction="0"/>
     </joint> 
 
 
@@ -198,7 +198,7 @@
 
                 <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
 
-                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.02 0.02 0.02"/>
             </geometry>
             <material name="yellow" />
         </visual>
@@ -211,7 +211,7 @@
 
                 <!-- <cylinder length="${link_3_length}" radius="${link_3_radius}" /> -->
 
-                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.0254 0.0254 0.0254"/>
+                 <mesh filename="package://arm_bot/meshes/puma_link4.stl" scale="0.02 0.02 0.02"/>
             </geometry>
         </collision>
         <xacro:inertial_link3>

@@ -17,7 +17,7 @@ class MarkerPublisher(Node):
         self.declare_parameter('target_frame', 'world')
         self.declare_parameter('link_frame', 'link_3')
         self.declare_parameter('tip_offset_x', 0.0)
-        self.declare_parameter('tip_offset_y', -0.32)
+        self.declare_parameter('tip_offset_y', -0.233)
         self.declare_parameter('tip_offset_z', 0.0)
         self.declare_parameter('line_width', 0.01)
         self.declare_parameter('max_points', 1000)

@@ -27,7 +27,7 @@ def generate_launch_description():
     marker_target_frame = LaunchConfiguration('marker_target_frame', default='world')
     marker_link_frame = LaunchConfiguration('marker_link_frame', default='link_3')
     marker_tip_offset_x = LaunchConfiguration('marker_tip_offset_x', default='0.0')
-    marker_tip_offset_y = LaunchConfiguration('marker_tip_offset_y', default='-0.32')
+    marker_tip_offset_y = LaunchConfiguration('marker_tip_offset_y', default='-0.233')
     marker_tip_offset_z = LaunchConfiguration('marker_tip_offset_z', default='0.0')
     marker_line_width = LaunchConfiguration('marker_line_width', default='0.01')
 
@@ -172,7 +172,7 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'marker_tip_offset_y',
-            default_value='-0.32',
+            default_value='-0.233',
             description='Tip offset Y in marker_link_frame'
         ),
         DeclareLaunchArgument(

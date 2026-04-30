@@ -16,7 +16,9 @@
                 <state_interface name="position">
                     <param name="initial_value">0</param>
                 </state_interface>
-                <state_interface name="effort"/>
+                <state_interface name="effort">
+                    <param name="initial_value">${0.0}</param>
+                </state_interface>
             </joint>
             <joint name="joint_2">
                 <command_interface name="effort">
@@ -27,7 +29,9 @@
                 <state_interface name="position">
                     <param name="initial_value">${pi/4}</param>
                 </state_interface>
-                <state_interface name="effort"/>
+                <state_interface name="effort">
+                    <param name="initial_value">${-21.83836502601828}</param>
+                </state_interface>
             </joint>
             <joint name="joint_3">
                 <command_interface name="effort">
@@ -38,7 +42,9 @@
                 <state_interface name="position">
                     <param name="initial_value">${3*pi/4}</param>
                 </state_interface>
-                <state_interface name="effort"/>
+                <state_interface name="effort">
+                    <param name="initial_value">${0.0}</param>
+                </state_interface>
             </joint>
         </ros2_control>
     </xacro:if>

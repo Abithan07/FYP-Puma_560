@@ -163,7 +163,7 @@ class PIDTorqueController(Node):
         r, p = self._compose(r, p, self._rot_z(0.0), [0.4318, 0.0, -0.094])
         r, p = self._compose(r, p, self._rot_z(q3), [0.0, 0.0, 0.0])
 
-        tip_local = [0.0, -0.32, 0.0]
+        tip_local = [0.0, -0.233, 0.0]
         tip_world = self._mat_vec_mul(r, tip_local)
         return [p[0] + tip_world[0], p[1] + tip_world[1], p[2] + tip_world[2]]
 

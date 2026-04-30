@@ -49,7 +49,7 @@ class DNNInferenceEngine:
     HIDDEN_DIM = 64
     N_LAYERS   = 4
 
-    def __init__(self, delan_path, gru_path, scaler_path):
+    def __init__(self, delan_path, gru_path=None, scaler_path=None, use_gru=True):
         # Prevent JAX from reserving all GPU memory
         os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
         os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']   = 'platform'
@@ -136,30 +136,40 @@ class DNNInferenceEngine:
         self._delan_fn(params, None, _q0, _qd0, _q0, _q0)
         print('  DeLaN ready.')
 
+        self._use_gru = bool(use_gru)
+        self._gru = None
+        self._scaler = None
+
         # ── GRU residual ─────────────────────────────────────────────────
-        print(f'  Loading GRU model from {gru_path}')
+        if self._use_gru:
+            if not gru_path or not scaler_path:
+                raise ValueError('gru_path and scaler_path are required when use_gru=True')
 
-        class GRUResidual(nn.Module):
-            def __init__(self):
-                super().__init__()
-                self.gru = nn.GRU(
-                    input_size=DNNInferenceEngine.INPUT_DIM,
-                    hidden_size=DNNInferenceEngine.HIDDEN_DIM,
-                    num_layers=DNNInferenceEngine.N_LAYERS,
-                    batch_first=True, dropout=0.1)
-                self.fc = nn.Linear(DNNInferenceEngine.HIDDEN_DIM, DNNInferenceEngine.N_DOF)
-            def forward(self, x):
-                h, _ = self.gru(x)
-                return self.fc(h[:, -1, :])
+            print(f'  Loading GRU model from {gru_path}')
 
-        self._gru = GRUResidual().to(self.device)
-        self._gru.load_state_dict(torch.load(gru_path, map_location=self.device))
-        self._gru.eval()
+            class GRUResidual(nn.Module):
+                def __init__(self):
+                    super().__init__()
+                    self.gru = nn.GRU(
+                        input_size=DNNInferenceEngine.INPUT_DIM,
+                        hidden_size=DNNInferenceEngine.HIDDEN_DIM,
+                        num_layers=DNNInferenceEngine.N_LAYERS,
+                        batch_first=True, dropout=0.1)
+                    self.fc = nn.Linear(DNNInferenceEngine.HIDDEN_DIM, DNNInferenceEngine.N_DOF)
+                def forward(self, x):
+                    h, _ = self.gru(x)
+                    return self.fc(h[:, -1, :])
 
-        # ── Scaler ───────────────────────────────────────────────────────
-        print(f'  Loading feature scaler from {scaler_path}')
-        import joblib
-        self._scaler = joblib.load(scaler_path)
+            self._gru = GRUResidual().to(self.device)
+            self._gru.load_state_dict(torch.load(gru_path, map_location=self.device))
+            self._gru.eval()
+
+            # ── Scaler ───────────────────────────────────────────────────
+            print(f'  Loading feature scaler from {scaler_path}')
+            import joblib
+            self._scaler = joblib.load(scaler_path)
+        else:
+            print('  GRU residual disabled; using DeLaN only.')
 
         # Rolling feature buffer  [q, qd, qdd, tau_delan]  shape (12,) each step
         self._buffer = deque(maxlen=self.SEQ_LEN)
@@ -188,6 +198,9 @@ class DNNInferenceEngine:
         _, tau_d, _, _ = self._delan_fn(
             self._delan_params, None, q_j, qd_j, qdd_j, jnp.zeros_like(q_j))
         tau_delan = np.array(tau_d[0], dtype=np.float64)
+
+        if not self._use_gru:
+            return tau_delan.copy(), tau_delan.copy(), False
 
         # Append normalised features to buffer
         raw_feat = np.concatenate([q, qd, qdd, tau_delan]).reshape(1, -1)  # (1,12)
@@ -218,16 +231,21 @@ class DNNTorquePublisher(Node):
                  skip_stabilization_threshold_deg=1.0,
                  kp=None, kd=None, ki=None,
                  use_feedback=True,
+                 use_model=True,
+                 use_gru=True,
                  torque_limits=None,
                  vel_filter_alpha=0.25,
                  log_path=None):
         super().__init__('dnn_torque_publisher')
 
         self.use_feedback    = use_feedback
+        self.use_model       = use_model
+        self.use_gru         = use_gru
+        self.mode_key, self.mode_label = self._resolve_mode()
         self.vel_filter_alpha = float(np.clip(vel_filter_alpha, 0.0, 1.0))
-        self.kp = np.array(kp if kp is not None else [5.0, 20.0, 10.0])
-        self.kd = np.array(kd if kd is not None else [1.0,  3.0,  2.0])
-        self.ki = np.array(ki if ki is not None else [0.05, 0.2,  0.1])
+        self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
+        self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
+        self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
         self.torque_limits = np.array(
             torque_limits if torque_limits is not None else [100.0, 100.0, 60.0])
 
@@ -251,10 +269,21 @@ class DNNTorquePublisher(Node):
         self.csv_path = os.path.expanduser(csv_path)
         self.load_trajectory_data()
 
-        # Load DNN models
-        self.get_logger().info('Loading DNN models (DeLaN + GRU)...')
-        self.dnn = DNNInferenceEngine(delan_path, gru_path, scaler_path)
-        self.get_logger().info('DNN models loaded and ready.')
+        # Load DNN models (only if using model)
+        if self.use_model:
+            if self.use_gru:
+                self.get_logger().info('Loading DNN models (DeLaN + GRU)...')
+            else:
+                self.get_logger().info('Loading DeLaN model only...')
+            self.dnn = DNNInferenceEngine(
+                delan_path,
+                gru_path=gru_path,
+                scaler_path=scaler_path,
+                use_gru=self.use_gru,
+            )
+            self.get_logger().info('DNN models loaded and ready.')
+        else:
+            self.dnn = None
 
         # Pre-allocate messages
         self.msg1 = Float64MultiArray()
@@ -281,33 +310,52 @@ class DNNTorquePublisher(Node):
         self.logger_stop_client  = None
 
         # Log file
-        self.log_path   = log_path or self._build_incremental_log_path(self.csv_path)
+        self.log_path   = log_path or self._build_incremental_log_path(self.csv_path, self.mode_key)
         self.log_file   = None
         self.log_writer = None
         self.log_data   = []
         self.log_buffer_size = 100
+        self.current_path_points = []
 
         self.skip_stabilization_threshold_rad = math.radians(skip_stabilization_threshold_deg)
 
         self.get_logger().info('=' * 80)
-        self.get_logger().info('DNN TORQUE PUBLISHER  (online DeLaN + GRU per timestep)')
+        self.get_logger().info(self.mode_label)
         self.get_logger().info('=' * 80)
         self.get_logger().info(
             f'Trajectory: {self.csv_path}  ({self.n_points} pts, {self.time_data[-1]:.2f}s)')
         self.get_logger().info(
-            f'Feedback: {self.use_feedback}  '
+            f'Model: {self.use_model}  Feedback: {self.use_feedback}  '
+            f'GRU: {self.use_gru}  '
             f'Kp={self.kp.tolist()}  Kd={self.kd.tolist()}  Ki={self.ki.tolist()}')
-        self.get_logger().info(f'GRU warmup: first {self.dnn.SEQ_LEN} steps use DeLaN only')
+        if self.use_model and self.use_gru:
+            self.get_logger().info(f'GRU warmup: first {self.dnn.SEQ_LEN} steps use DeLaN only')
         self.get_logger().info(f'Torque limits: {self.torque_limits.tolist()} Nm')
         self.get_logger().info(f'Log: {self.log_path}')
 
     # ------------------------------------------------------------------ #
+    def _resolve_mode(self):
+        if not self.use_model and self.use_feedback:
+            return 'pid', 'PID FEEDBACK ONLY'
+        if not self.use_model and not self.use_feedback:
+            return 'open_loop', 'OPEN LOOP'
+        if self.use_model and self.use_gru and self.use_feedback:
+            return 'pid_dnn', 'PID + DNN (DeLaN + GRU)'
+        if self.use_model and self.use_gru:
+            return 'dnn', 'DNN (DeLaN + GRU)'
+        if self.use_model and self.use_feedback:
+            return 'pid_delan', 'PID + DeLaN ONLY'
+        if self.use_model:
+            return 'delan', 'DeLaN ONLY'
+        return 'open_loop', 'OPEN LOOP'
+
+    # ------------------------------------------------------------------ #
     @staticmethod
-    def _build_incremental_log_path(csv_path: str) -> str:
+    def _build_incremental_log_path(csv_path: str, mode_key: str) -> str:
         base_dir = DNNTorquePublisher.LOGS_DIR
         os.makedirs(base_dir, exist_ok=True)
         name   = os.path.splitext(os.path.basename(os.path.expanduser(csv_path)))[0]
-        prefix = f'{name}_dnn_log_'
+        prefix = f'{name}_{mode_key}_log_'
         pat    = re.compile(rf'^{re.escape(prefix)}(\d+)\.csv$')
         max_r  = 0
         try:
@@ -343,6 +391,106 @@ class DNNTorquePublisher(Node):
 
         self.dt       = self.time_data[1] - self.time_data[0] if len(self.time_data) > 1 else 0.01
         self.n_points = len(self.time_data)
+
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _path_color(r, g, b, a=0.95):
+        color = type('Color', (), {})()
+        color.r = float(r)
+        color.g = float(g)
+        color.b = float(b)
+        color.a = float(a)
+        return color
+
+    def _publish_line_strip_marker(self, points, namespace, marker_id, color, scale=0.012):
+        if not points:
+            return
+        mk = Marker()
+        mk.header.frame_id = 'world'
+        mk.header.stamp    = self.get_clock().now().to_msg()
+        mk.ns = namespace
+        mk.id = marker_id
+        mk.type = Marker.LINE_STRIP
+        mk.action = Marker.ADD
+        mk.scale.x = scale
+        mk.color.r = color.r
+        mk.color.g = color.g
+        mk.color.b = color.b
+        mk.color.a = color.a
+        mk.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
+        for x, y, z in points:
+            pt = Point()
+            pt.x = float(x)
+            pt.y = float(y)
+            pt.z = float(z)
+            mk.points.append(pt)
+        self.marker_pub.publish(mk)
+
+    def _load_log_tip_points(self, log_path):
+        points = []
+        try:
+            with open(log_path, 'r', newline='') as f:
+                reader = csv.DictReader(f)
+                required = {'q_act_1', 'q_act_2', 'q_act_3'}
+                if not reader.fieldnames or not required.issubset(reader.fieldnames):
+                    return points
+                for row in reader:
+                    try:
+                        q1 = float(row['q_act_1'])
+                        q2 = float(row['q_act_2'])
+                        q3 = float(row['q_act_3'])
+                    except (TypeError, ValueError, KeyError):
+                        continue
+                    points.append(self._fk_tip_world(q1, q2, q3))
+        except OSError:
+            return []
+        return points
+
+    def _historical_log_candidates(self):
+        base_dir = DNNTorquePublisher.LOGS_DIR
+        if not os.path.isdir(base_dir):
+            return []
+
+        stem = os.path.splitext(os.path.basename(os.path.expanduser(self.csv_path)))[0]
+        mode_patterns = [
+            ('pid', re.compile(rf'^{re.escape(stem)}_pid_log_(\d+)\.csv$')),
+            ('delan', re.compile(rf'^{re.escape(stem)}_delan_log_(\d+)\.csv$')),
+            ('dnn', re.compile(rf'^{re.escape(stem)}_dnn_log_(\d+)\.csv$')),
+            ('pid_delan', re.compile(rf'^{re.escape(stem)}_pid_delan_log_(\d+)\.csv$')),
+            ('pid_dnn', re.compile(rf'^{re.escape(stem)}_pid_dnn_log_(\d+)\.csv$')),
+        ]
+
+        latest = {}
+        for filename in os.listdir(base_dir):
+            full_path = os.path.join(base_dir, filename)
+            if not os.path.isfile(full_path):
+                continue
+
+            matched_mode = None
+            matched_run = None
+            for mode_name, pattern in mode_patterns:
+                m = pattern.match(filename)
+                if m:
+                    matched_mode = mode_name
+                    matched_run = int(m.group(1))
+                    break
+
+            if matched_mode is None:
+                legacy_pattern = re.compile(rf'^{re.escape(stem)}_dnn_log_(\d+)\.csv$')
+                m = legacy_pattern.match(filename)
+                if m:
+                    matched_mode = 'pid_dnn'
+                    matched_run = int(m.group(1))
+
+            if matched_mode is None or matched_mode == self.mode_key:
+                continue
+
+            current = latest.get(matched_mode)
+            if current is None or matched_run > current[0]:
+                latest[matched_mode] = (matched_run, full_path)
+
+        ordered_modes = ['pid', 'delan', 'dnn', 'pid_delan', 'pid_dnn']
+        return [latest[m][1] for m in ordered_modes if m in latest]
 
     # ------------------------------------------------------------------ #
     #  FK for Cartesian path marker (same as CTC)                         #
@@ -381,24 +529,37 @@ class DNNTorquePublisher(Node):
             (self._rot_z(0), [0.4318,0,-0.094]),      (self._rot_z(q3), [0,0,0]),
         ]:
             r, p = self._compose(r, p, rl, pl)
-        t = self._mat_vec_mul(r, [0,-0.32,0])
+        t = self._mat_vec_mul(r, [0,-0.233,0])
         return [p[0]+t[0], p[1]+t[1], p[2]+t[2]]
 
     def publish_expected_path_marker(self):
-        mk = Marker()
-        mk.header.frame_id = 'world'
-        mk.header.stamp    = self.get_clock().now().to_msg()
-        mk.ns = 'expected_path'; mk.id = 0
-        mk.type = Marker.LINE_STRIP; mk.action = Marker.ADD
-        mk.scale.x = 0.012
-        mk.color.r = 0.0; mk.color.g = 1.0; mk.color.b = 1.0; mk.color.a = 0.95
-        mk.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
-        for q1, q2, q3 in zip(self.dp1, self.dp2, self.dp3):
-            xyz = self._fk_tip_world(q1, q2, q3)
-            pt = Point(); pt.x = xyz[0]; pt.y = xyz[1]; pt.z = xyz[2]
-            mk.points.append(pt)
-        self.marker_pub.publish(mk)
-        self.get_logger().info(f'Published expected path ({len(mk.points)} points)')
+        desired_points = [self._fk_tip_world(q1, q2, q3)
+                          for q1, q2, q3 in zip(self.dp1, self.dp2, self.dp3)]
+        self._publish_line_strip_marker(
+            desired_points, 'expected_path', 0, self._path_color(0.0, 1.0, 1.0, 0.95))
+        self.get_logger().info(f'Published expected path ({len(desired_points)} points)')
+
+        historical_logs = self._historical_log_candidates()
+        for idx, log_path in enumerate(historical_logs, start=1):
+            points = self._load_log_tip_points(log_path)
+            if not points:
+                continue
+            namespace = f'historical_path_{idx}'
+            color = self._path_color(0.85, 0.45, 0.15, 0.6)
+            self._publish_line_strip_marker(points, namespace, idx, color, scale=0.01)
+            self.get_logger().info(
+                f'Published historical path from {os.path.basename(log_path)} ({len(points)} points)')
+
+    def publish_current_path_marker(self):
+        if not self.current_path_points:
+            return
+        self._publish_line_strip_marker(
+            self.current_path_points,
+            'current_path',
+            100,
+            self._path_color(1.0, 0.2, 0.2, 0.95),
+            scale=0.014,
+        )
 
     # ------------------------------------------------------------------ #
     def joint_state_callback(self, msg):
@@ -545,11 +706,16 @@ class DNNTorquePublisher(Node):
         qd_des  = np.array([self.dv1[idx], self.dv2[idx], self.dv3[idx]])
         qdd_des = np.array([self.da1[idx], self.da2[idx], self.da3[idx]])
 
-        # Online DNN prediction (DeLaN every step, GRU after warmup)
-        tau_dnn, tau_delan, gru_active = self.dnn.predict(q_des, qd_des, qdd_des)
-
         e_pos = q_des  - self.current_joint_pos
         e_vel = qd_des - self.current_joint_vel
+
+        # Online DNN prediction (DeLaN every step, GRU after warmup if enabled)
+        if self.use_model:
+            tau_dnn, tau_delan, gru_active = self.dnn.predict(q_des, qd_des, qdd_des)
+        else:
+            tau_dnn = np.zeros(3)
+            tau_delan = np.zeros(3)
+            gru_active = False
 
         tau_fb = np.zeros(3)
         if self.use_feedback:
@@ -650,6 +816,9 @@ class DNNTorquePublisher(Node):
         self.pub2.publish(self.msg2)
         self.pub3.publish(self.msg3)
 
+        self.current_path_points.append(self._fk_tip_world(*self.current_joint_pos))
+        self.publish_current_path_marker()
+
         if self.log_writer:
             self.log_timestep(
                 self.time_data[self.current_idx],
@@ -662,7 +831,12 @@ class DNNTorquePublisher(Node):
 
         if self.current_idx % 50 == 0 and self.current_idx < self.n_points:
             max_err_deg = math.degrees(np.max(np.abs(e_pos)))
-            gru_label   = 'GRU+DeLaN' if gru_active else f'DeLaN-only (warmup {self.current_idx}/{self.dnn.SEQ_LEN})'
+            if self.use_model and self.use_gru:
+                gru_label = 'GRU+DeLaN' if gru_active else f'DeLaN-only (warmup {self.current_idx}/{self.dnn.SEQ_LEN})'
+            elif self.use_model:
+                gru_label = 'DeLaN only'
+            else:
+                gru_label = 'PID only'
             self.get_logger().info(
                 f't={self.time_data[self.current_idx]:.1f}s | '
                 f'idx={self.current_idx}/{self.n_points} | '
@@ -723,11 +897,25 @@ class DNNTorquePublisher(Node):
         self.publish_expected_path_marker()
 
         self.get_logger().info('=' * 80)
-        self.get_logger().info('PHASE 2: DNN TRAJECTORY EXECUTION (online inference)')
+        if not self.use_model:
+            phase2_label = 'PHASE 2: TRAJECTORY EXECUTION (PID feedback)'
+        elif self.use_gru:
+            phase2_label = 'PHASE 2: DNN TRAJECTORY EXECUTION (online inference)'
+        else:
+            phase2_label = 'PHASE 2: DeLaN TRAJECTORY EXECUTION'
+        self.get_logger().info(phase2_label)
         self.get_logger().info('=' * 80)
-        self.get_logger().info(
-            f'{self.n_points} steps | dt={self.dt*1000:.1f}ms | '
-            f'GRU active after step {self.dnn.SEQ_LEN}')
+        if self.use_model and self.use_gru:
+            self.get_logger().info(
+                f'{self.n_points} steps | dt={self.dt*1000:.1f}ms | '
+                f'GRU active after step {self.dnn.SEQ_LEN}')
+        elif self.use_model:
+            self.get_logger().info(
+                f'{self.n_points} steps | dt={self.dt*1000:.1f}ms | '
+                f'DeLaN-only control')
+        else:
+            self.get_logger().info(
+                f'{self.n_points} steps | dt={self.dt*1000:.1f}ms')
 
         time.sleep(0.1)
         if self.logger_start_client:
@@ -736,6 +924,7 @@ class DNNTorquePublisher(Node):
 
         self.current_idx         = 0
         self.traj_integral_error = np.zeros(3)
+        self.current_path_points = []
         self.trajectory_active   = True
         self.trajectory_timer    = self.create_timer(self.dt, self.trajectory_callback)
 
@@ -771,6 +960,11 @@ def main(args=None):
         '--scaler', type=str,
         default=os.path.join(DNN_TEST_DIR, 'feature_scaler.pkl'),
         help='Path to feature scaler .pkl file')
+    parser.add_argument(
+        '--mode', type=str,
+        choices=['pid-only', 'delan-only', 'dnn', 'pid-delan', 'pid-dnn'],
+        default=None,
+        help='Control test mode: pid-only, delan-only, dnn, pid-delan, or pid-dnn')
     parser.add_argument('--kp',  type=float, nargs=3, default=None,
                         help='Feedback Kp [j1 j2 j3] (default: 5 20 10)')
     parser.add_argument('--kd',  type=float, nargs=3, default=None,
@@ -785,9 +979,25 @@ def main(args=None):
                         help='Skip Phase 1 if start error < this deg (default: 1.0)')
     parser.add_argument('--no-feedback', action='store_true',
                         help='Use DNN feedforward only (no PD+I correction)')
+    parser.add_argument('--no-model', action='store_true',
+                        help='Use PID feedback only (no DNN model)')
     parser.add_argument('--log-path', type=str, default=None,
                         help='Override auto-generated log path')
     parsed = parser.parse_args()
+
+    mode_map = {
+        'pid-only':   (True,  False, False),
+        'delan-only': (False, True,  False),
+        'dnn':        (False, True,  True),
+        'pid-delan':  (True,  True,  False),
+        'pid-dnn':    (True,  True,  True),
+    }
+    if parsed.mode is not None:
+        use_feedback, use_model, use_gru = mode_map[parsed.mode]
+    else:
+        use_feedback = not parsed.no_feedback
+        use_model = not parsed.no_model
+        use_gru = use_model
 
     rclpy.init(args=args)
     node = DNNTorquePublisher(
@@ -797,7 +1007,9 @@ def main(args=None):
         scaler_path=parsed.scaler,
         skip_stabilization_threshold_deg=parsed.skip_stabilization_threshold_deg,
         kp=parsed.kp, kd=parsed.kd, ki=parsed.ki,
-        use_feedback=not parsed.no_feedback,
+        use_feedback=use_feedback,
+        use_model=use_model,
+        use_gru=use_gru,
         torque_limits=parsed.torque_limits,
         vel_filter_alpha=parsed.vel_filter_alpha,
         log_path=parsed.log_path,

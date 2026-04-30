@@ -19,15 +19,29 @@ ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path src/scripts/Joint_states/path_559_joint_states.csv
 
 ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path  /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_670_joint_states.csv --mode 
+  --mode pid-dnn
+
+ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path src/scripts/Joint_states/Joint_states_601_1120/path_643_joint_states.csv
 
 # Terminal 3 — Analyse after run
 python3 src/scripts/analyze_dnn_performance.py \
-  src/scripts/logs/path_559_joint_states_dnn_log_1.csv --plots
+  src/scripts/logs/path_559_joint_states_pid_dnn_log_1.csv --plots
 
 python3 src/scripts/analyze_dnn_performance.py \
-  src/scripts/logs/path_461_joint_states_dnn_log_1.csv --summary
+  src/scripts/logs/path_461_joint_states_pid_dnn_log_1.csv --summary
 ```
+---
+### Control Mode Mapping
+
+| Mode | Meaning |
+|------|---------|
+| `pid-only` | PID feedback only |
+| `delan-only` | DeLaN feedforward only |
+| `dnn` | DeLaN + GRU feedforward only |
+| `pid-delan` | PID + DeLaN only |
+| `pid-dnn` | PID + DeLaN + GRU |
 
 
 ## File & Directory Map
@@ -49,7 +63,7 @@ FYP-Puma_560/
     │   └── path_<id>_trajectory.csv
     │
     └── logs/                            ← OUTPUT: DNN control logs
-        └── <traj_name>_dnn_log_<N>.csv
+      └── <traj_name>_<mode>_log_<N>.csv
     
     plots/                               ← OUTPUT: analysis plots
         └── <log_stem>_*.png
@@ -86,9 +100,11 @@ gru_active                                     ← 0=warmup (DeLaN only), 1=GRU 
 ```
 
 > **To change model paths** → edit `DNN_TEST_DIR` near the top of `torque_publisher_dnn.py`
-> or use `--delan-model`, `--gru-model`, `--scaler` CLI flags.
+> or use `--delan-model`, `--gru-model`, `--scaler`, `--mode` CLI flags.
 >
 > **To change output directory** → edit `LOGS_DIR` class variable in `torque_publisher_dnn.py`.
+>
+> RViz shows the desired trajectory first, then any saved logs that match the same trajectory, and finally the live current path.
 
 ---
 
@@ -132,6 +148,7 @@ cd ~/Desktop/FYP-Puma_560/arm_bot && colcon build --packages-select arm_bot && s
 --delan-model PATH               DeLaN .jax file (default: DNN_TEST_DIR/fyp_jax_delan_50.jax)
 --gru-model PATH                 GRU .pt file    (default: DNN_TEST_DIR/best_GRUResidual.pt)
 --scaler PATH                    Scaler .pkl     (default: DNN_TEST_DIR/feature_scaler.pkl)
+--mode MODE                      Control mode: pid-only, delan-only, dnn, pid-delan, pid-dnn
 --kp KP1 KP2 KP3                 Feedback Kp     (default: 5 20 10)
 --kd KD1 KD2 KD3                 Feedback Kd     (default: 1  3  2)
 --ki KI1 KI2 KI3                 Feedback Ki     (default: 0.05 0.2 0.1)
@@ -139,8 +156,11 @@ cd ~/Desktop/FYP-Puma_560/arm_bot && colcon build --packages-select arm_bot && s
 --vel-filter-alpha ALPHA         Velocity LP α   (default: 0.25)
 --skip-stabilization-threshold-deg DEG  (default: 1.0)
 --no-feedback                    DNN feedforward only, no PD+I correction
+--no-model                       PID feedback only, no DNN model
 --log-path PATH                  Override auto log path
 ```
+
+> `--mode` is the cleanest way to test the five main cases. The older `--no-feedback` and `--no-model` switches still work, but `--mode` should be preferred for experiments.
 
 ---
 
@@ -198,7 +218,7 @@ ros2 run arm_bot torque_publisher_dnn.py \
             steps 128+    : DeLaN + GRU residual + PD+I feedback
 
 3. Output
-   └─ logs/<traj_name>_dnn_log_<N>.csv   (auto-incremented, never overwritten)
+  └─ logs/<traj_name>_<mode>_log_<N>.csv   (auto-incremented, never overwritten)
 
 4. Analyse
    └─ python3 analyze_dnn_performance.py logs/<log>.csv --summary
@@ -248,22 +268,22 @@ log_file                        DNN log CSV  [required]
 
 ```bash
 # Quick terminal summary
-python3 analyze_dnn_performance.py logs/path_461_trajectory_dnn_log_1.csv --summary
+python3 analyze_dnn_performance.py logs/path_461_trajectory_pid_dnn_log_1.csv --summary
 
 # All plots (auto-saved to src/scripts/plots/)
-python3 analyze_dnn_performance.py logs/path_461_trajectory_dnn_log_1.csv --plots
+python3 analyze_dnn_performance.py logs/path_461_trajectory_pid_dnn_log_1.csv --plots
 
 # All plots to custom folder
-python3 analyze_dnn_performance.py logs/path_461_trajectory_dnn_log_1.csv \
+python3 analyze_dnn_performance.py logs/path_461_trajectory_pid_dnn_log_1.csv \
   --plots --output-dir ~/results/run1/
 
 # Compare DNN vs CTC on same trajectory
-python3 analyze_dnn_performance.py logs/path_461_trajectory_dnn_log_1.csv \
+python3 analyze_dnn_performance.py logs/path_461_trajectory_pid_dnn_log_1.csv \
   --compare-ctc logs/path_461_trajectory_ctc_log_1.csv --plots
 
 # Latest log shortcut
 python3 analyze_dnn_performance.py \
-  $(ls -t logs/*_dnn_log_*.csv | head -1) --summary
+  $(ls -t logs/*_pid_dnn_log_*.csv | head -1) --summary
 ```
 
 ---
