@@ -76,6 +76,8 @@ class TriggeredLogger(Node):
         self.logging_active = False
         self.start_time = None
         self.sample_count = 0
+        self._cleanup_done = False
+        self._shutdown_requested = False
         
         # Subscribe to joint states at high frequency
         self.joint_sub = self.create_subscription(
@@ -170,30 +172,10 @@ class TriggeredLogger(Node):
         
         self.logging_active = False
         
-        # Calculate final statistics
-        elapsed = 0.0
-        if self.start_time:
-            current_time = self.get_clock().now()
-            elapsed = (current_time - self.start_time).nanoseconds / 1e9
-        
-        # Close file
-        if self.csv_file:
-            self.csv_file.flush()
-            self.csv_file.close()
-            self.csv_file = None
-            self.csv_writer = None
-        
-        self.get_logger().info('='*70)
-        self.get_logger().info('✓ LOGGING STOPPED')
-        self.get_logger().info('='*70)
-        self.get_logger().info(f'File saved: {self.csv_filename}')
-        self.get_logger().info(f'Total samples: {self.sample_count}')
-        self.get_logger().info(f'Duration: {elapsed:.3f}s')
-        self.get_logger().info(f'Average rate: {self.sample_count/elapsed:.1f} Hz' if elapsed > 0 else 'N/A')
-        self.get_logger().info('='*70)
-        
         response.success = True
-        response.message = f"Logged {self.sample_count} samples in {elapsed:.3f}s"
+        response.message = f"Logging stopped after {self.sample_count} samples"
+
+        self.get_logger().info('✓ LOGGING STOP REQUESTED')
         return response
     
     def joint_state_callback(self, msg):
@@ -268,16 +250,43 @@ class TriggeredLogger(Node):
     
     def signal_handler(self, sig, frame):
         """Handle termination signals gracefully"""
+        if self._shutdown_requested:
+            return
+
+        self._shutdown_requested = True
         self.get_logger().info('\nReceived termination signal...')
-        self.cleanup()
-        sys.exit(0)
+        self.logging_active = False
+
+        if self.csv_file:
+            try:
+                self.csv_file.flush()
+            except Exception:
+                pass
+
+        try:
+            rclpy.shutdown()
+        except Exception:
+            pass
     
     def cleanup(self):
         """Close CSV file if still open"""
+        if self._cleanup_done:
+            return
+
+        self._cleanup_done = True
         if self.csv_file:
-            self.csv_file.flush()
-            self.csv_file.close()
-            self.get_logger().info(f'File saved: {self.csv_filename}')
+            try:
+                self.csv_file.flush()
+            except Exception:
+                pass
+            try:
+                self.csv_file.close()
+            except Exception:
+                pass
+            self.csv_file = None
+            self.csv_writer = None
+
+        self.get_logger().info(f'File saved: {self.csv_filename}')
 
 
 def main(args=None):
@@ -301,7 +310,11 @@ def main(args=None):
     finally:
         logger.cleanup()
         logger.destroy_node()
-        rclpy.shutdown()
+        try:
+            if rclpy.ok():
+                rclpy.shutdown()
+        except RuntimeError:
+            pass
 
 
 if __name__ == '__main__':

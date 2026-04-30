@@ -13,11 +13,13 @@ class MarkerPublisher(Node):
     def __init__(self):
         super().__init__('marker_publisher')
 
+        self.declare_parameter('use_sim_time', True)
+
         # Frames/offset can be tuned without code edits.
         self.declare_parameter('target_frame', 'world')
         self.declare_parameter('link_frame', 'link_3')
         self.declare_parameter('tip_offset_x', 0.0)
-        self.declare_parameter('tip_offset_y', -0.233)
+        self.declare_parameter('tip_offset_y', -0.32)
         self.declare_parameter('tip_offset_z', 0.0)
         self.declare_parameter('line_width', 0.01)
         self.declare_parameter('max_points', 1000)
@@ -35,7 +37,12 @@ class MarkerPublisher(Node):
         ).get_parameter_value().string_value
 
         # Create publisher on the standard marker topic
-        self.publisher_ = self.create_publisher(Marker, 'visualization_marker', 10)
+        marker_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.publisher_ = self.create_publisher(Marker, '/visualization_marker', marker_qos)
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
         state_qos = QoSProfile(

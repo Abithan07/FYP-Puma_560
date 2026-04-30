@@ -125,7 +125,7 @@
         <parent link="shoulder"/>
         <child link="link_2"/>
         <axis xyz="0 0 1"/>
-        <limit lower="${-5*pi/4}" upper="${pi/4}" velocity="2" effort="1000"/> 
+        <limit lower="${-5*pi/4}" upper="${pi/2}" velocity="2" effort="1000"/> 
         <dynamics damping="0" friction="0"/>
     </joint> 
     

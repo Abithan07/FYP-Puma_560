@@ -28,7 +28,12 @@ class TorquePublisher(Node):
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
         self.pub3 = self.create_publisher(Float64MultiArray, '/joint_3_controller/commands', 10)
-        self.marker_pub = self.create_publisher(Marker, '/visualization_marker', 10)
+        marker_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self.marker_pub = self.create_publisher(Marker, '/visualization_marker', marker_qos)
         state_qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
@@ -71,10 +76,12 @@ class TorquePublisher(Node):
         # PID control timer for stabilization phase
         self.stabilization_timer = None
         self.stabilization_complete = False
+        self.stabilization_timed_out = False
         self.stabilization_iterations = 0
         
         # Integral error accumulation for PID
         self.integral_error = [0.0, 0.0, 0.0]
+        self.stabilization_command = [0.0, 0.0, 0.0]
         
         # Logger subprocess and service clients
         self.logger_process = None
@@ -157,7 +164,7 @@ class TorquePublisher(Node):
         r, p = self._compose(r, p, self._rot_z(q3), [0.0, 0.0, 0.0])
 
         # Tip offset in link_3 frame (same as line_drawer default).
-        tip_local = [0.0, -0.233, 0.0]
+        tip_local = [0.0, -0.32, 0.0]
         tip_world = self._mat_vec_mul(r, tip_local)
         return [p[0] + tip_world[0], p[1] + tip_world[1], p[2] + tip_world[2]]
 
@@ -348,33 +355,78 @@ class TorquePublisher(Node):
     def stabilization_callback(self):
         """Timer callback for PID stabilization at 100Hz"""
         target_pos = [self.dp1[0], self.dp2[0], self.dp3[0]]
+
+        # Initialize the commanded position from the current pose so the arm
+        # approaches the target smoothly instead of jumping straight to it.
+        if self.stabilization_iterations == 0:
+            self.stabilization_command = list(self.current_joint_pos)
         
         # Calculate position errors
         errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
         max_error = max(abs(e) for e in errors)
-        
-        # Check convergence (strict threshold: 0.2°)
-        if max_error < 0.0000035:  # 0.0002° in radians
-            self.get_logger().info(f'✓ Initial position reached! Max error: {max_error*180/3.14159:.6f}°')
+        max_velocity = max(abs(v) for v in self.current_joint_vel)
+
+        # Once the joint is close enough and moving slowly, lock directly to
+        # the target pose so the trajectory starts from a clean setpoint.
+        position_settled = max_error < math.radians(0.20)
+        velocity_settled = max_velocity < 0.015
+        if position_settled and velocity_settled:
+            self.msg1.data = [target_pos[0]]
+            self.msg2.data = [target_pos[1]]
+            self.msg3.data = [target_pos[2]]
+            self.pub1.publish(self.msg1)
+            self.pub2.publish(self.msg2)
+            self.pub3.publish(self.msg3)
+            self.get_logger().info(
+                f'✓ Initial position settled: err={math.degrees(max_error):.4f}° '
+                f'vel={max_velocity:.4f} rad/s, locking target directly.'
+            )
             if self.stabilization_timer:
                 self.stabilization_timer.cancel()
             self.stabilization_complete = True
             return
+
+        # PID-style easing in position-command space.
+        kp = [0.12, 0.10, 0.08]
+        ki = [0.004, 0.004, 0.003]
+        kd = [0.025, 0.025, 0.02]
+        dt = 0.01
+        step_limit = [0.0004, 0.00035, 0.0003]
+
+        for i in range(3):
+            self.integral_error[i] += errors[i] * dt
+            self.integral_error[i] = max(-0.5, min(0.5, self.integral_error[i]))
+
+            delta = (
+                kp[i] * errors[i]
+                + ki[i] * self.integral_error[i]
+                - kd[i] * self.current_joint_vel[i]
+            )
+            delta = max(-step_limit[i], min(step_limit[i], delta))
+            self.stabilization_command[i] = self.stabilization_command[i] + delta
+
+            # Keep the command bounded to a reasonable neighborhood so the
+            # controller can brake before the final direct lock to target.
+            command_limit = 0.50
+            self.stabilization_command[i] = max(
+                target_pos[i] - command_limit,
+                min(target_pos[i] + command_limit, self.stabilization_command[i])
+            )
         
         # Timeout check (120 seconds = 12000 iterations at 100Hz - increased for tighter convergence)
         self.stabilization_iterations += 1
         if self.stabilization_iterations >= 12000:
-            self.get_logger().error(f'Timeout! Failed to reach 0.5° target. Current error: {max_error*180/3.14159:.6f}°')
+            self.get_logger().error(f'Timeout! Failed to reach target. Current error: {math.degrees(max_error):.6f}°')
             if self.stabilization_timer:
                 self.stabilization_timer.cancel()
+            self.stabilization_timed_out = True
             self.stabilization_complete = True
             return
         
-        # Instead of computing torques, publish desired initial joint positions
-        # repeatedly so position controllers can move to the start pose.
-        self.msg1.data = [target_pos[0]]
-        self.msg2.data = [target_pos[1]]
-        self.msg3.data = [target_pos[2]]
+        # Publish the eased command so the arm slows down as it approaches.
+        self.msg1.data = [self.stabilization_command[0]]
+        self.msg2.data = [self.stabilization_command[1]]
+        self.msg3.data = [self.stabilization_command[2]]
 
         self.pub1.publish(self.msg1)
         self.pub2.publish(self.msg2)
@@ -384,9 +436,10 @@ class TorquePublisher(Node):
         if self.stabilization_iterations % 50 == 0:
             self.get_logger().info(
                 f'  t={self.stabilization_iterations/100:.1f}s | '
-                f'Publishing start positions (rad): [{target_pos[0]:.4f}, {target_pos[1]:.4f}, {target_pos[2]:.4f}] | '
+                f'cmd (rad): [{self.stabilization_command[0]:.4f}, {self.stabilization_command[1]:.4f}, {self.stabilization_command[2]:.4f}] | '
                 f'Current pos (rad): [{self.current_joint_pos[0]:.4f}, {self.current_joint_pos[1]:.4f}, {self.current_joint_pos[2]:.4f}] | '
-                f'Max err: {max_error*180/3.14159:.5f}°'
+                f'Max err: {math.degrees(max_error):.5f}° | '
+                f'Max vel: {max_velocity:.4f} rad/s'
             )
 
     def trajectory_callback(self):
@@ -448,6 +501,9 @@ class TorquePublisher(Node):
         initial_errors = [target_pos[i] - self.current_joint_pos[i] for i in range(3)]
         initial_max_error = max(abs(e) for e in initial_errors)
         skip_stabilization = initial_max_error <= self.skip_stabilization_threshold_rad
+
+        self.stabilization_command = list(self.current_joint_pos)
+        self.stabilization_timed_out = False
         
         if skip_stabilization:
             self.get_logger().info('='*70)
@@ -479,6 +535,10 @@ class TorquePublisher(Node):
             if not rclpy.ok():
                 return
 
+            if self.stabilization_timed_out:
+                self.get_logger().error('Stopping publisher after stabilization timeout.')
+                return
+
             self.get_logger().info('Holding position for 1 second...')
             # Hold with timer (100Hz)
             hold_iterations = [0]
@@ -490,10 +550,17 @@ class TorquePublisher(Node):
                     return
                 # Keep publishing last stabilization torque
                 self.stabilization_callback()
+                if self.stabilization_timed_out:
+                    hold_iterations[0] = 100
+                    hold_timer.cancel()
 
             hold_timer = self.create_timer(0.01, hold_callback)
             while hold_iterations[0] < 100 and rclpy.ok():
                 rclpy.spin_once(self, timeout_sec=0.001)
+
+            if self.stabilization_timed_out:
+                self.get_logger().error('Stopping publisher after stabilization timeout.')
+                return
         
         # Launch logger subprocess
         self.get_logger().info('='*70)

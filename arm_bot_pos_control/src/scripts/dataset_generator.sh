@@ -96,60 +96,7 @@ else
   echo "======================================================================"
   echo "Generated log files:"
   echo "======================================================================"
-  # for file in "${generated_log_files[@]}"; do
-  #   echo "$file"
-  # done
-  # echo "======================================================================"
-  # echo ""
 
-  # if [ $# -eq 3 ]; then
-
-  #   for i in $(seq $start $end); do
-
-  #     j=$((i - start))
-
-  #     # add a zero padding to the number if it's less than 10
-  #     if [ $i -lt 10 ]; then
-  #       i="0$i"
-  #     elif [ $i -lt 100 ]; then
-  #       i="0$i"
-  #     else
-  #       i="$i"
-  #     fi
-
-  #     echo "Generating comparison plot for path_${i}_joint_states_${suffix}.csv"
-  #     # echo "python3 /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     # echo "python3 /src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-
-  #     sleep 2
-  #     # python3 /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot_pos_control_pos_control/src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #     python3 src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-
-  #   done
-
-  # else
-  #   for i in $(seq $start $end); do
-
-  #     j=$((i - start))
-
-  #     # add a zero padding to the number if it's less than 10
-  #     if [ $i -lt 10 ]; then
-  #       i="0$i"
-  #     elif [ $i -lt 100 ]; then
-  #       i="0$i"
-  #     else
-  #       i="$i"
-  #     fi
-
-  #     echo "Generating comparison plot for path_${i}_joint_states.csv"
-  #     # echo "python3 /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     # sleep 2
-  #     # python3 /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot_pos_control/src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #     # echo "python3 /src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     sleep 2
-  #     python3 src/scripts/plot_comparison.py src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #   done
-  # fi
   for log_file in "${generated_log_files[@]}"; do
     # Extract file number from log filename (e.g., path_005_log_1.csv -> 005)
     file_num=$(basename "$log_file" .csv | grep -oP 'path_\K[^_]+')
@@ -167,3 +114,5 @@ else
     python3 src/scripts/plot_comparison.py "$dataset_file" "$log_file" --allinone
   done
 fi
+
+# while true; do spd-say -w 'Run Completed, , ,'; done
