@@ -5,6 +5,6 @@ log/
 __pycache__/
 
 scripts/plots/
-scripts/logs/
+scripts/logs*/
 scripts/Joint_states/
-scripts/new_generatedDataset1/
+scripts/new_generatedDataset*/
