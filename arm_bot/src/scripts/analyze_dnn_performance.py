@@ -16,6 +16,7 @@ import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 import matplotlib.patches as mpatches
 from pathlib import Path
 import argparse
@@ -306,6 +307,38 @@ class DNNAnalyzer:
         plt.tight_layout()
         self._save_or_show(fig, output_file)
 
+    def plot_all_joint_torques_same_scale(self, output_file: str = None):
+        """Plot total commanded torques for joints 1-3 on one axis with shared scale."""
+        fig, ax = plt.subplots(figsize=(13, 6))
+        fig.suptitle(f'{self.title_prefix}Torque Breakdown — All Joints, Same Scale',
+                     fontsize=14, fontweight='bold')
+
+        colors = ['tab:blue', 'tab:orange', 'tab:green']
+        styles = { 'dnn': '-', 'total': ':' }
+
+        for j, color in enumerate(colors, start=1):
+            tau_dnn   = self._col('tau_dnn',   j)
+            tau_total = self._col('tau_total', j)
+
+            ax.plot(self.t, tau_dnn,   color=color, linestyle=styles['dnn'],  linewidth=1.8, label=f'J{j} DNN')
+            ax.plot(self.t, tau_total, color=color, linestyle=styles['total'],linewidth=1.6, alpha=0.8, label=f'J{j} Total')
+
+        ax.axhline(y=0, color='k', linestyle='--', alpha=0.3)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Torque (Nm)')
+        # x-axis grid every 0.1s
+        ax.xaxis.set_major_locator(MultipleLocator(0.1))
+        ax.grid(True, which='major', axis='x', linestyle='--', alpha=0.35)
+        ax.grid(True, which='major', axis='y', alpha=0.3)
+        # rotate x tick labels vertically
+        plt.setp(ax.get_xticklabels(), rotation=90, ha='center')
+
+        # Reduce legend duplicates by ordering: for readability keep all entries
+        ax.legend(loc='upper right', fontsize=9, ncol=1)
+
+        plt.tight_layout()
+        self._save_or_show(fig, output_file)
+
     def plot_delan_vs_dnn(self, output_file: str = None):
         """DeLaN baseline vs full DNN (shows GRU residual contribution)."""
         if 'tau_delan_1' not in self.data.columns:
@@ -471,13 +504,17 @@ class DNNAnalyzer:
 
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _save_or_show(fig, output_file):
+    def _save_or_show(fig, output_file, show_after_save: bool = False):
+        """Save figure to `output_file` or discard without showing.
+
+        This function never calls `plt.show()` to avoid GUI/backend issues.
+        If `output_file` is provided the figure is saved. If `output_file` is
+        None the figure is simply closed (no display).
+        """
         if output_file:
             Path(output_file).parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(output_file, dpi=150, bbox_inches='tight')
             print(f'  ✓ Saved: {output_file}')
-        else:
-            plt.show()
         plt.close(fig)
 
 
@@ -505,6 +542,8 @@ def main():
     parser.add_argument('--plot-gru-residual',type=str, metavar='FILE')
     parser.add_argument('--plot-velocity',    type=str, metavar='FILE')
     parser.add_argument('--plot-warmup',      type=str, metavar='FILE')
+    parser.add_argument('--plot-all-joint-torques', type=str, metavar='FILE',
+                        help='Save single-axis plot with all joint total torques')
     parser.add_argument('--plot-sensed-torques', type=str, metavar='FILE',
                         help='Save sensed vs commanded torques plot')
     parser.add_argument('--plot-torque-error', type=str, metavar='FILE',
@@ -530,12 +569,17 @@ def main():
         args.plot_trajectory, args.plot_errors, args.plot_torques,
         args.plot_delan_vs_dnn, args.plot_gru_residual,
         args.plot_velocity, args.plot_warmup,
+        args.plot_all_joint_torques,
         args.plot_sensed_torques, args.plot_torque_error,
     ])
 
     # Always print summary unless suppressed by individual plot-only flags
     if args.summary or not (any_individual or args.plots or args.compare_ctc):
         analyzer.print_summary()
+
+    # If user ran the script without plot flags, save the combined torque breakdown plot
+    if not (any_individual or args.plots or args.compare_ctc):
+        analyzer.plot_all_joint_torques_same_scale(f'{prefix}_all_joint_torques.png')
 
     if args.plots or args.output_dir:
         print(f'\nGenerating all plots → {out_dir}/')
@@ -546,12 +590,14 @@ def main():
         analyzer.plot_gru_residual(       f'{prefix}_gru_residual.png')
         analyzer.plot_velocity_tracking(  f'{prefix}_velocity.png')
         analyzer.plot_warmup_effect(      f'{prefix}_warmup_effect.png')
+        analyzer.plot_all_joint_torques_same_scale(f'{prefix}_all_joint_torques.png')
         if analyzer.has_sensed_torques():
             analyzer.plot_sensed_vs_commanded_torques(f'{prefix}_sensed_torques.png')
             analyzer.plot_torque_tracking_error(f'{prefix}_torque_error.png')
         if args.compare_ctc:
             analyzer.plot_compare_ctc(args.compare_ctc,
                                       f'{prefix}_vs_ctc.png')
+        # Do not show the saved plots; everything saved above
     else:
         if args.plot_trajectory:   analyzer.plot_trajectory_tracking(args.plot_trajectory)
         if args.plot_errors:       analyzer.plot_tracking_errors(args.plot_errors)
@@ -560,6 +606,7 @@ def main():
         if args.plot_gru_residual: analyzer.plot_gru_residual(args.plot_gru_residual)
         if args.plot_velocity:     analyzer.plot_velocity_tracking(args.plot_velocity)
         if args.plot_warmup:       analyzer.plot_warmup_effect(args.plot_warmup)
+        if args.plot_all_joint_torques: analyzer.plot_all_joint_torques_same_scale(args.plot_all_joint_torques)
         if args.plot_sensed_torques: analyzer.plot_sensed_vs_commanded_torques(args.plot_sensed_torques)
         if args.plot_torque_error: analyzer.plot_torque_tracking_error(args.plot_torque_error)
         if args.compare_ctc:
@@ -571,3 +618,4 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+ 

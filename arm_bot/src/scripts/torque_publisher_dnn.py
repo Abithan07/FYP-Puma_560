@@ -246,8 +246,8 @@ class DNNTorquePublisher(Node):
         # self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
         # self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
         # self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
-        self.kp = np.array(kp if kp is not None else [ 15.0, 25.0, 18.0 ])
-        self.kd = np.array(kd if kd is not None else [ 2.0,  5.0,  3.0 ])
+        self.kp = np.array(kp if kp is not None else [ 15.0, 25.0, 13.0 ])
+        self.kd = np.array(kd if kd is not None else [ 2.0,  5.0,  2.5 ])
         self.ki = np.array(ki if ki is not None else [ 0.1, 0.2,  0.1 ])
         self.torque_limits = np.array(
             torque_limits if torque_limits is not None else [100.0, 100.0, 60.0])
