@@ -16,7 +16,10 @@ ros2 launch arm_bot gazebo.launch.py
 
 # Terminal 2 — DNN controller
 ros2 run arm_bot torque_publisher_dnn.py \
-  --csv-path src/scripts/Joint_states/path_559_joint_states.csv
+  --csv-path src/scripts/Joint_states/path_672_joint_states.csv
+
+ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_001_traj.csv
 
 ros2 run arm_bot torque_publisher_dnn.py \
 --csv-path /home/priyankan/Desktop/FYP-Puma_560/Dataset/Trajectories/path_1121_traj.csv \
@@ -27,7 +30,7 @@ ros2 run arm_bot torque_publisher_dnn.py \
   --mode pid-dnn
 
 ros2 run arm_bot torque_publisher_dnn.py \
-  --csv-path src/scripts/Joint_states/Joint_states_601_1120/path_643_joint_states.csv
+  --csv-path src/scripts/Joint_states/Joint_states_601_1120/path_672_joint_states.csv
 
 # Terminal 3 — Analyse after run
 python3 src/scripts/analyze_dnn_performance.py \

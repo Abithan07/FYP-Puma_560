@@ -18,6 +18,9 @@ ros2 launch arm_bot gazebo.launch.py
 ros2 run arm_bot torque_publisher_ctc.py \
   --csv-path /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_610_joint_states.csv
 
+  ros2 run arm_bot torque_publisher_ctc.py \
+  --csv-path /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_001_traj.csv
+
 # Terminal 2 — CTC (on-the-fly trajectory from end position)
 ros2 run arm_bot torque_publisher_ctc.py \
   --q-end 30 20 100          # joint end positions in degrees

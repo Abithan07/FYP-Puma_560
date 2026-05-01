@@ -27,7 +27,7 @@ D_DH = np.array([0.0, 0.2435, -0.0934, 0.4331])
 T_BASE = np.eye(4)
 T_BASE[2, 3] = 0.6718
 
-start_id = 1
+start_id = 001
 Tracking_file = '/home/priyankan/Desktop/FYP-Puma_560/test_traj.csv'
 Output_dir = "/home/priyankan/Desktop/FYP-Puma_560/Test_2"
 
@@ -222,8 +222,8 @@ def is_unique_path(candidate: np.ndarray, path_record: np.ndarray, threshold: fl
 
 
 def generate_trajectories(num_paths: int, config: TrajConfig, 
-                         base_dir: str = None, 
-                         start_id: int = None,
+                         base_dir: str = "/home/priyankan/Desktop/FYP-Puma_560/Dataset", 
+                         start_id: int = 601,
                          seed: int = None,
                          plot: bool = False,
                          q_end_deg: np.ndarray = None,
@@ -257,11 +257,6 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
     # Set random seed
     if seed is not None:
         np.random.seed(seed)
-
-    # Use module-level defaults if not provided via function args
-    module_start_id = globals().get('start_id', 601)
-    if base_dir is None:
-        base_dir = globals().get('Output_dir', base_dir or "/home/priyankan/Desktop/FYP-Puma_560/Dataset")
     
     # Create output directories
     angle_dir = os.path.join(base_dir, "Angles")
@@ -280,16 +275,14 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
     # Determine number of trajectories and whether to use specified endpoint
     if q_end_deg is not None:
         q_end_deg = np.array(q_end_deg, dtype=float)
-        # enforce integer degree endpoints
-        q_end_deg = np.round(q_end_deg).astype(int)
         num_traj = 1
         use_specified_endpoint = True
         # Use custom path_id if provided, otherwise use start_id
-        actual_start_id = path_id if path_id is not None else (start_id if start_id is not None else module_start_id)
+        actual_start_id = path_id if path_id is not None else start_id
     else:
         num_traj = num_paths
         use_specified_endpoint = False
-        actual_start_id = start_id if start_id is not None else module_start_id
+        actual_start_id = start_id
     
     # Setup visualization if requested
     if plot:
@@ -347,37 +340,24 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
             # Random generation with uniqueness check
             valid_path = False
             while not valid_path:
-                # Joint 1: either 100..150 or -150..-100 (deg)
-                if np.random.rand() < 0.5:
-                    q1 = 100.0 + (150.0 - 100.0) * np.random.rand()
-                else:
-                    q1 = -150.0 + ( -100.0 - -150.0) * np.random.rand()
-
-                # Joint 2: range -60 .. 15 (deg)
-                q2 = -60.0 + (15.0 - -60.0) * np.random.rand()
-
-                # Joint 3: either 60..100 or 180..225 (deg)
-                if np.random.rand() < 0.5:
-                    q3 = 60.0 + (100.0 - 60.0) * np.random.rand()
-                else:
-                    q3 = 180.0 + (225.0 - 180.0) * np.random.rand()
-
-                q_end_deg = np.array([q1, q2, q3])
-                # round to integer degrees
-                q_end_deg = np.round(q_end_deg).astype(int)
-
+                q_end_deg = np.array([
+                    config.q1_min_deg + (config.q1_max_deg - config.q1_min_deg) * np.random.rand(),
+                    config.q2_min_deg + (config.q2_max_deg - config.q2_min_deg) * np.random.rand(),
+                    config.q3_min_deg + (config.q3_max_deg - config.q3_min_deg) * np.random.rand()
+                ])
+                
                 q_end = np.deg2rad(q_end_deg)
                 dq = np.abs(q_end - config.q_start)
-
+                
                 T_vel = np.max(1.875 * dq / config.v_max)
                 T_acc = np.max(np.sqrt(5.77 * dq / config.a_max))
                 T_min = max(T_vel, T_acc)
-
+                
                 T_rand = config.possible_T[np.random.randint(len(config.possible_T))]
                 T_total = max(T_min, T_rand)
-
+                
                 candidate = np.concatenate([q_end_deg, [T_total]])
-
+                
                 if is_unique_path(candidate, path_record):
                     valid_path = True
         
@@ -441,17 +421,6 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
         path_record = np.vstack([path_record, new_record])
         
         np.savetxt(record_file, path_record, delimiter=",", fmt="%.6f")
-
-        # Also append record to tracking file (test_traj.csv) with columns:
-        # pathid, dp1 (deg), dp2 (deg), dp3 (deg), T_total
-        try:
-            if not os.path.exists(Tracking_file):
-                with open(Tracking_file, 'w') as tf:
-                    tf.write("pathid,dp1,dp2,dp3,T_total\n")
-            with open(Tracking_file, 'a') as tf:
-                tf.write(f"{path_id_current},{int(q_end_deg[0])},{int(q_end_deg[1])},{int(q_end_deg[2])},{T_total:.6f}\n")
-        except Exception as e:
-            print(f"Warning: could not write tracking file {Tracking_file}: {e}")
         
         # Plot if requested
         if plot_enabled:
@@ -482,15 +451,15 @@ def main():
     parser.add_argument(
         "--start-id", 
         type=int, 
-        default=None, 
-        help="Starting path ID (default: uses module start_id if omitted)"
+        default=601, 
+        help="Starting path ID (default: 601)"
     )
     
     parser.add_argument(
         "--base-dir", 
         type=str, 
-        default=None, 
-        help="Base output directory (default: uses module Output_dir if omitted)"
+        default="/home/priyankan/Desktop/FYP-Puma_560/Dataset", 
+        help="Base output directory (default: /home/priyankan/Desktop/FYP-Puma_560/Dataset)"
     )
     
     parser.add_argument(
