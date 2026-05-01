@@ -544,35 +544,35 @@ if __name__ == "__main__":
     Usage Examples:
     
     Generate 10 random trajectories with ID 601-610:
-        python trajectory_generator.py 10
+        python3 trajectory_generator.py 10
     
     Generate 20 random trajectories starting from ID 1000:
-        python trajectory_generator.py 20 --start-id 1000
+        python3 trajectory_generator.py 20 --start-id 1000
     
     Generate 5 random trajectories with custom output directory:
-        python trajectory_generator.py 5 --base-dir ./my_dataset
+        python3 trajectory_generator.py 5 --base-dir ./my_dataset
     
     Generate 10 random trajectories with reproducible randomness:
-        python trajectory_generator.py 10 --seed 42
+        python3 trajectory_generator.py 10 --seed 42
     
     Generate 10 random trajectories with live visualization:
-        python trajectory_generator.py 10 --plot
+        python3 trajectory_generator.py 10 --plot
     
     Generate 10 random trajectories with custom constraints:
-        python trajectory_generator.py 10 --v-max 1.5 --a-max 5.0
+        python3 trajectory_generator.py 10 --v-max 1.5 --a-max 5.0
     
     Generate single trajectory to specified end joint angles (in degrees):
-        python trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0
+        python3 trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0
     
     Generate single trajectory to specified angles with custom duration:
-        python trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --t-total 15.0
+        python3 trajectory_generator.py 1 --q-end-deg 155.0 -220.0 40.0 --t-total 24.0 --path-id 1122
     
     Generate single trajectory with specific path ID:
-        python trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --path-id 999
+        python3 trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --path-id 999
     
     Generate single trajectory with custom output directory and path ID:
-        python trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --path-id 1234 --base-dir ./my_dataset
+        python3 trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --path-id 1234 --base-dir ./my_dataset
     
     Generate single trajectory with visualization:
-        python trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --plot
+        python3 trajectory_generator.py 1 --q-end-deg 45.0 30.0 90.0 --plot
     """

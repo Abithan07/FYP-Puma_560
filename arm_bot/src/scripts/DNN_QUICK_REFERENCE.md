@@ -19,6 +19,10 @@ ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path src/scripts/Joint_states/path_559_joint_states.csv
 
 ros2 run arm_bot torque_publisher_dnn.py \
+--csv-path /home/priyankan/Desktop/FYP-Puma_560/Dataset/Trajectories/path_1121_traj.csv \
+--kp 18.0 20.0 22.0  --kd 2.5 3.5 3.5  --ki 0.12 0.15 0.12
+
+ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path  /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_670_joint_states.csv --mode 
   --mode pid-dnn
 
@@ -43,6 +47,9 @@ python3 src/scripts/analyze_dnn_performance.py \
 | `pid-delan` | PID + DeLaN only |
 | `pid-dnn` | PID + DeLaN + GRU |
 
+  Kp: [22.0, 38.0, 26.0]
+  Kd: [3.0, 7.0, 4.2]
+  Ki: [0.15, 0.3, 0.15]
 
 ## File & Directory Map
 

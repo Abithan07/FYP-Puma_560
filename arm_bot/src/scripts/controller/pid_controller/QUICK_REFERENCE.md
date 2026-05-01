@@ -17,7 +17,7 @@ Smooth path following (NEW)
 python3 /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/pid_controller_trajectory.py --target 45 60 90 --T 20
 
 # Load from CSV
-python3 /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv /home/priyankan/Desktop/FYP-Puma_560/Joint_states_601_1120/path_662_joint_states.csv
+python3 /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv /home/priyankan/Desktop/FYP-Puma_560/Dataset/Trajectories/path_1122_traj.csv
 ```
 
 ---
