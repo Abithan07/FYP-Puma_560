@@ -19,6 +19,9 @@ ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path src/scripts/Joint_states/path_672_joint_states.csv
 
 ros2 run arm_bot torque_publisher_dnn.py \
+  --csv-path /home/priyankan/Downloads/path_004_traj.csv
+
+ros2 run arm_bot torque_publisher_dnn.py \
   --csv-path /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_001_traj.csv
 
 ros2 run arm_bot torque_publisher_dnn.py \
@@ -37,6 +40,9 @@ ros2 run arm_bot torque_publisher_dnn.py \
 
 # Terminal 3 — Analyse after run
 python3 src/scripts/analyze_dnn_performance.py \
+  /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_004_traj_pid_dnn_log_2.csv --plots
+
+python3 src/scripts/analyze_dnn_performance.py \ 
   /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_004_traj_pid_dnn_log_2.csv --plots
 
 python3 src/scripts/analyze_dnn_performance.py \

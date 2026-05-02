@@ -15,6 +15,7 @@ import csv
 import os
 import time
 from typing import Optional, Tuple
+import re
 
 import numpy as np
 import pandas as pd
@@ -213,6 +214,7 @@ class PIDTrajectoryController(Node):
         ki=None,
         kd=None,
         torque_limits=None,
+        torque_bias=None,
         dt=0.01,
         vel_filter_alpha=0.25,
         settle_tolerance_deg=1.0,
@@ -232,6 +234,10 @@ class PIDTrajectoryController(Node):
             torque_limits if torque_limits is not None else [2.0, 45.0, 10.0],
             dtype=np.float64,
         )
+        # Default bias (applied to commanded torques). Matches requested start torques.
+        if torque_bias is None:
+            torque_bias = [0.0, -21.8606490720699, -3.5527136788005e-14]
+        self.torque_bias = np.array(torque_bias, dtype=np.float64)
 
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
         self.pub2 = self.create_publisher(Float64MultiArray, '/joint_2_controller/commands', 10)
@@ -284,6 +290,7 @@ class PIDTrajectoryController(Node):
         self.log_tau_sensed1 = []
         self.log_tau_sensed2 = []
         self.log_tau_sensed3 = []
+        self.current_path_points = []
 
         self.get_logger().info('=' * 70)
         self.get_logger().info('PID TRAJECTORY CONTROLLER')
@@ -383,6 +390,65 @@ class PIDTrajectoryController(Node):
         self.marker_pub.publish(marker)
         self.get_logger().info(f'Published expected end-effector path ({len(marker.points)} points)')
 
+    def _path_color(self, r, g, b, a=0.95):
+        color = type('Color', (), {})()
+        color.r = float(r)
+        color.g = float(g)
+        color.b = float(b)
+        color.a = float(a)
+        return color
+
+    def _publish_line_strip_marker(self, points, namespace, marker_id, color, scale=0.012):
+        if not points:
+            return
+        mk = Marker()
+        mk.header.frame_id = 'world'
+        mk.header.stamp = self.get_clock().now().to_msg()
+        mk.ns = namespace
+        mk.id = marker_id
+        mk.type = Marker.LINE_STRIP
+        mk.action = Marker.ADD
+        mk.scale.x = scale
+        mk.color.r = color.r
+        mk.color.g = color.g
+        mk.color.b = color.b
+        mk.color.a = color.a
+        mk.lifetime = rclpy.duration.Duration(seconds=0).to_msg()
+        for x, y, z in points:
+            pt = Point()
+            pt.x = float(x)
+            pt.y = float(y)
+            pt.z = float(z)
+            mk.points.append(pt)
+        self.marker_pub.publish(mk)
+
+    def publish_current_path_marker(self):
+        if not self.current_path_points:
+            return
+        self._publish_line_strip_marker(
+            self.current_path_points,
+            'current_path',
+            100,
+            self._path_color(1.0, 0.2, 0.2, 0.95),
+            scale=0.014,
+        )
+
+    def _build_incremental_log_path(self, csv_path: str, mode_key: str) -> str:
+        base_dir = PIDTrajectoryController.LOGS_DIR
+        os.makedirs(base_dir, exist_ok=True)
+        name = os.path.splitext(os.path.basename(os.path.expanduser(csv_path)))[0]
+        prefix = f'{name}_{mode_key}_log_'
+        pat = re.compile(rf'^{re.escape(prefix)}(\d+)\.csv$')
+        max_r = 0
+        try:
+            for fn in os.listdir(base_dir):
+                m = pat.match(fn)
+                if m:
+                    max_r = max(max_r, int(m.group(1)))
+        except OSError:
+            pass
+        return os.path.join(base_dir, f'{prefix}{max_r + 1}.csv')
+
     def set_trajectory(self, t: np.ndarray, q: np.ndarray, qd: np.ndarray, qdd: np.ndarray):
         """
         Set the trajectory to track.
@@ -480,7 +546,9 @@ class PIDTrajectoryController(Node):
             tau = tau_feedback + tau_ff
         else:
             tau = tau_feedback
-        
+
+        # Apply configured torque bias and clip
+        tau = tau + self.torque_bias
         tau = np.clip(tau, -self.torque_limits, self.torque_limits)
 
         self.msg1.data = [float(tau[0])]
@@ -519,33 +587,114 @@ class PIDTrajectoryController(Node):
             )
         
         # Increment trajectory index for next control cycle
+        # Append current end-effector tip for live path drawing and publish periodically
+        try:
+            tip = self._fk_tip_world(self.current_joint_pos[0], self.current_joint_pos[1], self.current_joint_pos[2])
+            self.current_path_points.append(tip)
+            if self.traj_idx % 10 == 0:
+                self.publish_current_path_marker()
+        except Exception:
+            pass
+
         self.traj_idx += 1
 
     def save_log(self) -> Optional[str]:
         try:
-            filename = f'pid_traj_log_{int(time.time())}.csv'
-            path = os.path.join(self.LOGS_DIR, filename)
+            # Build incremental log path similar to torque_publisher_dnn.py naming
+            src = getattr(self, 'csv_path', None)
+            if src is None:
+                # If no CSV source, name from generated trajectory start angles if available
+                try:
+                    start_deg = np.degrees(self.traj_q[0])
+                    name = 'generated_' + '_'.join([f"{int(x)}" for x in start_deg])
+                except Exception:
+                    name = 'generated'
+                src = name
+            path = self._build_incremental_log_path(src, 'pid')
+
+            # Convert in-memory logs (stored as strings) to numeric arrays
+            n = len(self.log_t)
+            t = np.array([float(x) for x in self.log_t]) if n else np.array([])
+            q_des = np.column_stack([
+                np.array([float(x) for x in self.log_dp1]),
+                np.array([float(x) for x in self.log_dp2]),
+                np.array([float(x) for x in self.log_dp3]),
+            ]) if n else np.zeros((0,3))
+            q_act = np.column_stack([
+                np.array([float(x) for x in self.log_q1]),
+                np.array([float(x) for x in self.log_q2]),
+                np.array([float(x) for x in self.log_q3]),
+            ]) if n else np.zeros((0,3))
+            qd_des = np.column_stack([
+                np.array([float(x) for x in self.log_dv1]),
+                np.array([float(x) for x in self.log_dv2]),
+                np.array([float(x) for x in self.log_dv3]),
+            ]) if n else np.zeros((0,3))
+            qd_act = np.column_stack([
+                np.array([float(x) for x in self.log_qd1]),
+                np.array([float(x) for x in self.log_qd2]),
+                np.array([float(x) for x in self.log_qd3]),
+            ]) if n else np.zeros((0,3))
+            tau_cmd = np.column_stack([
+                np.array([float(x) for x in self.log_tau1]),
+                np.array([float(x) for x in self.log_tau2]),
+                np.array([float(x) for x in self.log_tau3]),
+            ]) if n else np.zeros((0,3))
+            tau_sensed = np.column_stack([
+                np.array([float(x) for x in self.log_tau_sensed1]),
+                np.array([float(x) for x in self.log_tau_sensed2]),
+                np.array([float(x) for x in self.log_tau_sensed3]),
+            ]) if n else np.zeros((0,3))
+
+            # For compatibility with DNN logs, include placeholders for DeLaN/GRU and gru_active
+            tau_delan = np.zeros((n, 3))
+            tau_dnn = np.zeros((n, 3))
+            gru_active = np.zeros(n, dtype=int)
+
+            # Compute errors (desired - actual)
+            e_pos = q_des - q_act if n else np.zeros((0,3))
+            e_vel = qd_des - qd_act if n else np.zeros((0,3))
+
+            # Write time-step rows with header compatible with torque_publisher_dnn.py
+            header = [
+                't',
+                'q_des_1','q_des_2','q_des_3',
+                'qd_des_1','qd_des_2','qd_des_3',
+                'qdd_des_1','qdd_des_2','qdd_des_3',
+                'q_act_1','q_act_2','q_act_3',
+                'qd_act_1','qd_act_2','qd_act_3',
+                'tau_delan_1','tau_delan_2','tau_delan_3',
+                'tau_dnn_1','tau_dnn_2','tau_dnn_3',
+                'tau_fb_1','tau_fb_2','tau_fb_3',
+                'tau_total_1','tau_total_2','tau_total_3',
+                'tau_sensed_1','tau_sensed_2','tau_sensed_3',
+                'e_pos_1','e_pos_2','e_pos_3',
+                'e_vel_1','e_vel_2','e_vel_3',
+                'gru_active',
+            ]
+
             with open(path, 'w', newline='') as f:
                 writer = csv.writer(f)
-                writer.writerow(['t'] + self.log_t)
-                writer.writerow(['dp1'] + self.log_dp1)
-                writer.writerow(['dp2'] + self.log_dp2)
-                writer.writerow(['dp3'] + self.log_dp3)
-                writer.writerow(['q1'] + self.log_q1)
-                writer.writerow(['q2'] + self.log_q2)
-                writer.writerow(['q3'] + self.log_q3)
-                writer.writerow(['dv1'] + self.log_dv1)
-                writer.writerow(['dv2'] + self.log_dv2)
-                writer.writerow(['dv3'] + self.log_dv3)
-                writer.writerow(['qd1'] + self.log_qd1)
-                writer.writerow(['qd2'] + self.log_qd2)
-                writer.writerow(['qd3'] + self.log_qd3)
-                writer.writerow(['tau1'] + self.log_tau1)
-                writer.writerow(['tau2'] + self.log_tau2)
-                writer.writerow(['tau3'] + self.log_tau3)
-                writer.writerow(['tau_sensed1'] + self.log_tau_sensed1)
-                writer.writerow(['tau_sensed2'] + self.log_tau_sensed2)
-                writer.writerow(['tau_sensed3'] + self.log_tau_sensed3)
+                writer.writerow(header)
+                for i in range(n):
+                    row = [
+                        f'{t[i]:.3f}',
+                        f'{q_des[i,0]:.8f}', f'{q_des[i,1]:.8f}', f'{q_des[i,2]:.8f}',
+                        f'{qd_des[i,0]:.8f}', f'{qd_des[i,1]:.8f}', f'{qd_des[i,2]:.8f}',
+                        f'{0.0:.8f}', f'{0.0:.8f}', f'{0.0:.8f}',
+                        f'{q_act[i,0]:.8f}', f'{q_act[i,1]:.8f}', f'{q_act[i,2]:.8f}',
+                        f'{qd_act[i,0]:.8f}', f'{qd_act[i,1]:.8f}', f'{qd_act[i,2]:.8f}',
+                        f'{tau_delan[i,0]:.8f}', f'{tau_delan[i,1]:.8f}', f'{tau_delan[i,2]:.8f}',
+                        f'{tau_dnn[i,0]:.8f}', f'{tau_dnn[i,1]:.8f}', f'{tau_dnn[i,2]:.8f}',
+                        f'{tau_cmd[i,0]:.8f}', f'{tau_cmd[i,1]:.8f}', f'{tau_cmd[i,2]:.8f}',
+                        f'{tau_cmd[i,0]:.8f}', f'{tau_cmd[i,1]:.8f}', f'{tau_cmd[i,2]:.8f}',
+                        f'{tau_sensed[i,0]:.8f}', f'{tau_sensed[i,1]:.8f}', f'{tau_sensed[i,2]:.8f}',
+                        f'{e_pos[i,0]:.8f}', f'{e_pos[i,1]:.8f}', f'{e_pos[i,2]:.8f}',
+                        f'{e_vel[i,0]:.8f}', f'{e_vel[i,1]:.8f}', f'{e_vel[i,2]:.8f}',
+                        f'{gru_active[i]}',
+                    ]
+                    writer.writerow(row)
+
             self.get_logger().info(f'✓ Log saved: {path}')
             return path
         except Exception as exc:
@@ -625,10 +774,80 @@ class PIDTrajectoryController(Node):
             if log_path:
                 png_path = os.path.splitext(log_path)[0] + '_tracking.png'
             else:
-                png_path = os.path.join(self.LOGS_DIR, f'pid_traj_log_{int(time.time())}_tracking.png')
+                # Fallback to incremental filename matching the log naming
+                src = getattr(self, 'csv_path', None)
+                if src is None:
+                    try:
+                        start_deg = np.degrees(self.traj_q[0])
+                        name = 'generated_' + '_'.join([f"{int(x)}" for x in start_deg])
+                    except Exception:
+                        name = 'generated'
+                    src = name
+                csv_path = self._build_incremental_log_path(src, 'pid')
+                png_path = os.path.splitext(csv_path)[0] + '_tracking.png'
             plt.savefig(png_path, dpi=300, bbox_inches='tight')
             plt.close(fig)
             self.get_logger().info(f'✓ Tracking plots saved: {png_path}')
+            # Also save analyzer-style individual plots: torques, trajectory, velocity
+            try:
+                base = os.path.splitext(log_path)[0] if log_path else os.path.splitext(csv_path)[0]
+
+                # Torque breakdown (one subplot per joint)
+                fig_t, axes_t = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+                for j, ax in enumerate(axes_t, start=1):
+                    tau_cmd_j = [tc1, tc2, tc3][j-1]
+                    tau_sen_j = [ts1, ts2, ts3][j-1]
+                    ax.plot(t, tau_cmd_j, 'r-', linewidth=1.6, label='Commanded')
+                    if np.any(~np.isclose(tau_sen_j, 0.0)):
+                        ax.plot(t, tau_sen_j, 'purple', linestyle='--', linewidth=1.4, label='Sensed')
+                    ax.set_ylabel(f'Joint {j} torque (Nm)')
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(loc='upper right')
+                axes_t[-1].set_xlabel('Time (s)')
+                fig_t.suptitle('PID Controller — Torque Breakdown')
+                plt.tight_layout()
+                torques_path = f'{base}_torques.png'
+                fig_t.savefig(torques_path, dpi=150, bbox_inches='tight')
+                plt.close(fig_t)
+                self.get_logger().info(f'✓ Torque breakdown saved: {torques_path}')
+
+                # Trajectory (desired vs actual in degrees)
+                fig_tr, axes_tr = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+                for j, ax in enumerate(axes_tr, start=1):
+                    qd = [dp1, dp2, dp3][j-1]
+                    qa = [q1, q2, q3][j-1]
+                    ax.plot(t, np.degrees(qd), 'b-', linewidth=1.8, label='Desired')
+                    ax.plot(t, np.degrees(qa), 'r--', linewidth=1.4, label='Actual')
+                    ax.set_ylabel(f'Joint {j} (°)')
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(loc='upper right')
+                axes_tr[-1].set_xlabel('Time (s)')
+                fig_tr.suptitle('PID Controller — Position Tracking')
+                plt.tight_layout()
+                traj_path = f'{base}_trajectory.png'
+                fig_tr.savefig(traj_path, dpi=150, bbox_inches='tight')
+                plt.close(fig_tr)
+                self.get_logger().info(f'✓ Trajectory saved: {traj_path}')
+
+                # Velocity (desired vs actual)
+                fig_v, axes_v = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+                for j, ax in enumerate(axes_v, start=1):
+                    vd = [dv1, dv2, dv3][j-1]
+                    va = [qd1, qd2, qd3][j-1]
+                    ax.plot(t, vd, 'b-', linewidth=1.8, label='Desired')
+                    ax.plot(t, va, 'r--', linewidth=1.4, label='Actual')
+                    ax.set_ylabel(f'Joint {j} (rad/s)')
+                    ax.grid(True, alpha=0.3)
+                    ax.legend(loc='upper right')
+                axes_v[-1].set_xlabel('Time (s)')
+                fig_v.suptitle('PID Controller — Velocity Tracking')
+                plt.tight_layout()
+                vel_path = f'{base}_velocity.png'
+                fig_v.savefig(vel_path, dpi=150, bbox_inches='tight')
+                plt.close(fig_v)
+                self.get_logger().info(f'✓ Velocity saved: {vel_path}')
+            except Exception as exc2:
+                self.get_logger().warning(f'Failed to save individual analyzer plots: {exc2}')
         except Exception as exc:
             self.get_logger().error(f'Failed to save tracking plots: {exc}')
 
@@ -715,6 +934,12 @@ def main():
                 q_start_deg=args.start
             )
             node.set_trajectory(t, q, qd, qdd)
+            # Record a source name for log naming (generated trajectories)
+            try:
+                start_deg = np.degrees(q[0])
+                node.csv_path = 'generated_' + '_'.join([f"{int(x)}" for x in start_deg])
+            except Exception:
+                node.csv_path = 'generated'
             
         else:
             # Load trajectory from CSV
@@ -722,6 +947,7 @@ def main():
             node.get_logger().info(f'Loading trajectory from: {csv_path}')
             t, q, qd, qdd = load_trajectory_from_csv(csv_path)
             node.set_trajectory(t, q, qd, qdd)
+            node.csv_path = csv_path
 
         # Wait for joint states
         node.get_logger().info('Waiting for joint states...')
