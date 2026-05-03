@@ -30,12 +30,12 @@ Q_MID=""
 T_TOTAL="18"
 NUM_PATHS="1"
 CSV_FILE=""
-BASE_DIR="/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/demo_trajectories"
+BASE_DIR="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_trajectories"
 DT="0.01"
 V_MAX="2.0"
 A_MAX="7.0"
-SCRIPT_PATH="/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/puma_trajectory_generator.py"
-SIMULATION_SCRIPT="/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
+SCRIPT_PATH="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/puma_trajectory_generator.py"
+SIMULATION_SCRIPT="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
 
 # ── helpers ─────────────────────────────────────────────────
 get_latest_traj_csv() {

@@ -9,10 +9,11 @@ colcon build --symlink-install && source install/setup.bash && ros2 launch arm_b
 source install/setup.bash
 ```
 
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # DNN Controller
 ```bash
 ros2 run arm_bot torque_publisher_dnn.py --csv-path \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/D/path_195_joint_states.csv
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
 ```
 
 ### This has options as,
@@ -35,10 +36,11 @@ python3 src/scripts/analyze_dnn_performance.py \
 ```
 ---
 
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # CTC Controller
 ```bash
 ros2 run arm_bot torque_publisher_ctc.py --csv-path \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_003_traj.csv
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
 ```
 
 ### This has options as,
@@ -55,8 +57,9 @@ python3 src/scripts/analyze_ctc_performance.py \
 
 ---
 
+$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # PID Controller
 ```bash
 python3 src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_003_traj.csv
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
 ```
