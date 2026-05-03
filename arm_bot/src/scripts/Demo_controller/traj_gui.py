@@ -42,9 +42,6 @@ READY_LINES = [
 ]
 
 # Pre-compiled regex to strip ANSI/VT100 escape sequences from ROS2 output.
-# ROS2 spawner nodes emit colour codes like \x1b[92m, \x1b[1m, \x1b[0m which
-# corrupt plain-text matching unless removed first.  The actual lines look like:
-#   [spawner-8] ... [92mConfigured and activated [1mjoint_1_controller[0m
 import re as _re
 _ANSI_ESC = _re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
 
@@ -62,8 +59,6 @@ Q_START_DEG   = [0.0, 45.0, 135.0]
 T_TOTAL_MIN   = 5.0
 T_TOTAL_MAX   = 60.0
 T_TOTAL_DEF   = 18.0
-NUM_PATHS_MIN = 1
-NUM_PATHS_MAX = 20
 
 
 # ══════════════════════════════════════════════════════════════
@@ -255,47 +250,30 @@ def range_label(ranges: list) -> str:
     return "  or  ".join(f"[{lo}°, {hi}°]" for lo, hi in ranges)
 
 def graceful_stop(proc, sigint_timeout: float = 5.0):
-    """
-    Send SIGINT (Ctrl+C) to the process group, wait up to sigint_timeout
-    seconds for it to exit cleanly, then escalate to SIGTERM, and finally
-    SIGKILL if the process still hasn't stopped.
-
-    This mirrors what a user pressing Ctrl+C in a terminal would do and
-    allows ROS2/Gazebo nodes to shut down cleanly via their signal handlers.
-    """
     if proc is None:
         return
-
     try:
         pgid = os.getpgid(proc.pid)
     except OSError:
-        return  # process already gone
-
-    # ── 1. SIGINT — the polite Ctrl+C ────────────────────────
+        return
     try:
         os.killpg(pgid, signal.SIGINT)
     except OSError:
-        return  # already gone
-
+        return
     try:
         proc.wait(timeout=sigint_timeout)
-        return   # exited cleanly after SIGINT
+        return
     except subprocess.TimeoutExpired:
         pass
-
-    # ── 2. SIGTERM — standard termination request ─────────────
     try:
         os.killpg(pgid, signal.SIGTERM)
     except OSError:
         return
-
     try:
         proc.wait(timeout=3.0)
         return
     except subprocess.TimeoutExpired:
         pass
-
-    # ── 3. SIGKILL — force kill as last resort ────────────────
     try:
         os.killpg(pgid, signal.SIGKILL)
     except OSError:
@@ -355,8 +333,6 @@ class JointRow(QWidget):
 
 # ══════════════════════════════════════════════════════════════
 #  SIMULATION MONITOR THREAD
-#  Runs ONE simulation process with a pipe.
-#  Output is forwarded to the GUI via signals.
 # ══════════════════════════════════════════════════════════════
 
 class SimMonitorThread(QThread):
@@ -382,7 +358,7 @@ class SimMonitorThread(QThread):
             seen          = set()
             ready_emitted = False
             for raw in self._proc.stdout:
-                line = strip_ansi(raw.rstrip())   # remove ANSI codes before match & display
+                line = strip_ansi(raw.rstrip())
                 self.line_received.emit(line)
                 if not ready_emitted:
                     for marker in READY_LINES:
@@ -399,14 +375,12 @@ class SimMonitorThread(QThread):
 
     def stop(self):
         if self._proc:
-            # Use a longer SIGINT timeout — Gazebo can take several seconds
-            # to shut down its nodes cleanly after receiving Ctrl+C.
             graceful_stop(self._proc, sigint_timeout=8.0)
             self._proc = None
 
 
 # ══════════════════════════════════════════════════════════════
-#  GENERIC BACKGROUND PROCESS THREAD  (trajectory generation + execution)
+#  GENERIC BACKGROUND PROCESS THREAD
 # ══════════════════════════════════════════════════════════════
 
 class ProcThread(QThread):
@@ -451,10 +425,9 @@ class TrajectoryGUI(QMainWindow):
     ST_IDLE     = "idle"
     ST_SIM      = "sim_starting"
     ST_WAITING  = "waiting_controllers"
-    ST_RUNNING  = "running"       # automater.sh is generating + executing the trajectory
-    ST_FINISHED = "finished"      # automater.sh exited; sim still alive, awaiting STOP
+    ST_RUNNING  = "running"
+    ST_FINISHED = "finished"
 
-    # (label, text-colour, border/bg accent, background)
     _STATE_THEME = {
         ST_IDLE:     ("IDLE",                                         "#5070a0", "#c8d4e8", "#f0f4fa"),
         ST_SIM:      ("SIMULATION STARTING…",                         "#b05010", "#f0c060", "#fff8e8"),
@@ -469,8 +442,8 @@ class TrajectoryGUI(QMainWindow):
         self.setMinimumSize(980, 760)
 
         self._state      = self.ST_IDLE
-        self._sim_thread = None   # SimMonitorThread — the ONE simulation process
-        self._gen_thread = None   # ProcThread for automater.sh (generation + execution)
+        self._sim_thread = None
+        self._gen_thread = None
         self._gen_cmd    = None
 
         self._build_ui()
@@ -494,7 +467,6 @@ class TrajectoryGUI(QMainWindow):
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        # ── Left: scrollable form ────────────────────────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
@@ -517,7 +489,6 @@ class TrajectoryGUI(QMainWindow):
         scroll.setWidget(form_w)
         splitter.addWidget(scroll)
 
-        # ── Right: tabbed console ────────────────────────────
         right_w   = QWidget()
         right_lay = QVBoxLayout(right_w)
         right_lay.setContentsMargins(8, 0, 0, 0)
@@ -525,7 +496,6 @@ class TrajectoryGUI(QMainWindow):
 
         self._tabs = QTabWidget()
 
-        # Tab 1 — Simulation output
         sim_tab = QWidget()
         sim_lay = QVBoxLayout(sim_tab)
         sim_lay.setContentsMargins(4, 4, 4, 4)
@@ -535,7 +505,6 @@ class TrajectoryGUI(QMainWindow):
         sim_lay.addWidget(self._sim_console)
         self._tabs.addTab(sim_tab, "SIMULATION")
 
-        # Tab 2 — Generation / execution log
         gen_tab = QWidget()
         gen_lay = QVBoxLayout(gen_tab)
         gen_lay.setContentsMargins(4, 4, 4, 4)
@@ -547,7 +516,6 @@ class TrajectoryGUI(QMainWindow):
 
         right_lay.addWidget(self._tabs, stretch=1)
 
-        # Clear button row below tabs
         cb_row = QHBoxLayout()
         cb_row.addStretch()
         clear_btn = QPushButton("CLEAR TAB")
@@ -615,25 +583,17 @@ class TrajectoryGUI(QMainWindow):
         self._t_spin.setSuffix("  s")
         grid.addWidget(self._t_spin, 0, 1)
         grid.addWidget(self._lbl(f"range: {T_TOTAL_MIN} – {T_TOTAL_MAX} s", "limit_note"), 0, 2)
-
-        grid.addWidget(self._lbl("Num paths:"), 1, 0)
-        self._np_spin = QSpinBox()
-        self._np_spin.setRange(NUM_PATHS_MIN, NUM_PATHS_MAX); self._np_spin.setValue(1)
-        grid.addWidget(self._np_spin, 1, 1)
-        grid.addWidget(self._lbl(f"range: {NUM_PATHS_MIN} – {NUM_PATHS_MAX}", "limit_note"), 1, 2)
         return grp
 
     def _make_status_group(self):
         grp = QGroupBox("STATUS")
         lay = QVBoxLayout(grp); lay.setSpacing(10)
 
-        # Status badge
         self._status_lbl = QLabel("IDLE")
         self._status_lbl.setAlignment(Qt.AlignCenter)
         self._status_lbl.setMinimumHeight(32)
         lay.addWidget(self._status_lbl)
 
-        # Controller checklist
         self._ctrl_widgets = {}
         for marker in READY_LINES:
             row = QHBoxLayout()
@@ -646,7 +606,6 @@ class TrajectoryGUI(QMainWindow):
             lay.addLayout(row)
             self._ctrl_widgets[marker] = (dot, txt)
 
-        # Command preview
         self._cmd_preview = QLabel()
         self._cmd_preview.setObjectName("limit_note")
         self._cmd_preview.setWordWrap(True)
@@ -655,7 +614,6 @@ class TrajectoryGUI(QMainWindow):
         for r in self._end_rows + self._mid_rows:
             r.spin.valueChanged.connect(self._update_preview)
         self._t_spin.valueChanged.connect(self._update_preview)
-        self._np_spin.valueChanged.connect(self._update_preview)
         self._curve_combo.currentIndexChanged.connect(self._update_preview)
         self._update_preview()
         return grp
@@ -663,12 +621,10 @@ class TrajectoryGUI(QMainWindow):
     def _make_action_buttons(self):
         lay = QVBoxLayout(); lay.setSpacing(6)
 
-        # ST_IDLE — initial run
         self._run_btn = QPushButton("▶   RUN TRAJECTORY")
         self._run_btn.setObjectName("run_btn")
         self._run_btn.clicked.connect(self._on_run)
 
-        # ST_SIM / ST_WAITING / ST_RUNNING — abort everything
         self._stop_btn = QPushButton("■   STOP EXECUTION")
         self._stop_btn.setObjectName("stop_btn")
         self._stop_btn.clicked.connect(self._on_stop)
@@ -699,12 +655,10 @@ class TrajectoryGUI(QMainWindow):
         self._run_btn.setVisible(is_idle)
         self._stop_btn.setVisible(not is_idle)
 
-        # Form is editable only when idle
         for w in self._end_rows + self._mid_rows:
             w.setEnabled(is_idle)
         self._curve_combo.setEnabled(is_idle)
         self._t_spin.setEnabled(is_idle)
-        self._np_spin.setEnabled(is_idle)
 
     # ─────────────────────────────────────────────────────────
     #  FORM SLOTS
@@ -726,7 +680,7 @@ class TrajectoryGUI(QMainWindow):
             "bash", TRAJ_GEN_SCRIPT,
             "--q-end",     f"[{qe[0]:.1f},{qe[1]:.1f},{qe[2]:.1f}]",
             "--t-total",   str(self._t_spin.value()),
-            "--num-paths", str(self._np_spin.value()),
+            "--num-paths", "1",
             "--base-dir",  BASE_DIR,
         ]
         if is_double:
@@ -752,7 +706,6 @@ class TrajectoryGUI(QMainWindow):
 
         self._gen_cmd = self._build_gen_command()
 
-        # ── Fresh start — launch simulation first ─────────────────────────
         self._reset_checklist()
         self._sim_console.clear()
         self._gen_console.clear()
@@ -782,14 +735,13 @@ class TrajectoryGUI(QMainWindow):
         for marker in READY_LINES:
             if marker in line:
                 self._mark_controller(marker)
-        # Transition out of ST_SIM as soon as first output arrives
         if self._state == self.ST_SIM:
             self._apply_state(self.ST_WAITING)
 
     def _on_controllers_ready(self):
         self._log_sim("── All controllers ready ─────────────────────────────────", "#1a7a40")
         self._apply_state(self.ST_RUNNING)
-        self._tabs.setCurrentIndex(1)   # switch to trajectory tab
+        self._tabs.setCurrentIndex(1)
 
         self._log_gen("── STEP 2: Generating & executing trajectory ────────────")
         self._gen_thread = ProcThread(self._gen_cmd)
@@ -819,18 +771,16 @@ class TrajectoryGUI(QMainWindow):
     # ─────────────────────────────────────────────────────────
 
     def _hard_reset(self):
-        # ── Stop trajectory generator (automater.sh) if still running ──
         if self._gen_thread and self._gen_thread.isRunning():
             self._log_gen("[STOP] Sending Ctrl+C to automater.sh…", "#b05010")
             self._gen_thread.stop()
             self._gen_thread.wait(2000)
         self._gen_thread = None
 
-        # ── Stop simulation (SIGINT → SIGTERM → SIGKILL, longer timeout) ─
         if self._sim_thread and self._sim_thread.isRunning():
             self._log_sim("[STOP] Sending Ctrl+C to Gazebo simulation…", "#b05010")
-            self._sim_thread.stop()      # graceful_stop with 8 s SIGINT window
-            self._sim_thread.wait(3000)  # wait for the QThread itself to join
+            self._sim_thread.stop()
+            self._sim_thread.wait(3000)
         self._sim_thread = None
 
         self._reset_checklist()
