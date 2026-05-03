@@ -51,6 +51,17 @@ READY_LINES = [
     "Configured and activated joint_1_controller",
 ]
 
+# Pre-compiled regex to strip ANSI/VT100 escape sequences from ROS2 output.
+# ROS2 spawner nodes emit colour codes like \x1b[92m, \x1b[1m, \x1b[0m which
+# corrupt plain-text matching unless removed first.  The actual lines look like:
+#   [spawner-8] ... [92mConfigured and activated [1mjoint_1_controller[0m
+import re as _re
+_ANSI_ESC = _re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
+
+def strip_ansi(text: str) -> str:
+    return _ANSI_ESC.sub('', text)
+
+
 JOINT_LIMITS = {
     "Q1 (Base)":     [(-170, -20), (20, 170)],
     "Q2 (Shoulder)": [(-90, 180)],
@@ -393,7 +404,7 @@ class SimMonitorThread(QThread):
             seen          = set()
             ready_emitted = False
             for raw in self._proc.stdout:
-                line = raw.rstrip()
+                line = strip_ansi(raw.rstrip())   # remove ANSI codes before match & display
                 self.line_received.emit(line)
                 if not ready_emitted:
                     for marker in READY_LINES:
