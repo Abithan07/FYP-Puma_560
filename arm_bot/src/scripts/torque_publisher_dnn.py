@@ -539,7 +539,7 @@ class DNNTorquePublisher(Node):
         desired_points = [self._fk_tip_world(q1, q2, q3)
                           for q1, q2, q3 in zip(self.dp1, self.dp2, self.dp3)]
         self._publish_line_strip_marker(
-            desired_points, 'expected_path', 0, self._path_color(0.0, 1.0, 1.0, 0.95))
+            desired_points, 'expected_path', 0, self._path_color(1.0, 1.0, 1.0, 0.95))
         self.get_logger().info(f'Published expected path ({len(desired_points)} points)')
 
         historical_logs = self._historical_log_candidates()
