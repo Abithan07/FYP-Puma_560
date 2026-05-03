@@ -475,14 +475,16 @@ class TrajectoryGUI(QMainWindow):
     ST_WAITING  = "waiting_controllers"
     ST_TRAJ_GEN = "generating"
     ST_RUNNING  = "running"
+    ST_DONE     = "done"     # execution finished — sim still alive, ready for next run
 
     # (label, text-colour, border/bg accent, background)
     _STATE_THEME = {
-        ST_IDLE:     ("IDLE",                     "#5070a0", "#c8d4e8", "#f0f4fa"),
-        ST_SIM:      ("SIMULATION STARTING…",     "#b05010", "#f0c060", "#fff8e8"),
-        ST_WAITING:  ("WAITING FOR CONTROLLERS…", "#b05010", "#f0c060", "#fff8e8"),
-        ST_TRAJ_GEN: ("GENERATING TRAJECTORY…",   "#2c5fcc", "#90b0f0", "#eef3ff"),
-        ST_RUNNING:  ("TRAJECTORY RUNNING",       "#1a7a40", "#60c080", "#edfff4"),
+        ST_IDLE:     ("IDLE",                                        "#5070a0", "#c8d4e8", "#f0f4fa"),
+        ST_SIM:      ("SIMULATION STARTING…",                   "#b05010", "#f0c060", "#fff8e8"),
+        ST_WAITING:  ("WAITING FOR CONTROLLERS…",               "#b05010", "#f0c060", "#fff8e8"),
+        ST_TRAJ_GEN: ("GENERATING TRAJECTORY…",                 "#2c5fcc", "#90b0f0", "#eef3ff"),
+        ST_RUNNING:  ("TRAJECTORY RUNNING",                         "#1a7a40", "#60c080", "#edfff4"),
+        ST_DONE:     ("EXECUTION COMPLETE  —  SIMULATION ALIVE","#1a5c30", "#50b070", "#edfff4"),
     }
 
     def __init__(self):
@@ -685,19 +687,35 @@ class TrajectoryGUI(QMainWindow):
         return grp
 
     def _make_action_buttons(self):
-        lay = QVBoxLayout(); lay.setSpacing(0)
+        lay = QVBoxLayout(); lay.setSpacing(6)
 
+        # ST_IDLE — initial run
         self._run_btn = QPushButton("▶   RUN TRAJECTORY")
         self._run_btn.setObjectName("run_btn")
         self._run_btn.clicked.connect(self._on_run)
 
+        # ST_SIM / ST_WAITING / ST_TRAJ_GEN / ST_RUNNING — abort everything
         self._stop_btn = QPushButton("■   STOP EXECUTION")
         self._stop_btn.setObjectName("stop_btn")
         self._stop_btn.clicked.connect(self._on_stop)
         self._stop_btn.setVisible(False)
 
+        # ST_DONE — run another trajectory on the same simulation
+        self._run_again_btn = QPushButton("▶   RUN ANOTHER TRAJECTORY")
+        self._run_again_btn.setObjectName("run_btn")
+        self._run_again_btn.clicked.connect(self._on_run)
+        self._run_again_btn.setVisible(False)
+
+        # ST_DONE — manually stop simulation when finished
+        self._stop_sim_btn = QPushButton("■   STOP SIMULATION")
+        self._stop_sim_btn.setObjectName("stop_btn")
+        self._stop_sim_btn.clicked.connect(self._on_stop)
+        self._stop_sim_btn.setVisible(False)
+
         lay.addWidget(self._run_btn)
         lay.addWidget(self._stop_btn)
+        lay.addWidget(self._run_again_btn)
+        lay.addWidget(self._stop_sim_btn)
         return lay
 
     # ─────────────────────────────────────────────────────────
@@ -715,15 +733,23 @@ class TrajectoryGUI(QMainWindow):
             f"border: 1.5px solid {accent}; border-radius: 6px; "
             f"font-size: 12px; font-weight: bold; letter-spacing: 1px; padding: 5px 12px; }}"
         )
-        is_idle = (state == self.ST_IDLE)
-        self._run_btn.setVisible(is_idle)
-        self._stop_btn.setVisible(not is_idle)
 
+        is_idle = (state == self.ST_IDLE)
+        is_done = (state == self.ST_DONE)
+        is_busy = not is_idle and not is_done   # sim/waiting/generating/running
+
+        self._run_btn.setVisible(is_idle)
+        self._stop_btn.setVisible(is_busy)
+        self._run_again_btn.setVisible(is_done)
+        self._stop_sim_btn.setVisible(is_done)
+
+        # Form is editable when idle OR when done (ready for next trajectory)
+        form_enabled = is_idle or is_done
         for w in self._end_rows + self._mid_rows:
-            w.setEnabled(is_idle)
-        self._curve_combo.setEnabled(is_idle)
-        self._t_spin.setEnabled(is_idle)
-        self._np_spin.setEnabled(is_idle)
+            w.setEnabled(form_enabled)
+        self._curve_combo.setEnabled(form_enabled)
+        self._t_spin.setEnabled(form_enabled)
+        self._np_spin.setEnabled(form_enabled)
 
     # ─────────────────────────────────────────────────────────
     #  FORM SLOTS
@@ -770,11 +796,25 @@ class TrajectoryGUI(QMainWindow):
             return
 
         self._gen_cmd = self._build_gen_command()
+
+        # ── If simulation is already running (ST_DONE), skip straight to
+        #    trajectory generation — do NOT launch a new simulation. ─────
+        if self._state == self.ST_DONE:
+            self._log_gen("\n── Running another trajectory on the existing simulation ─", "#2c5fcc")
+            self._apply_state(self.ST_TRAJ_GEN)
+            self._tabs.setCurrentIndex(1)
+            self._log_gen("── Generating trajectory ────────────────────────────────")
+            self._gen_thread = ProcThread(self._gen_cmd)
+            self._gen_thread.line_received.connect(lambda l: self._log_gen(l, "#3a5a80"))
+            self._gen_thread.process_ended.connect(self._on_gen_done)
+            self._gen_thread.start()
+            return
+
+        # ── Fresh start — launch simulation first ─────────────────────────
         self._reset_checklist()
         self._sim_console.clear()
         self._gen_console.clear()
 
-        # ── STEP 1: Start ONE simulation process (piped into GUI) ─
         self._log_sim("── STEP 1: Starting Gazebo simulation ──────────────────")
         self._sim_thread = SimMonitorThread(["bash", SIMULATION_SCRIPT])
         self._sim_thread.line_received.connect(self._on_sim_line)
@@ -782,7 +822,7 @@ class TrajectoryGUI(QMainWindow):
         self._sim_thread.process_ended.connect(self._on_sim_proc_ended)
         self._sim_thread.start()
 
-        self._tabs.setCurrentIndex(0)   # switch to simulation tab
+        self._tabs.setCurrentIndex(0)
         self._apply_state(self.ST_SIM)
         self._log_sim("Waiting for Gazebo controllers to initialise…", "#b05010")
 
@@ -865,14 +905,22 @@ class TrajectoryGUI(QMainWindow):
 
     def _poll_exec_terminal(self):
         if self._exec_xterm and self._exec_xterm.poll() is not None:
-            self._exec_timer.stop()
-            code = self._exec_xterm.returncode
-            ok   = (code == 0)
+            if self._exec_timer:
+                self._exec_timer.stop()
+                self._exec_timer = None
+            code = self._exec_xterm.returncode   # read before clearing
+            self._exec_xterm = None
+            ok = (code == 0)
+            if not ok:
+                self._log_gen(f"⚠  Execution terminal closed (exit {code}).", "#b05010")
             self._log_gen(
-                "\n✔  Execution finished." if ok else f"\n⚠  Execution terminal closed (exit {code}).",
-                "#1a7a40" if ok else "#b05010"
+                "\n✔  Execution finished. Simulation is still running.\n"
+                "   Adjust parameters and press  ▶ RUN ANOTHER TRAJECTORY,\n"
+                "   or press  ■ STOP SIMULATION  when you are done.",
+                "#1a7a40"
             )
-            self._hard_reset()
+            # Transition to DONE — simulation stays alive, form unlocks
+            self._apply_state(self.ST_DONE)
 
     # ─────────────────────────────────────────────────────────
     #  HARD RESET
