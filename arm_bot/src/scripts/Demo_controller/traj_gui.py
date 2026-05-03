@@ -259,16 +259,57 @@ def find_terminal() -> str | None:
             return t
     return None
 
-def kill_proc(proc):
+def graceful_stop(proc, sigint_timeout: float = 5.0):
+    """
+    Send SIGINT (Ctrl+C) to the process group, wait up to sigint_timeout
+    seconds for it to exit cleanly, then escalate to SIGTERM, and finally
+    SIGKILL if the process still hasn't stopped.
+
+    This mirrors what a user pressing Ctrl+C in a terminal would do and
+    allows ROS2/Gazebo nodes to shut down cleanly via their signal handlers.
+    """
     if proc is None:
         return
+
     try:
-        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-    except Exception:
-        try:
-            proc.terminate()
-        except Exception:
-            pass
+        pgid = os.getpgid(proc.pid)
+    except OSError:
+        return  # process already gone
+
+    # ── 1. SIGINT — the polite Ctrl+C ────────────────────────
+    try:
+        os.killpg(pgid, signal.SIGINT)
+    except OSError:
+        return  # already gone
+
+    try:
+        proc.wait(timeout=sigint_timeout)
+        return   # exited cleanly after SIGINT
+    except subprocess.TimeoutExpired:
+        pass
+
+    # ── 2. SIGTERM — standard termination request ─────────────
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+    except OSError:
+        return
+
+    try:
+        proc.wait(timeout=3.0)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+
+    # ── 3. SIGKILL — force kill as last resort ────────────────
+    try:
+        os.killpg(pgid, signal.SIGKILL)
+    except OSError:
+        pass
+
+
+# Legacy alias used for the exec xterm (shorter timeout is fine there)
+def kill_proc(proc):
+    graceful_stop(proc, sigint_timeout=3.0)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -369,7 +410,9 @@ class SimMonitorThread(QThread):
 
     def stop(self):
         if self._proc:
-            kill_proc(self._proc)
+            # Use a longer SIGINT timeout — Gazebo can take several seconds
+            # to shut down its nodes cleanly after receiving Ctrl+C.
+            graceful_stop(self._proc, sigint_timeout=8.0)
             self._proc = None
 
 
@@ -733,7 +776,8 @@ class TrajectoryGUI(QMainWindow):
         self._log_sim("Waiting for Gazebo controllers to initialise…", "#b05010")
 
     def _on_stop(self):
-        self._log_gen("── STOP requested ───────────────────────────────────────", "#cc2c2c")
+        self._log_sim("── STOP requested: sending Ctrl+C (SIGINT) to simulation ─", "#cc2c2c")
+        self._log_gen("── STOP requested: sending Ctrl+C (SIGINT) to simulation ─", "#cc2c2c")
         self._hard_reset()
 
     # ─────────────────────────────────────────────────────────
@@ -827,17 +871,28 @@ class TrajectoryGUI(QMainWindow):
         if self._exec_timer:
             self._exec_timer.stop(); self._exec_timer = None
 
-        for t in (self._sim_thread, self._gen_thread):
-            if t and t.isRunning():
-                t.stop(); t.wait(2000)
-        self._sim_thread = None
-        self._gen_thread = None
-
-        kill_proc(self._exec_xterm)
+        # ── Stop execution xterm first (SIGINT → SIGTERM → SIGKILL) ──
+        if self._exec_xterm and self._exec_xterm.poll() is None:
+            self._log_gen("[STOP] Sending Ctrl+C to execution process…", "#b05010")
+            graceful_stop(self._exec_xterm, sigint_timeout=4.0)
         self._exec_xterm = None
+
+        # ── Stop simulation (SIGINT → SIGTERM → SIGKILL, longer timeout) ─
+        if self._sim_thread and self._sim_thread.isRunning():
+            self._log_sim("[STOP] Sending Ctrl+C to Gazebo simulation…", "#b05010")
+            self._sim_thread.stop()      # graceful_stop with 8 s SIGINT window
+            self._sim_thread.wait(3000)  # wait for the QThread itself to join
+        self._sim_thread = None
+
+        # ── Stop trajectory generator if still running ────────
+        if self._gen_thread and self._gen_thread.isRunning():
+            self._gen_thread.stop()
+            self._gen_thread.wait(2000)
+        self._gen_thread = None
 
         self._reset_checklist()
         self._apply_state(self.ST_IDLE)
+        self._log_sim("[STOP] Simulation terminated.", "#5070a0")
         self._log_gen("Ready for next trajectory.", "#5070a0")
 
     # ─────────────────────────────────────────────────────────
