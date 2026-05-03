@@ -3,19 +3,12 @@
 PUMA-560 Trajectory GUI Launcher  —  Light Theme
 PyQt5 control panel for run_traj.sh + Gazebo orchestration.
 
-FIX vs previous version:
-  The old code launched the simulation TWICE (one xterm + one piped
-  subprocess for monitoring). Now only ONE process is spawned inside
-  SimMonitorThread. Its stdout is piped into the GUI's simulation
-  console panel. No separate xterm is opened for the simulation.
-
 Flow:
   1. RUN pressed  →  SimMonitorThread starts gazebo_launch.sh (single process, piped)
   2. Simulation output streams into the "Simulation" console tab in the GUI
   3. All 3 controller-ready lines detected  →  trajectory generation runs in background
-  4. Generation complete  →  execution script launches in a new xterm terminal
-  5. STOP kills everything and returns to idle
-  6. Execution terminal closes on its own  →  GUI auto-resets to idle
+     (automater.sh handles both generation AND execution internally)
+  4. STOP kills everything and returns to idle
 """
 
 import sys
@@ -30,7 +23,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QGroupBox, QFrame, QScrollArea, QTextEdit,
     QSplitter, QTabWidget
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal
 from PyQt5.QtGui import QColor, QFont, QPalette
 
 
@@ -38,12 +31,9 @@ from PyQt5.QtGui import QColor, QFont, QPalette
 #  CONFIGURATION
 # ══════════════════════════════════════════════════════════════
 
-TRAJ_GEN_SCRIPT   = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/automater.sh"
-SIMULATION_SCRIPT = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/gazebo_launch.sh"
-TRAJ_EXEC_SCRIPT  = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
-BASE_DIR          = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/demo_trajectories"
-
-TERMINAL_CANDIDATES = ["xterm", "gnome-terminal", "xfce4-terminal", "konsole", "lxterminal"]
+TRAJ_GEN_SCRIPT   = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/automater.sh"
+SIMULATION_SCRIPT = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/gazebo_launch.sh"
+BASE_DIR          = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_trajectories"
 
 READY_LINES = [
     "Configured and activated joint_3_controller",
@@ -264,12 +254,6 @@ def in_valid_range(value: float, ranges: list) -> bool:
 def range_label(ranges: list) -> str:
     return "  or  ".join(f"[{lo}°, {hi}°]" for lo, hi in ranges)
 
-def find_terminal() -> str | None:
-    for t in TERMINAL_CANDIDATES:
-        if subprocess.run(["which", t], capture_output=True).returncode == 0:
-            return t
-    return None
-
 def graceful_stop(proc, sigint_timeout: float = 5.0):
     """
     Send SIGINT (Ctrl+C) to the process group, wait up to sigint_timeout
@@ -316,11 +300,6 @@ def graceful_stop(proc, sigint_timeout: float = 5.0):
         os.killpg(pgid, signal.SIGKILL)
     except OSError:
         pass
-
-
-# Legacy alias used for the exec xterm (shorter timeout is fine there)
-def kill_proc(proc):
-    graceful_stop(proc, sigint_timeout=3.0)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -378,7 +357,6 @@ class JointRow(QWidget):
 #  SIMULATION MONITOR THREAD
 #  Runs ONE simulation process with a pipe.
 #  Output is forwarded to the GUI via signals.
-#  No separate xterm is opened — the GUI itself shows sim output.
 # ══════════════════════════════════════════════════════════════
 
 class SimMonitorThread(QThread):
@@ -428,7 +406,7 @@ class SimMonitorThread(QThread):
 
 
 # ══════════════════════════════════════════════════════════════
-#  GENERIC BACKGROUND PROCESS THREAD  (trajectory generation)
+#  GENERIC BACKGROUND PROCESS THREAD  (trajectory generation + execution)
 # ══════════════════════════════════════════════════════════════
 
 class ProcThread(QThread):
@@ -460,7 +438,7 @@ class ProcThread(QThread):
 
     def stop(self):
         if self._proc:
-            kill_proc(self._proc)
+            graceful_stop(self._proc, sigint_timeout=4.0)
             self._proc = None
 
 
@@ -473,18 +451,16 @@ class TrajectoryGUI(QMainWindow):
     ST_IDLE     = "idle"
     ST_SIM      = "sim_starting"
     ST_WAITING  = "waiting_controllers"
-    ST_TRAJ_GEN = "generating"
-    ST_RUNNING  = "running"
-    ST_DONE     = "done"     # execution finished — sim still alive, ready for next run
+    ST_RUNNING  = "running"       # automater.sh is generating + executing the trajectory
+    ST_FINISHED = "finished"      # automater.sh exited; sim still alive, awaiting STOP
 
     # (label, text-colour, border/bg accent, background)
     _STATE_THEME = {
-        ST_IDLE:     ("IDLE",                                        "#5070a0", "#c8d4e8", "#f0f4fa"),
-        ST_SIM:      ("SIMULATION STARTING…",                   "#b05010", "#f0c060", "#fff8e8"),
-        ST_WAITING:  ("WAITING FOR CONTROLLERS…",               "#b05010", "#f0c060", "#fff8e8"),
-        ST_TRAJ_GEN: ("GENERATING TRAJECTORY…",                 "#2c5fcc", "#90b0f0", "#eef3ff"),
-        ST_RUNNING:  ("TRAJECTORY RUNNING",                         "#1a7a40", "#60c080", "#edfff4"),
-        ST_DONE:     ("EXECUTION COMPLETE  —  SIMULATION ALIVE","#1a5c30", "#50b070", "#edfff4"),
+        ST_IDLE:     ("IDLE",                                         "#5070a0", "#c8d4e8", "#f0f4fa"),
+        ST_SIM:      ("SIMULATION STARTING…",                         "#b05010", "#f0c060", "#fff8e8"),
+        ST_WAITING:  ("WAITING FOR CONTROLLERS…",                     "#b05010", "#f0c060", "#fff8e8"),
+        ST_RUNNING:  ("TRAJECTORY RUNNING",                           "#1a7a40", "#60c080", "#edfff4"),
+        ST_FINISHED: ("EXECUTION COMPLETE  —  PRESS STOP TO RESET",   "#1a5c30", "#50b070", "#edfff4"),
     }
 
     def __init__(self):
@@ -494,9 +470,7 @@ class TrajectoryGUI(QMainWindow):
 
         self._state      = self.ST_IDLE
         self._sim_thread = None   # SimMonitorThread — the ONE simulation process
-        self._gen_thread = None   # ProcThread for automater.sh
-        self._exec_xterm = None   # Popen of execution xterm
-        self._exec_timer = None
+        self._gen_thread = None   # ProcThread for automater.sh (generation + execution)
         self._gen_cmd    = None
 
         self._build_ui()
@@ -567,7 +541,7 @@ class TrajectoryGUI(QMainWindow):
         gen_lay.setContentsMargins(4, 4, 4, 4)
         self._gen_console = QTextEdit()
         self._gen_console.setReadOnly(True)
-        self._gen_console.setPlaceholderText("Trajectory generation output will appear here…")
+        self._gen_console.setPlaceholderText("Trajectory generation & execution output will appear here…")
         gen_lay.addWidget(self._gen_console)
         self._tabs.addTab(gen_tab, "TRAJECTORY")
 
@@ -694,28 +668,14 @@ class TrajectoryGUI(QMainWindow):
         self._run_btn.setObjectName("run_btn")
         self._run_btn.clicked.connect(self._on_run)
 
-        # ST_SIM / ST_WAITING / ST_TRAJ_GEN / ST_RUNNING — abort everything
+        # ST_SIM / ST_WAITING / ST_RUNNING — abort everything
         self._stop_btn = QPushButton("■   STOP EXECUTION")
         self._stop_btn.setObjectName("stop_btn")
         self._stop_btn.clicked.connect(self._on_stop)
         self._stop_btn.setVisible(False)
 
-        # ST_DONE — run another trajectory on the same simulation
-        self._run_again_btn = QPushButton("▶   RUN ANOTHER TRAJECTORY")
-        self._run_again_btn.setObjectName("run_btn")
-        self._run_again_btn.clicked.connect(self._on_run)
-        self._run_again_btn.setVisible(False)
-
-        # ST_DONE — manually stop simulation when finished
-        self._stop_sim_btn = QPushButton("■   STOP SIMULATION")
-        self._stop_sim_btn.setObjectName("stop_btn")
-        self._stop_sim_btn.clicked.connect(self._on_stop)
-        self._stop_sim_btn.setVisible(False)
-
         lay.addWidget(self._run_btn)
         lay.addWidget(self._stop_btn)
-        lay.addWidget(self._run_again_btn)
-        lay.addWidget(self._stop_sim_btn)
         return lay
 
     # ─────────────────────────────────────────────────────────
@@ -735,21 +695,16 @@ class TrajectoryGUI(QMainWindow):
         )
 
         is_idle = (state == self.ST_IDLE)
-        is_done = (state == self.ST_DONE)
-        is_busy = not is_idle and not is_done   # sim/waiting/generating/running
 
         self._run_btn.setVisible(is_idle)
-        self._stop_btn.setVisible(is_busy)
-        self._run_again_btn.setVisible(is_done)
-        self._stop_sim_btn.setVisible(is_done)
+        self._stop_btn.setVisible(not is_idle)
 
-        # Form is editable when idle OR when done (ready for next trajectory)
-        form_enabled = is_idle or is_done
+        # Form is editable only when idle
         for w in self._end_rows + self._mid_rows:
-            w.setEnabled(form_enabled)
-        self._curve_combo.setEnabled(form_enabled)
-        self._t_spin.setEnabled(form_enabled)
-        self._np_spin.setEnabled(form_enabled)
+            w.setEnabled(is_idle)
+        self._curve_combo.setEnabled(is_idle)
+        self._t_spin.setEnabled(is_idle)
+        self._np_spin.setEnabled(is_idle)
 
     # ─────────────────────────────────────────────────────────
     #  FORM SLOTS
@@ -797,19 +752,6 @@ class TrajectoryGUI(QMainWindow):
 
         self._gen_cmd = self._build_gen_command()
 
-        # ── If simulation is already running (ST_DONE), skip straight to
-        #    trajectory generation — do NOT launch a new simulation. ─────
-        if self._state == self.ST_DONE:
-            self._log_gen("\n── Running another trajectory on the existing simulation ─", "#2c5fcc")
-            self._apply_state(self.ST_TRAJ_GEN)
-            self._tabs.setCurrentIndex(1)
-            self._log_gen("── Generating trajectory ────────────────────────────────")
-            self._gen_thread = ProcThread(self._gen_cmd)
-            self._gen_thread.line_received.connect(lambda l: self._log_gen(l, "#3a5a80"))
-            self._gen_thread.process_ended.connect(self._on_gen_done)
-            self._gen_thread.start()
-            return
-
         # ── Fresh start — launch simulation first ─────────────────────────
         self._reset_checklist()
         self._sim_console.clear()
@@ -846,10 +788,10 @@ class TrajectoryGUI(QMainWindow):
 
     def _on_controllers_ready(self):
         self._log_sim("── All controllers ready ─────────────────────────────────", "#1a7a40")
-        self._apply_state(self.ST_TRAJ_GEN)
+        self._apply_state(self.ST_RUNNING)
         self._tabs.setCurrentIndex(1)   # switch to trajectory tab
 
-        self._log_gen("── STEP 2: Generating trajectory ────────────────────────")
+        self._log_gen("── STEP 2: Generating & executing trajectory ────────────")
         self._gen_thread = ProcThread(self._gen_cmd)
         self._gen_thread.line_received.connect(lambda l: self._log_gen(l, "#3a5a80"))
         self._gen_thread.process_ended.connect(self._on_gen_done)
@@ -860,81 +802,29 @@ class TrajectoryGUI(QMainWindow):
             self._log_sim(f"[SIM] Process exited (code {code}).", "#b05010")
 
     # ─────────────────────────────────────────────────────────
-    #  TRAJECTORY GENERATION → EXECUTION
+    #  TRAJECTORY GENERATION + EXECUTION DONE
     # ─────────────────────────────────────────────────────────
 
     def _on_gen_done(self, code: int):
         if code != 0:
-            self._log_gen(f"[GEN] Generation failed (exit {code}). Resetting.", "#cc2c2c")
-            self._hard_reset()
-            return
-
-        traj_csv = self._latest_traj_csv()
-        if not traj_csv:
-            self._log_gen("[GEN] Could not find generated trajectory CSV. Resetting.", "#cc2c2c")
-            self._hard_reset()
-            return
-
-        self._log_gen(f"[GEN] Saved: {traj_csv}", "#3a5a80")
-        self._log_gen("── STEP 3: Launching execution terminal ─────────────────")
-
-        # ── STEP 3: Execution in its OWN xterm (only xterm we open) ─
-        terminal = find_terminal()
-        if terminal is None:
-            self._log_gen("⚠  No terminal emulator found. Install: sudo apt install xterm", "#cc2c2c")
-            self._hard_reset()
-            return
-
-        exec_cmd  = ["python3", TRAJ_EXEC_SCRIPT, "--csv-path", traj_csv]
-        xterm_cmd = self._terminal_cmd(terminal, "PUMA-560 · Trajectory Execution", exec_cmd)
-        try:
-            self._exec_xterm = subprocess.Popen(xterm_cmd, start_new_session=True)
-        except Exception as e:
-            self._log_gen(f"[ERROR] Could not open execution terminal: {e}", "#cc2c2c")
-            self._hard_reset()
-            return
-
-        self._apply_state(self.ST_RUNNING)
-        self._log_gen("Execution running in separate terminal.", "#1a7a40")
-        self._log_gen("Press  ■ STOP  to end execution and reset.", "#5070a0")
-
-        self._exec_timer = QTimer(self)
-        self._exec_timer.setInterval(1000)
-        self._exec_timer.timeout.connect(self._poll_exec_terminal)
-        self._exec_timer.start()
-
-    def _poll_exec_terminal(self):
-        if self._exec_xterm and self._exec_xterm.poll() is not None:
-            if self._exec_timer:
-                self._exec_timer.stop()
-                self._exec_timer = None
-            code = self._exec_xterm.returncode   # read before clearing
-            self._exec_xterm = None
-            ok = (code == 0)
-            if not ok:
-                self._log_gen(f"⚠  Execution terminal closed (exit {code}).", "#b05010")
-            self._log_gen(
-                "\n✔  Execution finished. Simulation is still running.\n"
-                "   Adjust parameters and press  ▶ RUN ANOTHER TRAJECTORY,\n"
-                "   or press  ■ STOP SIMULATION  when you are done.",
-                "#1a7a40"
-            )
-            # Transition to DONE — simulation stays alive, form unlocks
-            self._apply_state(self.ST_DONE)
+            self._log_gen(f"[GEN] automater.sh failed (exit {code}).", "#cc2c2c")
+        else:
+            self._log_gen("\n✔  Trajectory generation & execution complete.", "#1a7a40")
+        self._log_gen("Simulation is still running. Press  ■ STOP  to terminate.", "#5070a0")
+        self._gen_thread = None
+        self._apply_state(self.ST_FINISHED)
 
     # ─────────────────────────────────────────────────────────
     #  HARD RESET
     # ─────────────────────────────────────────────────────────
 
     def _hard_reset(self):
-        if self._exec_timer:
-            self._exec_timer.stop(); self._exec_timer = None
-
-        # ── Stop execution xterm first (SIGINT → SIGTERM → SIGKILL) ──
-        if self._exec_xterm and self._exec_xterm.poll() is None:
-            self._log_gen("[STOP] Sending Ctrl+C to execution process…", "#b05010")
-            graceful_stop(self._exec_xterm, sigint_timeout=4.0)
-        self._exec_xterm = None
+        # ── Stop trajectory generator (automater.sh) if still running ──
+        if self._gen_thread and self._gen_thread.isRunning():
+            self._log_gen("[STOP] Sending Ctrl+C to automater.sh…", "#b05010")
+            self._gen_thread.stop()
+            self._gen_thread.wait(2000)
+        self._gen_thread = None
 
         # ── Stop simulation (SIGINT → SIGTERM → SIGKILL, longer timeout) ─
         if self._sim_thread and self._sim_thread.isRunning():
@@ -942,12 +832,6 @@ class TrajectoryGUI(QMainWindow):
             self._sim_thread.stop()      # graceful_stop with 8 s SIGINT window
             self._sim_thread.wait(3000)  # wait for the QThread itself to join
         self._sim_thread = None
-
-        # ── Stop trajectory generator if still running ────────
-        if self._gen_thread and self._gen_thread.isRunning():
-            self._gen_thread.stop()
-            self._gen_thread.wait(2000)
-        self._gen_thread = None
 
         self._reset_checklist()
         self._apply_state(self.ST_IDLE)
@@ -990,34 +874,6 @@ class TrajectoryGUI(QMainWindow):
     # ─────────────────────────────────────────────────────────
     #  UTILITIES
     # ─────────────────────────────────────────────────────────
-
-    def _terminal_cmd(self, terminal: str, title: str, cmd: list) -> list:
-        cmd_str = " ".join(shlex.quote(c) for c in cmd)
-        if terminal == "xterm":
-            return [
-                "xterm", "-title", title,
-                "-geometry", "120x35",
-                "-bg", "#f8faff", "-fg", "#1a2236",
-                "-fa", "Monospace", "-fs", "10",
-                "-e", cmd_str,
-            ]
-        elif terminal in ("gnome-terminal", "xfce4-terminal"):
-            return [terminal, f"--title={title}", "--", *cmd]
-        elif terminal == "konsole":
-            return ["konsole", "--title", title, "-e", *cmd]
-        else:
-            return [terminal, "-e", cmd_str]
-
-    def _latest_traj_csv(self) -> str:
-        traj_dir = os.path.join(BASE_DIR, "Trajectories")
-        try:
-            files = [
-                os.path.join(traj_dir, f) for f in os.listdir(traj_dir)
-                if re.match(r"path_\d+_traj\.csv", f)
-            ]
-            return max(files, key=os.path.getmtime) if files else ""
-        except Exception:
-            return ""
 
     @staticmethod
     def _lbl(text: str, obj_name: str = "", fixed_w: int = 0) -> QLabel:

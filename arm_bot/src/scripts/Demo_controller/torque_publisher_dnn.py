@@ -31,7 +31,7 @@ import numpy as np
 from collections import deque
 
 # ── DNN model imports (heavy — only loaded when the node actually starts) ──
-DNN_TEST_DIR = '/data/ros2/ros2_ws2/DNN_test'
+DNN_TEST_DIR = '/home/priyankan/Desktop/FYP-Puma_560/DNN_test'
 
 
 # ======================================================================== #
@@ -224,7 +224,7 @@ class DNNInferenceEngine:
 # ======================================================================== #
 class DNNTorquePublisher(Node):
 
-    LOGS_DIR = '/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/demo_logs'
+    LOGS_DIR = '/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_logs'
 
     def __init__(self, csv_path,
                  delan_path, gru_path, scaler_path,
