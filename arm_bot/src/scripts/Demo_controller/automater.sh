@@ -88,14 +88,62 @@ run_simulation_with_csv() {
     exit 1
   fi
 
+  if [[ ! -f "$PLOT_SCRIPT" ]]; then
+    echo "ERROR: Plot script not found: $PLOT_SCRIPT" >&2
+    echo "       Use --plot-script to specify its location." >&2
+    exit 1
+  fi
+
+  local sim_dir
+  sim_dir="$(dirname "$SIMULATION_SCRIPT")"
+  local log_dir
+  log_dir="$sim_dir/demo_logs"
+  mkdir -p "$log_dir"
+
+  local csv_stem
+  csv_stem="$(basename "$csv_path" .csv)"
+  local mode_key="pid_dnn"
+  local max_run=0
+  local candidate filename run_id
+
+  shopt -s nullglob
+  for candidate in "$log_dir/${csv_stem}_${mode_key}_log_"*.csv; do
+    filename="$(basename "$candidate")"
+    if [[ "$filename" =~ ^${csv_stem}_${mode_key}_log_([0-9]+)\.csv$ ]]; then
+      run_id=$((10#${BASH_REMATCH[1]}))
+      (( run_id > max_run )) && max_run="$run_id"
+    fi
+  done
+  shopt -u nullglob
+
+  local next_run
+  next_run="$((max_run + 1))"
+  local generated_log_csv
+  generated_log_csv="$log_dir/${csv_stem}_${mode_key}_log_${next_run}.csv"
+
   echo "─────────────────────────────────────────"
   echo "  Running simulation"
   echo "─────────────────────────────────────────"
   echo "  simulation-script : $SIMULATION_SCRIPT"
   echo "  csv-path          : $csv_path"
+  echo "  log-path          : $generated_log_csv"
   echo "─────────────────────────────────────────"
 
-  python3 "$SIMULATION_SCRIPT" --csv-path "$csv_path"
+  python3 "$SIMULATION_SCRIPT" --csv-path "$csv_path" --log-path "$generated_log_csv"
+
+  if [[ ! -f "$generated_log_csv" ]]; then
+    echo "ERROR: Expected simulation log not found: $generated_log_csv" >&2
+    exit 1
+  fi
+
+  echo "─────────────────────────────────────────"
+  echo "  Plotting results"
+  echo "─────────────────────────────────────────"
+  echo "  plot-script       : $PLOT_SCRIPT"
+  echo "  log-csv-path      : $generated_log_csv"
+  echo "─────────────────────────────────────────"
+
+  python3 "$PLOT_SCRIPT" --log-csv-path "$generated_log_csv"
 }
 
 # ── help ────────────────────────────────────────────────────
@@ -117,6 +165,7 @@ Shared options:
   --base-dir  PATH         Output base directory             (default: ./test_output)
   --script    PATH         Path to the Python generator script
   --simulation-script PATH Path to the simulation script
+  --plot-script PATH  Path to the plot script
   --dt        FLOAT        Time step (default: 0.01)
   --v-max     FLOAT        Max velocity rad/s (default: 2.0)
   --a-max     FLOAT        Max acceleration rad/s^2 (default: 7.0)
@@ -153,6 +202,7 @@ while [[ $# -gt 0 ]]; do
     --base-dir)  BASE_DIR="$2";   shift 2 ;;
     --script)    SCRIPT_PATH="$2"; shift 2 ;;
     --simulation-script) SIMULATION_SCRIPT="$2"; shift 2 ;;
+    --plot-script) PLOT_SCRIPT="$2"; shift 2 ;;
     --dt)        DT="$2";         shift 2 ;;
     --v-max)     V_MAX="$2";      shift 2 ;;
     --a-max)     A_MAX="$2";      shift 2 ;;
