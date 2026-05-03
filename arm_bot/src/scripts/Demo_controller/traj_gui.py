@@ -1,344 +1,413 @@
 #!/usr/bin/env python3
 """
-PUMA-560 Trajectory GUI Launcher
-PyQt5-based control panel for run_traj.sh
+PUMA-560 Trajectory GUI Launcher  —  Light Theme
+PyQt5 control panel for run_traj.sh + Gazebo orchestration.
+
+FIX vs previous version:
+  The old code launched the simulation TWICE (one xterm + one piped
+  subprocess for monitoring). Now only ONE process is spawned inside
+  SimMonitorThread. Its stdout is piped into the GUI's simulation
+  console panel. No separate xterm is opened for the simulation.
+
+Flow:
+  1. RUN pressed  →  SimMonitorThread starts gazebo_launch.sh (single process, piped)
+  2. Simulation output streams into the "Simulation" console tab in the GUI
+  3. All 3 controller-ready lines detected  →  trajectory generation runs in background
+  4. Generation complete  →  execution script launches in a new xterm terminal
+  5. STOP kills everything and returns to idle
+  6. Execution terminal closes on its own  →  GUI auto-resets to idle
 """
 
 import sys
 import os
+import re
 import subprocess
 import shlex
+import signal
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QDoubleSpinBox, QSpinBox, QComboBox,
-    QPushButton, QGroupBox, QFrame, QSizePolicy, QScrollArea,
-    QTextEdit, QSplitter, QSlider
+    QPushButton, QGroupBox, QFrame, QScrollArea, QTextEdit,
+    QSplitter, QTabWidget
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect
-from PyQt5.QtGui import QFont, QColor, QPalette, QPixmap, QPainter, QLinearGradient, QFontDatabase
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtGui import QColor, QFont, QPalette
 
 
 # ══════════════════════════════════════════════════════════════
-#  CONFIGURATION  —  edit paths here
+#  CONFIGURATION
 # ══════════════════════════════════════════════════════════════
 
-SCRIPT_PATH = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/automater.sh"
-BASE_DIR    = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/demo_trajectories"
+TRAJ_GEN_SCRIPT   = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/automater.sh"
+SIMULATION_SCRIPT = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/gazebo_launch.sh"
+TRAJ_EXEC_SCRIPT  = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
+BASE_DIR          = "/data/ros2/ros2_ws2/arm_bot/src/scripts/Demo_controller/demo_trajectories"
 
-# Joint angle limits (degrees)
-# Each joint can have ONE or TWO valid ranges.
-# Format: list of (min, max) tuples — one tuple = single range, two tuples = dual range.
+TERMINAL_CANDIDATES = ["xterm", "gnome-terminal", "xfce4-terminal", "konsole", "lxterminal"]
+
+READY_LINES = [
+    "Configured and activated joint_3_controller",
+    "Configured and activated joint_2_controller",
+    "Configured and activated joint_1_controller",
+]
+
 JOINT_LIMITS = {
-    "Q1 (Base)":      [(-170, -20), (20, 170)],   # dual range — skip near-zero
-    "Q2 (Shoulder)":  [(-90, 180)],                # single range
-    "Q3 (Elbow)":     [(-45, 225)],                # single range
+    "Q1 (Base)":     [(-170, -20), (20, 170)],
+    "Q2 (Shoulder)": [(-90, 180)],
+    "Q3 (Elbow)":    [(-45, 225)],
 }
 
-# Default start angles (degrees) — must match TrajConfig.q_start_deg in the Python generator
-Q_START_DEG = [0.0, 45.0, 135.0]
-
-T_TOTAL_MIN  = 5.0
-T_TOTAL_MAX  = 60.0
-T_TOTAL_DEF  = 18.0
-
+Q_START_DEG   = [0.0, 45.0, 135.0]
+T_TOTAL_MIN   = 5.0
+T_TOTAL_MAX   = 60.0
+T_TOTAL_DEF   = 18.0
 NUM_PATHS_MIN = 1
 NUM_PATHS_MAX = 20
 
 
 # ══════════════════════════════════════════════════════════════
-#  COLOURS & STYLE
+#  LIGHT STYLE SHEET
 # ══════════════════════════════════════════════════════════════
 
 STYLE = """
+/* ── Base ── */
 QMainWindow, QWidget {
-    background-color: #0e1117;
-    color: #e0e6f0;
-    font-family: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
+    background-color: #f4f6fb;
+    color: #1a2236;
+    font-family: 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 12px;
 }
 
+/* ── Group boxes ── */
 QGroupBox {
-    border: 1px solid #2a3040;
-    border-radius: 6px;
-    margin-top: 14px;
-    padding: 12px 8px 8px 8px;
-    font-size: 11px;
+    background-color: #ffffff;
+    border: 1px solid #d0d8e8;
+    border-radius: 8px;
+    margin-top: 16px;
+    padding: 14px 10px 10px 10px;
+    font-size: 10px;
     font-weight: bold;
-    color: #5b8af5;
+    color: #3a6fd8;
     letter-spacing: 1.5px;
-    text-transform: uppercase;
 }
 QGroupBox::title {
     subcontrol-origin: margin;
-    left: 10px;
+    left: 12px;
     padding: 0 6px;
-    background-color: #0e1117;
+    background-color: #f4f6fb;
 }
 
-QLabel {
-    color: #9ab0cc;
-    font-size: 12px;
-}
-QLabel#header {
-    color: #e0e6f0;
-    font-size: 22px;
-    font-weight: bold;
-    letter-spacing: 2px;
-}
-QLabel#subheader {
-    color: #5b8af5;
-    font-size: 11px;
-    letter-spacing: 3px;
-}
-QLabel#start_val {
-    color: #3a6fd8;
-    font-size: 11px;
-}
-QLabel#limit_note {
-    color: #4a5a70;
-    font-size: 10px;
-    font-style: italic;
-}
+/* ── Labels ── */
+QLabel                { color: #3a4a60; font-size: 12px; }
+QLabel#header         { color: #1a2236; font-size: 22px; font-weight: bold; letter-spacing: 1px; }
+QLabel#subheader      { color: #3a6fd8; font-size: 11px; letter-spacing: 3px; font-weight: bold; }
+QLabel#start_val      { color: #7090c0; font-size: 11px; }
+QLabel#limit_note     { color: #a0aec0; font-size: 10px; font-style: italic; }
 
+/* ── Spin boxes ── */
 QDoubleSpinBox, QSpinBox {
-    background-color: #151c28;
-    border: 1px solid #2a3a55;
-    border-radius: 4px;
-    color: #e0e6f0;
+    background-color: #f8faff;
+    border: 1.5px solid #c8d4e8;
+    border-radius: 5px;
+    color: #1a2236;
     padding: 4px 8px;
     font-size: 13px;
     min-height: 28px;
     min-width: 90px;
 }
 QDoubleSpinBox:focus, QSpinBox:focus {
-    border: 1px solid #5b8af5;
+    border: 1.5px solid #3a6fd8;
+    background-color: #ffffff;
 }
 QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
-QSpinBox::up-button, QSpinBox::down-button {
-    background-color: #1e2a3a;
+QSpinBox::up-button,       QSpinBox::down-button {
+    background-color: #e8eef8;
     border: none;
     width: 18px;
 }
 QDoubleSpinBox::up-button:hover, QDoubleSpinBox::down-button:hover,
-QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-    background-color: #2a3a55;
+QSpinBox::up-button:hover,       QSpinBox::down-button:hover {
+    background-color: #c8d4e8;
 }
 
+/* ── Combo box ── */
 QComboBox {
-    background-color: #151c28;
-    border: 1px solid #2a3a55;
-    border-radius: 4px;
-    color: #e0e6f0;
+    background-color: #f8faff;
+    border: 1.5px solid #c8d4e8;
+    border-radius: 5px;
+    color: #1a2236;
     padding: 5px 10px;
-    font-size: 13px;
+    font-size: 12px;
     min-height: 28px;
-    min-width: 200px;
+    min-width: 220px;
 }
-QComboBox:focus { border: 1px solid #5b8af5; }
-QComboBox::drop-down {
-    border: none;
-    width: 24px;
-}
+QComboBox:focus { border: 1.5px solid #3a6fd8; background-color: #ffffff; }
+QComboBox::drop-down { border: none; width: 24px; }
 QComboBox QAbstractItemView {
-    background-color: #151c28;
-    border: 1px solid #2a3a55;
-    color: #e0e6f0;
-    selection-background-color: #1e3a6e;
+    background-color: #ffffff;
+    border: 1px solid #c8d4e8;
+    color: #1a2236;
+    selection-background-color: #dce8ff;
+    selection-color: #1a2236;
 }
 
+/* ── RUN button ── */
 QPushButton#run_btn {
-    background-color: #1a3d8f;
-    color: #e0f0ff;
+    background-color: #2c5fcc;
+    color: #ffffff;
     border: none;
-    border-radius: 6px;
+    border-radius: 7px;
     font-size: 14px;
     font-weight: bold;
-    letter-spacing: 2px;
+    letter-spacing: 1.5px;
     padding: 12px 0;
     min-height: 44px;
 }
-QPushButton#run_btn:hover {
-    background-color: #2550b8;
-}
-QPushButton#run_btn:pressed {
-    background-color: #0f2860;
-}
-QPushButton#run_btn:disabled {
-    background-color: #1a2230;
-    color: #3a4a60;
-}
+QPushButton#run_btn:hover    { background-color: #3a6fd8; }
+QPushButton#run_btn:pressed  { background-color: #1a4ab0; }
+QPushButton#run_btn:disabled { background-color: #c8d4e8; color: #90a0b8; }
 
+/* ── STOP button ── */
+QPushButton#stop_btn {
+    background-color: #cc2c2c;
+    color: #ffffff;
+    border: none;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1.5px;
+    padding: 12px 0;
+    min-height: 44px;
+}
+QPushButton#stop_btn:hover   { background-color: #d84040; }
+QPushButton#stop_btn:pressed { background-color: #a01818; }
+
+/* ── Clear button ── */
 QPushButton#clear_btn {
-    background-color: #1a2230;
-    color: #6a7a90;
-    border: 1px solid #2a3a55;
-    border-radius: 6px;
+    background-color: #eef2fa;
+    color: #6070a0;
+    border: 1px solid #c8d4e8;
+    border-radius: 5px;
     font-size: 11px;
-    letter-spacing: 1px;
-    padding: 6px 16px;
+    padding: 5px 14px;
 }
-QPushButton#clear_btn:hover {
-    background-color: #222f42;
-    color: #9ab0cc;
-}
+QPushButton#clear_btn:hover { background-color: #dce8ff; color: #2c5fcc; }
 
+/* ── Console / text area ── */
 QTextEdit {
-    background-color: #080d14;
-    border: 1px solid #1a2535;
-    border-radius: 4px;
-    color: #7aad6e;
+    background-color: #f8faff;
+    border: 1px solid #d0d8e8;
+    border-radius: 5px;
+    color: #1a2236;
     font-family: 'JetBrains Mono', 'Fira Mono', 'Courier New', monospace;
     font-size: 11px;
     padding: 6px;
 }
 
-QFrame#divider {
-    background-color: #1a2535;
-    max-height: 1px;
+/* ── Tabs ── */
+QTabWidget::pane {
+    border: 1px solid #d0d8e8;
+    border-radius: 0 6px 6px 6px;
+    background-color: #ffffff;
 }
+QTabBar::tab {
+    background-color: #e8eef8;
+    color: #5070a0;
+    border: 1px solid #d0d8e8;
+    border-bottom: none;
+    border-radius: 5px 5px 0 0;
+    padding: 5px 16px;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    margin-right: 2px;
+}
+QTabBar::tab:selected {
+    background-color: #ffffff;
+    color: #2c5fcc;
+    border-bottom: 2px solid #ffffff;
+}
+QTabBar::tab:hover:!selected { background-color: #dce8ff; }
 
-QFrame#range_badge {
-    background-color: #0f1a2a;
-    border: 1px solid #1e3050;
-    border-radius: 3px;
-    padding: 2px 6px;
-}
+/* ── Divider ── */
+QFrame#divider { background-color: #d0d8e8; max-height: 1px; }
 
-QScrollBar:vertical {
-    background: #0e1117;
-    width: 8px;
-    margin: 0;
-}
-QScrollBar::handle:vertical {
-    background: #2a3a55;
-    border-radius: 4px;
-    min-height: 20px;
-}
+/* ── Scroll bars ── */
+QScrollBar:vertical { background: #f4f6fb; width: 8px; margin: 0; }
+QScrollBar::handle:vertical { background: #c8d4e8; border-radius: 4px; min-height: 20px; }
+QScrollBar::handle:vertical:hover { background: #a0b4d0; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 
-QSplitter::handle {
-    background-color: #1a2535;
-    width: 2px;
-}
+/* ── Splitter ── */
+QSplitter::handle { background-color: #d0d8e8; width: 2px; }
 """
 
 
 # ══════════════════════════════════════════════════════════════
-#  RANGE VALIDATOR  —  checks a value is in any valid range
+#  HELPERS
 # ══════════════════════════════════════════════════════════════
 
 def in_valid_range(value: float, ranges: list) -> bool:
     return any(lo <= value <= hi for lo, hi in ranges)
 
-
 def range_label(ranges: list) -> str:
-    parts = [f"[{lo}°, {hi}°]" for lo, hi in ranges]
-    return "  or  ".join(parts)
+    return "  or  ".join(f"[{lo}°, {hi}°]" for lo, hi in ranges)
+
+def find_terminal() -> str | None:
+    for t in TERMINAL_CANDIDATES:
+        if subprocess.run(["which", t], capture_output=True).returncode == 0:
+            return t
+    return None
+
+def kill_proc(proc):
+    if proc is None:
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+    except Exception:
+        try:
+            proc.terminate()
+        except Exception:
+            pass
 
 
 # ══════════════════════════════════════════════════════════════
-#  JOINT ANGLE SPINBOX  —  validates against allowed ranges
+#  JOINT WIDGETS
 # ══════════════════════════════════════════════════════════════
 
 class JointSpinBox(QDoubleSpinBox):
-    def __init__(self, ranges: list, parent=None):
+    def __init__(self, ranges, parent=None):
         super().__init__(parent)
         self._ranges = ranges
-        # Use the widest span for the spinbox min/max
-        lo = min(r[0] for r in ranges)
-        hi = max(r[1] for r in ranges)
-        self.setRange(lo, hi)
+        self.setRange(min(r[0] for r in ranges), max(r[1] for r in ranges))
         self.setDecimals(1)
         self.setSingleStep(1.0)
         self.setSuffix(" °")
-        self._apply_style(self.value())
-        self.valueChanged.connect(self._on_value_changed)
+        self._refresh(self.value())
+        self.valueChanged.connect(self._refresh)
 
-    def _on_value_changed(self, val):
-        self._apply_style(val)
+    def _refresh(self, val):
+        ok = in_valid_range(val, self._ranges)
+        self.setStyleSheet("" if ok else
+            "QDoubleSpinBox { border: 1.5px solid #cc2c2c; color: #cc2c2c; "
+            "background-color: #fff5f5; }")
 
-    def _apply_style(self, val):
-        if in_valid_range(val, self._ranges):
-            self.setStyleSheet("")
-        else:
-            self.setStyleSheet(
-                "QDoubleSpinBox { border: 1px solid #c0392b; color: #e74c3c; }"
-            )
-
-    def is_valid(self) -> bool:
+    def is_valid(self):
         return in_valid_range(self.value(), self._ranges)
 
 
+class JointRow(QWidget):
+    def __init__(self, label, ranges, start_deg, parent=None):
+        super().__init__(parent)
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 4, 0, 4)
+        row.setSpacing(12)
+
+        lbl = QLabel(label); lbl.setFixedWidth(115)
+        row.addWidget(lbl)
+
+        self.spin = JointSpinBox(ranges)
+        self.spin.setValue(start_deg)
+        row.addWidget(self.spin)
+
+        s = QLabel(f"start: {start_deg:+.0f}°")
+        s.setObjectName("start_val"); s.setFixedWidth(82)
+        row.addWidget(s)
+
+        h = QLabel(range_label(ranges)); h.setObjectName("limit_note")
+        row.addWidget(h)
+        row.addStretch()
+
+    def value(self):    return self.spin.value()
+    def is_valid(self): return self.spin.is_valid()
+
+
 # ══════════════════════════════════════════════════════════════
-#  SHELL RUNNER THREAD
+#  SIMULATION MONITOR THREAD
+#  Runs ONE simulation process with a pipe.
+#  Output is forwarded to the GUI via signals.
+#  No separate xterm is opened — the GUI itself shows sim output.
 # ══════════════════════════════════════════════════════════════
 
-class ShellThread(QThread):
-    output   = pyqtSignal(str)
-    finished = pyqtSignal(int)   # exit code
+class SimMonitorThread(QThread):
+    line_received     = pyqtSignal(str)
+    controllers_ready = pyqtSignal()
+    process_ended     = pyqtSignal(int)
 
     def __init__(self, cmd: list):
         super().__init__()
-        self._cmd = cmd
+        self._cmd  = cmd
+        self._proc = None
 
     def run(self):
         try:
-            proc = subprocess.Popen(
+            self._proc = subprocess.Popen(
                 self._cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 bufsize=1,
+                start_new_session=True,
             )
-            for line in proc.stdout:
-                self.output.emit(line.rstrip())
-            proc.wait()
-            self.finished.emit(proc.returncode)
+            seen          = set()
+            ready_emitted = False
+            for raw in self._proc.stdout:
+                line = raw.rstrip()
+                self.line_received.emit(line)
+                if not ready_emitted:
+                    for marker in READY_LINES:
+                        if marker in line:
+                            seen.add(marker)
+                    if len(seen) == len(READY_LINES):
+                        ready_emitted = True
+                        self.controllers_ready.emit()
+            self._proc.wait()
+            self.process_ended.emit(self._proc.returncode)
         except Exception as e:
-            self.output.emit(f"[ERROR] {e}")
-            self.finished.emit(1)
+            self.line_received.emit(f"[SIM ERROR] {e}")
+            self.process_ended.emit(1)
+
+    def stop(self):
+        if self._proc:
+            kill_proc(self._proc)
+            self._proc = None
 
 
 # ══════════════════════════════════════════════════════════════
-#  JOINT ROW WIDGET
+#  GENERIC BACKGROUND PROCESS THREAD  (trajectory generation)
 # ══════════════════════════════════════════════════════════════
 
-class JointRow(QWidget):
-    def __init__(self, label: str, ranges: list, start_deg: float, parent=None):
-        super().__init__(parent)
-        self._ranges = ranges
+class ProcThread(QThread):
+    line_received = pyqtSignal(str)
+    process_ended = pyqtSignal(int)
 
-        row = QHBoxLayout(self)
-        row.setContentsMargins(0, 4, 0, 4)
-        row.setSpacing(12)
+    def __init__(self, cmd: list):
+        super().__init__()
+        self._cmd  = cmd
+        self._proc = None
 
-        # Joint label
-        lbl = QLabel(label)
-        lbl.setFixedWidth(110)
-        row.addWidget(lbl)
+    def run(self):
+        try:
+            self._proc = subprocess.Popen(
+                self._cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+                start_new_session=True,
+            )
+            for raw in self._proc.stdout:
+                self.line_received.emit(raw.rstrip())
+            self._proc.wait()
+            self.process_ended.emit(self._proc.returncode)
+        except Exception as e:
+            self.line_received.emit(f"[ERROR] {e}")
+            self.process_ended.emit(1)
 
-        # Spinbox
-        self.spin = JointSpinBox(ranges)
-        self.spin.setValue(start_deg)
-        row.addWidget(self.spin)
-
-        # Start angle badge
-        start_lbl = QLabel(f"start: {start_deg:+.0f}°")
-        start_lbl.setObjectName("start_val")
-        start_lbl.setFixedWidth(80)
-        row.addWidget(start_lbl)
-
-        # Allowed range hint
-        hint = QLabel(range_label(ranges))
-        hint.setObjectName("limit_note")
-        row.addWidget(hint)
-
-        row.addStretch()
-
-    def value(self) -> float:
-        return self.spin.value()
-
-    def is_valid(self) -> bool:
-        return self.spin.is_valid()
+    def stop(self):
+        if self._proc:
+            kill_proc(self._proc)
+            self._proc = None
 
 
 # ══════════════════════════════════════════════════════════════
@@ -346,278 +415,506 @@ class JointRow(QWidget):
 # ══════════════════════════════════════════════════════════════
 
 class TrajectoryGUI(QMainWindow):
+
+    ST_IDLE     = "idle"
+    ST_SIM      = "sim_starting"
+    ST_WAITING  = "waiting_controllers"
+    ST_TRAJ_GEN = "generating"
+    ST_RUNNING  = "running"
+
+    # (label, text-colour, border/bg accent, background)
+    _STATE_THEME = {
+        ST_IDLE:     ("IDLE",                     "#5070a0", "#c8d4e8", "#f0f4fa"),
+        ST_SIM:      ("SIMULATION STARTING…",     "#b05010", "#f0c060", "#fff8e8"),
+        ST_WAITING:  ("WAITING FOR CONTROLLERS…", "#b05010", "#f0c060", "#fff8e8"),
+        ST_TRAJ_GEN: ("GENERATING TRAJECTORY…",   "#2c5fcc", "#90b0f0", "#eef3ff"),
+        ST_RUNNING:  ("TRAJECTORY RUNNING",       "#1a7a40", "#60c080", "#edfff4"),
+    }
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("PUMA-560  ·  Trajectory Launcher")
-        self.setMinimumSize(860, 700)
-        self._thread = None
+        self.setMinimumSize(980, 760)
+
+        self._state      = self.ST_IDLE
+        self._sim_thread = None   # SimMonitorThread — the ONE simulation process
+        self._gen_thread = None   # ProcThread for automater.sh
+        self._exec_xterm = None   # Popen of execution xterm
+        self._exec_timer = None
+        self._gen_cmd    = None
+
         self._build_ui()
 
-    # ── UI construction ──────────────────────────────────────
+    # ─────────────────────────────────────────────────────────
+    #  UI
+    # ─────────────────────────────────────────────────────────
 
     def _build_ui(self):
         self.setStyleSheet(STYLE)
-
         central = QWidget()
         self.setCentralWidget(central)
-
         root = QVBoxLayout(central)
         root.setContentsMargins(24, 20, 24, 20)
-        root.setSpacing(16)
+        root.setSpacing(14)
 
-        # Header
         root.addLayout(self._make_header())
+        div = QFrame(); div.setObjectName("divider"); div.setFrameShape(QFrame.HLine)
+        root.addWidget(div)
 
-        divider = QFrame(); divider.setObjectName("divider"); divider.setFrameShape(QFrame.HLine)
-        root.addWidget(divider)
-
-        # Splitter: form (left) | console (right)
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
 
-        form_scroll = QScrollArea()
-        form_scroll.setWidgetResizable(True)
-        form_scroll.setFrameShape(QFrame.NoFrame)
-        form_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        # ── Left: scrollable form ────────────────────────────
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
 
-        form_container = QWidget()
-        form_layout = QVBoxLayout(form_container)
-        form_layout.setContentsMargins(0, 0, 12, 0)
-        form_layout.setSpacing(14)
+        form_w = QWidget()
+        form   = QVBoxLayout(form_w)
+        form.setContentsMargins(0, 0, 12, 0)
+        form.setSpacing(14)
 
-        # ── Curve type ──────────────────────────────────────
-        form_layout.addWidget(self._make_curve_group())
-
-        # ── End point ───────────────────────────────────────
-        form_layout.addWidget(self._make_endpoint_group())
-
-        # ── Mid point (hidden for single-S) ─────────────────
+        form.addWidget(self._make_curve_group())
+        form.addWidget(self._make_endpoint_group())
         self._mid_group = self._make_midpoint_group()
-        form_layout.addWidget(self._mid_group)
+        form.addWidget(self._mid_group)
+        form.addWidget(self._make_timing_group())
+        form.addWidget(self._make_status_group())
+        form.addLayout(self._make_action_buttons())
+        form.addStretch()
 
-        # ── Timing ──────────────────────────────────────────
-        form_layout.addWidget(self._make_timing_group())
+        scroll.setWidget(form_w)
+        splitter.addWidget(scroll)
 
-        # ── Run controls ────────────────────────────────────
-        form_layout.addLayout(self._make_run_controls())
+        # ── Right: tabbed console ────────────────────────────
+        right_w   = QWidget()
+        right_lay = QVBoxLayout(right_w)
+        right_lay.setContentsMargins(8, 0, 0, 0)
+        right_lay.setSpacing(6)
 
-        form_layout.addStretch()
-        form_scroll.setWidget(form_container)
-        splitter.addWidget(form_scroll)
+        self._tabs = QTabWidget()
 
-        # ── Console ─────────────────────────────────────────
-        console_frame = QWidget()
-        console_layout = QVBoxLayout(console_frame)
-        console_layout.setContentsMargins(8, 0, 0, 0)
-        console_layout.setSpacing(6)
+        # Tab 1 — Simulation output
+        sim_tab = QWidget()
+        sim_lay = QVBoxLayout(sim_tab)
+        sim_lay.setContentsMargins(4, 4, 4, 4)
+        self._sim_console = QTextEdit()
+        self._sim_console.setReadOnly(True)
+        self._sim_console.setPlaceholderText("Gazebo simulation output will appear here…")
+        sim_lay.addWidget(self._sim_console)
+        self._tabs.addTab(sim_tab, "SIMULATION")
 
-        console_hdr = QHBoxLayout()
-        console_lbl = QLabel("CONSOLE OUTPUT")
-        console_lbl.setObjectName("subheader")
-        console_hdr.addWidget(console_lbl)
-        console_hdr.addStretch()
-        clear_btn = QPushButton("CLEAR")
+        # Tab 2 — Generation / execution log
+        gen_tab = QWidget()
+        gen_lay = QVBoxLayout(gen_tab)
+        gen_lay.setContentsMargins(4, 4, 4, 4)
+        self._gen_console = QTextEdit()
+        self._gen_console.setReadOnly(True)
+        self._gen_console.setPlaceholderText("Trajectory generation output will appear here…")
+        gen_lay.addWidget(self._gen_console)
+        self._tabs.addTab(gen_tab, "TRAJECTORY")
+
+        right_lay.addWidget(self._tabs, stretch=1)
+
+        # Clear button row below tabs
+        cb_row = QHBoxLayout()
+        cb_row.addStretch()
+        clear_btn = QPushButton("CLEAR TAB")
         clear_btn.setObjectName("clear_btn")
         clear_btn.setFixedHeight(26)
-        clear_btn.clicked.connect(self._clear_console)
-        console_hdr.addWidget(clear_btn)
-        console_layout.addLayout(console_hdr)
+        clear_btn.clicked.connect(self._clear_current_tab)
+        cb_row.addWidget(clear_btn)
+        right_lay.addLayout(cb_row)
 
-        self._console = QTextEdit()
-        self._console.setReadOnly(True)
-        self._console.setPlaceholderText("Output will appear here…")
-        console_layout.addWidget(self._console)
-
-        splitter.addWidget(console_frame)
-        splitter.setSizes([480, 340])
-
+        splitter.addWidget(right_w)
+        splitter.setSizes([520, 420])
         root.addWidget(splitter, stretch=1)
 
-        # Initial visibility
         self._on_curve_changed(self._curve_combo.currentIndex())
+        self._apply_state(self.ST_IDLE)
 
     def _make_header(self):
-        hdr = QVBoxLayout()
-        hdr.setSpacing(2)
-        title = QLabel("PUMA-560")
-        title.setObjectName("header")
-        sub   = QLabel("TRAJECTORY  LAUNCHER")
-        sub.setObjectName("subheader")
-        hdr.addWidget(title)
-        hdr.addWidget(sub)
-        return hdr
+        lay = QHBoxLayout()
+        txt = QVBoxLayout(); txt.setSpacing(2)
+        txt.addWidget(self._lbl("PUMA-560", "header"))
+        txt.addWidget(self._lbl("TRAJECTORY  LAUNCHER", "subheader"))
+        lay.addLayout(txt)
+        lay.addStretch()
+        return lay
 
     def _make_curve_group(self):
-        grp = QGroupBox("Trajectory Profile")
-        lay = QHBoxLayout(grp)
-        lay.setSpacing(16)
-
-        lbl = QLabel("Curve type:")
-        lbl.setFixedWidth(90)
-        lay.addWidget(lbl)
-
+        grp = QGroupBox("TRAJECTORY PROFILE")
+        lay = QHBoxLayout(grp); lay.setSpacing(16)
+        lay.addWidget(self._lbl("Curve type:", fixed_w=90))
         self._curve_combo = QComboBox()
-        self._curve_combo.addItem("Single S-Curve  (start → end)",        "single")
-        self._curve_combo.addItem("Double S-Curve  (start → mid → end)",  "double")
+        self._curve_combo.addItem("Single S-Curve  (start → end)",       "single")
+        self._curve_combo.addItem("Double S-Curve  (start → mid → end)", "double")
         self._curve_combo.currentIndexChanged.connect(self._on_curve_changed)
         lay.addWidget(self._curve_combo)
         lay.addStretch()
         return grp
 
     def _make_endpoint_group(self):
-        grp = QGroupBox("End Point  (q-end)")
-        lay = QVBoxLayout(grp)
-        lay.setSpacing(4)
+        grp = QGroupBox("END POINT  (q-end)")
+        lay = QVBoxLayout(grp); lay.setSpacing(4)
         self._end_rows = []
-        names = list(JOINT_LIMITS.keys())
         for i, (name, ranges) in enumerate(JOINT_LIMITS.items()):
-            row = JointRow(name, ranges, Q_START_DEG[i])
-            lay.addWidget(row)
-            self._end_rows.append(row)
+            r = JointRow(name, ranges, Q_START_DEG[i])
+            lay.addWidget(r); self._end_rows.append(r)
         return grp
 
     def _make_midpoint_group(self):
-        grp = QGroupBox("Mid Point  (q-mid)  —  waypoint")
-        lay = QVBoxLayout(grp)
-        lay.setSpacing(4)
+        grp = QGroupBox("MID POINT  (q-mid)  —  waypoint")
+        lay = QVBoxLayout(grp); lay.setSpacing(4)
         self._mid_rows = []
         for i, (name, ranges) in enumerate(JOINT_LIMITS.items()):
-            row = JointRow(name, ranges, Q_START_DEG[i])
-            lay.addWidget(row)
-            self._mid_rows.append(row)
+            r = JointRow(name, ranges, Q_START_DEG[i])
+            lay.addWidget(r); self._mid_rows.append(r)
         return grp
 
     def _make_timing_group(self):
-        grp = QGroupBox("Timing")
-        grid = QGridLayout(grp)
-        grid.setSpacing(10)
-        grid.setColumnStretch(2, 1)
+        grp  = QGroupBox("TIMING")
+        grid = QGridLayout(grp); grid.setSpacing(10); grid.setColumnStretch(2, 1)
 
-        # t-total
-        grid.addWidget(QLabel("Duration  (t-total):"), 0, 0)
+        grid.addWidget(self._lbl("Duration  (t-total):"), 0, 0)
         self._t_spin = QDoubleSpinBox()
         self._t_spin.setRange(T_TOTAL_MIN, T_TOTAL_MAX)
         self._t_spin.setValue(T_TOTAL_DEF)
-        self._t_spin.setDecimals(1)
-        self._t_spin.setSingleStep(0.5)
+        self._t_spin.setDecimals(1); self._t_spin.setSingleStep(0.5)
         self._t_spin.setSuffix("  s")
         grid.addWidget(self._t_spin, 0, 1)
-        grid.addWidget(QLabel(f"range: {T_TOTAL_MIN} – {T_TOTAL_MAX} s"), 0, 2)
+        grid.addWidget(self._lbl(f"range: {T_TOTAL_MIN} – {T_TOTAL_MAX} s", "limit_note"), 0, 2)
 
-        # num-paths
-        grid.addWidget(QLabel("Num paths:"), 1, 0)
+        grid.addWidget(self._lbl("Num paths:"), 1, 0)
         self._np_spin = QSpinBox()
-        self._np_spin.setRange(NUM_PATHS_MIN, NUM_PATHS_MAX)
-        self._np_spin.setValue(1)
+        self._np_spin.setRange(NUM_PATHS_MIN, NUM_PATHS_MAX); self._np_spin.setValue(1)
         grid.addWidget(self._np_spin, 1, 1)
-        grid.addWidget(QLabel(f"range: {NUM_PATHS_MIN} – {NUM_PATHS_MAX}"), 1, 2)
-
+        grid.addWidget(self._lbl(f"range: {NUM_PATHS_MIN} – {NUM_PATHS_MAX}", "limit_note"), 1, 2)
         return grp
 
-    def _make_run_controls(self):
-        lay = QVBoxLayout()
-        lay.setSpacing(8)
+    def _make_status_group(self):
+        grp = QGroupBox("STATUS")
+        lay = QVBoxLayout(grp); lay.setSpacing(10)
+
+        # Status badge
+        self._status_lbl = QLabel("IDLE")
+        self._status_lbl.setAlignment(Qt.AlignCenter)
+        self._status_lbl.setMinimumHeight(32)
+        lay.addWidget(self._status_lbl)
+
+        # Controller checklist
+        self._ctrl_widgets = {}
+        for marker in READY_LINES:
+            row = QHBoxLayout()
+            dot = QLabel("○"); dot.setFixedWidth(20)
+            dot.setStyleSheet("color: #b0bece; font-size: 15px;")
+            name = marker.replace("Configured and activated ", "")
+            txt  = QLabel(name)
+            txt.setStyleSheet("color: #a0aec0; font-size: 11px;")
+            row.addWidget(dot); row.addWidget(txt); row.addStretch()
+            lay.addLayout(row)
+            self._ctrl_widgets[marker] = (dot, txt)
 
         # Command preview
-        self._cmd_label = QLabel()
-        self._cmd_label.setObjectName("limit_note")
-        self._cmd_label.setWordWrap(True)
-        lay.addWidget(self._cmd_label)
+        self._cmd_preview = QLabel()
+        self._cmd_preview.setObjectName("limit_note")
+        self._cmd_preview.setWordWrap(True)
+        lay.addWidget(self._cmd_preview)
+
+        for r in self._end_rows + self._mid_rows:
+            r.spin.valueChanged.connect(self._update_preview)
+        self._t_spin.valueChanged.connect(self._update_preview)
+        self._np_spin.valueChanged.connect(self._update_preview)
+        self._curve_combo.currentIndexChanged.connect(self._update_preview)
+        self._update_preview()
+        return grp
+
+    def _make_action_buttons(self):
+        lay = QVBoxLayout(); lay.setSpacing(0)
 
         self._run_btn = QPushButton("▶   RUN TRAJECTORY")
         self._run_btn.setObjectName("run_btn")
         self._run_btn.clicked.connect(self._on_run)
+
+        self._stop_btn = QPushButton("■   STOP EXECUTION")
+        self._stop_btn.setObjectName("stop_btn")
+        self._stop_btn.clicked.connect(self._on_stop)
+        self._stop_btn.setVisible(False)
+
         lay.addWidget(self._run_btn)
-
-        # Wire up live preview
-        for row in self._end_rows + self._mid_rows:
-            row.spin.valueChanged.connect(self._update_preview)
-        self._t_spin.valueChanged.connect(self._update_preview)
-        self._np_spin.valueChanged.connect(self._update_preview)
-        self._curve_combo.currentIndexChanged.connect(self._update_preview)
-
-        self._update_preview()
+        lay.addWidget(self._stop_btn)
         return lay
 
-    # ── slots ────────────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────
+    #  STATE MACHINE
+    # ─────────────────────────────────────────────────────────
+
+    def _apply_state(self, state: str):
+        self._state = state
+        text, fg, accent, bg = self._STATE_THEME.get(
+            state, ("IDLE", "#5070a0", "#c8d4e8", "#f0f4fa")
+        )
+        self._status_lbl.setText(text)
+        self._status_lbl.setStyleSheet(
+            f"QLabel {{ color: {fg}; background-color: {bg}; "
+            f"border: 1.5px solid {accent}; border-radius: 6px; "
+            f"font-size: 12px; font-weight: bold; letter-spacing: 1px; padding: 5px 12px; }}"
+        )
+        is_idle = (state == self.ST_IDLE)
+        self._run_btn.setVisible(is_idle)
+        self._stop_btn.setVisible(not is_idle)
+
+        for w in self._end_rows + self._mid_rows:
+            w.setEnabled(is_idle)
+        self._curve_combo.setEnabled(is_idle)
+        self._t_spin.setEnabled(is_idle)
+        self._np_spin.setEnabled(is_idle)
+
+    # ─────────────────────────────────────────────────────────
+    #  FORM SLOTS
+    # ─────────────────────────────────────────────────────────
 
     def _on_curve_changed(self, index):
-        is_double = (self._curve_combo.itemData(index) == "double")
-        self._mid_group.setVisible(is_double)
+        self._mid_group.setVisible(self._curve_combo.itemData(index) == "double")
         self._update_preview()
 
-    def _build_command(self) -> list:
-        """Return the shell command as a list of strings."""
+    def _update_preview(self):
+        self._cmd_preview.setText(
+            "$ " + " ".join(shlex.quote(c) for c in self._build_gen_command())
+        )
+
+    def _build_gen_command(self) -> list:
         is_double = (self._curve_combo.currentData() == "double")
-
-        q_end = [r.value() for r in self._end_rows]
-        q_end_str = f"[{q_end[0]:.1f},{q_end[1]:.1f},{q_end[2]:.1f}]"
-
+        qe = [r.value() for r in self._end_rows]
         cmd = [
-            "bash", SCRIPT_PATH,
-            "--q-end",     q_end_str,
+            "bash", TRAJ_GEN_SCRIPT,
+            "--q-end",     f"[{qe[0]:.1f},{qe[1]:.1f},{qe[2]:.1f}]",
             "--t-total",   str(self._t_spin.value()),
             "--num-paths", str(self._np_spin.value()),
             "--base-dir",  BASE_DIR,
         ]
-
         if is_double:
-            q_mid = [r.value() for r in self._mid_rows]
-            q_mid_str = f"[{q_mid[0]:.1f},{q_mid[1]:.1f},{q_mid[2]:.1f}]"
-            cmd += ["--q-mid", q_mid_str]
-
+            qm = [r.value() for r in self._mid_rows]
+            cmd += ["--q-mid", f"[{qm[0]:.1f},{qm[1]:.1f},{qm[2]:.1f}]"]
         return cmd
-
-    def _update_preview(self):
-        cmd = self._build_command()
-        preview = " ".join(shlex.quote(c) for c in cmd)
-        self._cmd_label.setText(f"$ {preview}")
 
     def _validate(self) -> bool:
         is_double = (self._curve_combo.currentData() == "double")
         rows = self._end_rows + (self._mid_rows if is_double else [])
-        bad = [r for r in rows if not r.is_valid()]
-        if bad:
-            self._log("⚠  One or more joint angles are outside valid ranges. Please correct (highlighted in red).",
-                      color="#e74c3c")
+        if any(not r.is_valid() for r in rows):
+            self._log_gen("⚠  One or more joint angles are outside valid ranges.", "#cc2c2c")
             return False
         return True
+
+    # ─────────────────────────────────────────────────────────
+    #  RUN / STOP
+    # ─────────────────────────────────────────────────────────
 
     def _on_run(self):
         if not self._validate():
             return
-        if self._thread and self._thread.isRunning():
-            self._log("⚠  Already running — please wait.", color="#f39c12")
+
+        self._gen_cmd = self._build_gen_command()
+        self._reset_checklist()
+        self._sim_console.clear()
+        self._gen_console.clear()
+
+        # ── STEP 1: Start ONE simulation process (piped into GUI) ─
+        self._log_sim("── STEP 1: Starting Gazebo simulation ──────────────────")
+        self._sim_thread = SimMonitorThread(["bash", SIMULATION_SCRIPT])
+        self._sim_thread.line_received.connect(self._on_sim_line)
+        self._sim_thread.controllers_ready.connect(self._on_controllers_ready)
+        self._sim_thread.process_ended.connect(self._on_sim_proc_ended)
+        self._sim_thread.start()
+
+        self._tabs.setCurrentIndex(0)   # switch to simulation tab
+        self._apply_state(self.ST_SIM)
+        self._log_sim("Waiting for Gazebo controllers to initialise…", "#b05010")
+
+    def _on_stop(self):
+        self._log_gen("── STOP requested ───────────────────────────────────────", "#cc2c2c")
+        self._hard_reset()
+
+    # ─────────────────────────────────────────────────────────
+    #  SIMULATION MONITORING
+    # ─────────────────────────────────────────────────────────
+
+    def _on_sim_line(self, line: str):
+        self._log_sim(line, "#3a5a80")
+        for marker in READY_LINES:
+            if marker in line:
+                self._mark_controller(marker)
+        # Transition out of ST_SIM as soon as first output arrives
+        if self._state == self.ST_SIM:
+            self._apply_state(self.ST_WAITING)
+
+    def _on_controllers_ready(self):
+        self._log_sim("── All controllers ready ─────────────────────────────────", "#1a7a40")
+        self._apply_state(self.ST_TRAJ_GEN)
+        self._tabs.setCurrentIndex(1)   # switch to trajectory tab
+
+        self._log_gen("── STEP 2: Generating trajectory ────────────────────────")
+        self._gen_thread = ProcThread(self._gen_cmd)
+        self._gen_thread.line_received.connect(lambda l: self._log_gen(l, "#3a5a80"))
+        self._gen_thread.process_ended.connect(self._on_gen_done)
+        self._gen_thread.start()
+
+    def _on_sim_proc_ended(self, code: int):
+        if self._state != self.ST_IDLE:
+            self._log_sim(f"[SIM] Process exited (code {code}).", "#b05010")
+
+    # ─────────────────────────────────────────────────────────
+    #  TRAJECTORY GENERATION → EXECUTION
+    # ─────────────────────────────────────────────────────────
+
+    def _on_gen_done(self, code: int):
+        if code != 0:
+            self._log_gen(f"[GEN] Generation failed (exit {code}). Resetting.", "#cc2c2c")
+            self._hard_reset()
             return
 
-        cmd = self._build_command()
-        self._log(f"\n$ {' '.join(shlex.quote(c) for c in cmd)}", color="#5b8af5")
-        self._run_btn.setEnabled(False)
-        self._run_btn.setText("⏳   RUNNING…")
+        traj_csv = self._latest_traj_csv()
+        if not traj_csv:
+            self._log_gen("[GEN] Could not find generated trajectory CSV. Resetting.", "#cc2c2c")
+            self._hard_reset()
+            return
 
-        self._thread = ShellThread(cmd)
-        self._thread.output.connect(self._log)
-        self._thread.finished.connect(self._on_finished)
-        self._thread.start()
+        self._log_gen(f"[GEN] Saved: {traj_csv}", "#3a5a80")
+        self._log_gen("── STEP 3: Launching execution terminal ─────────────────")
 
-    def _on_finished(self, code: int):
-        if code == 0:
-            self._log("\n✔  Done — trajectory generated and simulation launched.", color="#2ecc71")
+        # ── STEP 3: Execution in its OWN xterm (only xterm we open) ─
+        terminal = find_terminal()
+        if terminal is None:
+            self._log_gen("⚠  No terminal emulator found. Install: sudo apt install xterm", "#cc2c2c")
+            self._hard_reset()
+            return
+
+        exec_cmd  = ["python3", TRAJ_EXEC_SCRIPT, "--csv-path", traj_csv]
+        xterm_cmd = self._terminal_cmd(terminal, "PUMA-560 · Trajectory Execution", exec_cmd)
+        try:
+            self._exec_xterm = subprocess.Popen(xterm_cmd, start_new_session=True)
+        except Exception as e:
+            self._log_gen(f"[ERROR] Could not open execution terminal: {e}", "#cc2c2c")
+            self._hard_reset()
+            return
+
+        self._apply_state(self.ST_RUNNING)
+        self._log_gen("Execution running in separate terminal.", "#1a7a40")
+        self._log_gen("Press  ■ STOP  to end execution and reset.", "#5070a0")
+
+        self._exec_timer = QTimer(self)
+        self._exec_timer.setInterval(1000)
+        self._exec_timer.timeout.connect(self._poll_exec_terminal)
+        self._exec_timer.start()
+
+    def _poll_exec_terminal(self):
+        if self._exec_xterm and self._exec_xterm.poll() is not None:
+            self._exec_timer.stop()
+            code = self._exec_xterm.returncode
+            ok   = (code == 0)
+            self._log_gen(
+                "\n✔  Execution finished." if ok else f"\n⚠  Execution terminal closed (exit {code}).",
+                "#1a7a40" if ok else "#b05010"
+            )
+            self._hard_reset()
+
+    # ─────────────────────────────────────────────────────────
+    #  HARD RESET
+    # ─────────────────────────────────────────────────────────
+
+    def _hard_reset(self):
+        if self._exec_timer:
+            self._exec_timer.stop(); self._exec_timer = None
+
+        for t in (self._sim_thread, self._gen_thread):
+            if t and t.isRunning():
+                t.stop(); t.wait(2000)
+        self._sim_thread = None
+        self._gen_thread = None
+
+        kill_proc(self._exec_xterm)
+        self._exec_xterm = None
+
+        self._reset_checklist()
+        self._apply_state(self.ST_IDLE)
+        self._log_gen("Ready for next trajectory.", "#5070a0")
+
+    # ─────────────────────────────────────────────────────────
+    #  CHECKLIST
+    # ─────────────────────────────────────────────────────────
+
+    def _mark_controller(self, marker: str):
+        if marker in self._ctrl_widgets:
+            dot, txt = self._ctrl_widgets[marker]
+            dot.setText("●"); dot.setStyleSheet("color: #1a7a40; font-size: 15px;")
+            txt.setStyleSheet("color: #1a7a40; font-size: 11px; font-weight: bold;")
+
+    def _reset_checklist(self):
+        for dot, txt in self._ctrl_widgets.values():
+            dot.setText("○"); dot.setStyleSheet("color: #b0bece; font-size: 15px;")
+            txt.setStyleSheet("color: #a0aec0; font-size: 11px;")
+
+    # ─────────────────────────────────────────────────────────
+    #  LOGGING
+    # ─────────────────────────────────────────────────────────
+
+    def _log_sim(self, text: str, color: str = "#2a3a50"):
+        self._sim_console.setTextColor(QColor(color))
+        self._sim_console.append(text)
+        self._sim_console.ensureCursorVisible()
+
+    def _log_gen(self, text: str, color: str = "#2a3a50"):
+        self._gen_console.setTextColor(QColor(color))
+        self._gen_console.append(text)
+        self._gen_console.ensureCursorVisible()
+
+    def _clear_current_tab(self):
+        idx = self._tabs.currentIndex()
+        (self._sim_console if idx == 0 else self._gen_console).clear()
+
+    # ─────────────────────────────────────────────────────────
+    #  UTILITIES
+    # ─────────────────────────────────────────────────────────
+
+    def _terminal_cmd(self, terminal: str, title: str, cmd: list) -> list:
+        cmd_str = " ".join(shlex.quote(c) for c in cmd)
+        if terminal == "xterm":
+            return [
+                "xterm", "-title", title,
+                "-geometry", "120x35",
+                "-bg", "#f8faff", "-fg", "#1a2236",
+                "-fa", "Monospace", "-fs", "10",
+                "-e", cmd_str,
+            ]
+        elif terminal in ("gnome-terminal", "xfce4-terminal"):
+            return [terminal, f"--title={title}", "--", *cmd]
+        elif terminal == "konsole":
+            return ["konsole", "--title", title, "-e", *cmd]
         else:
-            self._log(f"\n✘  Process exited with code {code}.", color="#e74c3c")
-        self._run_btn.setEnabled(True)
-        self._run_btn.setText("▶   RUN TRAJECTORY")
+            return [terminal, "-e", cmd_str]
 
-    def _log(self, text: str, color: str = "#7aad6e"):
-        cursor = self._console.textCursor()
-        cursor.movePosition(cursor.End)
-        self._console.setTextCursor(cursor)
-        self._console.setTextColor(QColor(color))
-        self._console.insertPlainText(text + "\n")
-        self._console.ensureCursorVisible()
+    def _latest_traj_csv(self) -> str:
+        traj_dir = os.path.join(BASE_DIR, "Trajectories")
+        try:
+            files = [
+                os.path.join(traj_dir, f) for f in os.listdir(traj_dir)
+                if re.match(r"path_\d+_traj\.csv", f)
+            ]
+            return max(files, key=os.path.getmtime) if files else ""
+        except Exception:
+            return ""
 
-    def _clear_console(self):
-        self._console.clear()
+    @staticmethod
+    def _lbl(text: str, obj_name: str = "", fixed_w: int = 0) -> QLabel:
+        l = QLabel(text)
+        if obj_name: l.setObjectName(obj_name)
+        if fixed_w:  l.setFixedWidth(fixed_w)
+        return l
+
+    def closeEvent(self, event):
+        self._hard_reset()
+        event.accept()
 
 
 # ══════════════════════════════════════════════════════════════
@@ -627,11 +924,9 @@ class TrajectoryGUI(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setApplicationName("PUMA-560 Trajectory Launcher")
-
     win = TrajectoryGUI()
     win.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     main()
