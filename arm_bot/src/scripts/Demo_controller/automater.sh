@@ -36,6 +36,7 @@ V_MAX="2.0"
 A_MAX="7.0"
 SCRIPT_PATH="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/puma_trajectory_generator.py"
 SIMULATION_SCRIPT="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
+PLOT_SCRIPT="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/plot_results.py"
 
 # ── helpers ─────────────────────────────────────────────────
 get_latest_traj_csv() {
