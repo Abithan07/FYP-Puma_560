@@ -8,14 +8,15 @@ and acceleration rows for each path.
 
 import argparse
 import os
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 
 
 start_id = 400
-Output_dir = "/home/priyankan/Desktop/FYP-Puma_560/Test_data"
-Tracking_file = "/home/priyankan/Desktop/FYP-Puma_560/test_data_tracking_1.csv"
+Output_dir = str(Path(__file__).resolve().parent / 'Test_data')
+Tracking_file = str(Path(__file__).resolve().parent / 'test_data_tracking_1.csv')
 
 JOINT_LIMITS = {
     "Q1 (Base)": [(-150, 0), (0, 150)],
@@ -125,7 +126,7 @@ def generate_trajectories(num_paths: int, config: TrajConfig, start_id: int = No
 
     module_start_id = globals().get('start_id', 1)
     if base_dir is None:
-        base_dir = globals().get('Output_dir', "/home/priyankan/Desktop/FYP-Puma_560/Dataset")
+        base_dir = globals().get('Output_dir', str(Path(__file__).resolve().parent / 'Dataset'))
 
     # traj_dir = os.path.join(base_dir, "Trajectories")
     traj_dir = base_dir

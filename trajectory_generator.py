@@ -28,8 +28,8 @@ T_BASE = np.eye(4)
 T_BASE[2, 3] = 0.6718
 
 start_id = 1
-Tracking_file = '/home/priyankan/Desktop/FYP-Puma_560/test_traj.csv'
-Output_dir = "/home/priyankan/Desktop/FYP-Puma_560/Test_2"
+Tracking_file = str(Path(__file__).resolve().parent / 'test_traj.csv')
+Output_dir = str(Path(__file__).resolve().parent / 'Test_2')
 
 
 # ===================== SETTINGS =====================
@@ -239,7 +239,7 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
     config : TrajConfig
         Configuration object
     base_dir : str
-        Base output directory (default: /home/priyankan/Desktop/FYP-Puma_560/Dataset)
+        Base output directory (default: Test_2 inside the checkout)
     start_id : int
         Starting path ID
     seed : int
@@ -261,7 +261,7 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
     # Use module-level defaults if not provided via function args
     module_start_id = globals().get('start_id', 601)
     if base_dir is None:
-        base_dir = globals().get('Output_dir', base_dir or "/home/priyankan/Desktop/FYP-Puma_560/Dataset")
+        base_dir = globals().get('Output_dir', str(Path(__file__).resolve().parent / 'Dataset'))
     
     # Create output directories
     angle_dir = os.path.join(base_dir, "Angles")

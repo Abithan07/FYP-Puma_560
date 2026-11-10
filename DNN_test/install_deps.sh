@@ -1,12 +1,12 @@
-cat > install_deps.sh << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 echo "====================================="
 echo " Installing exact dependencies"
 echo "====================================="
 
 # All regular packages
-pip install --user \
+python3 -m pip install \
     absl-py==2.4.0 \
     aiofiles==25.1.0 \
     dill==0.4.1 \
@@ -41,12 +41,12 @@ pip install --user \
     uvloop==0.22.1
 
 # Torch separately (needs --index-url)
-pip install --user torch==2.1.0 \
+python3 -m pip install torch==2.1.0 \
     --index-url https://download.pytorch.org/whl/cpu
 
 # Haiku separately (needs --no-deps)
-pip install --user tabulate
-pip install --user dm-haiku==0.0.16 --no-deps
+python3 -m pip install tabulate
+python3 -m pip install dm-haiku==0.0.16 --no-deps
 
 echo "====================================="
 echo " Verifying..."
@@ -62,7 +62,3 @@ python3 -c "import dill; print('Dill       :', dill.__version__)"
 echo "====================================="
 echo " Done!"
 echo "====================================="
-EOF
-
-chmod +x install_deps.sh
-./install_deps.sh

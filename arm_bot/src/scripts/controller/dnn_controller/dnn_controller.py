@@ -44,7 +44,10 @@ except ImportError:
     from dnn_predictor import DNNInferenceEngine
 
 
-DNN_TEST_DIR = '/home/priyankan/Desktop/FYP-Puma_560/DNN_test'
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from project_paths import MODEL_DIR
+
+DNN_TEST_DIR = str(MODEL_DIR)
 
 
 class DNNTorqueController(Node):

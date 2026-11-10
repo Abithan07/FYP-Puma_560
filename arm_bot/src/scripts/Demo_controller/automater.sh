@@ -23,6 +23,8 @@
 
 set -euo pipefail
 
+DEMO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # ── defaults ────────────────────────────────────────────────
 PATH_ID=""
 Q_END=""
@@ -30,13 +32,13 @@ Q_MID=""
 T_TOTAL="18"
 NUM_PATHS="1"
 CSV_FILE=""
-BASE_DIR="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_trajectories"
+BASE_DIR="$DEMO_DIR/demo_trajectories"
 DT="0.01"
 V_MAX="2.0"
 A_MAX="7.0"
-SCRIPT_PATH="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/puma_trajectory_generator.py"
-SIMULATION_SCRIPT="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/torque_publisher_dnn.py"
-PLOT_SCRIPT="/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/plot_results.py"
+SCRIPT_PATH="$DEMO_DIR/puma_trajectory_generator.py"
+SIMULATION_SCRIPT="$DEMO_DIR/torque_publisher_dnn.py"
+PLOT_SCRIPT="$DEMO_DIR/plot_results.py"
 
 # ── helpers ─────────────────────────────────────────────────
 get_latest_traj_csv() {
@@ -163,7 +165,7 @@ Direct mode options:
   --num-paths INT          Number of trajectories            (default: 1)
 
 Shared options:
-  --base-dir  PATH         Output base directory             (default: ./test_output)
+  --base-dir  PATH         Output base directory             (default: $BASE_DIR)
   --script    PATH         Path to the Python generator script
   --simulation-script PATH Path to the simulation script
   --plot-script PATH  Path to the plot script

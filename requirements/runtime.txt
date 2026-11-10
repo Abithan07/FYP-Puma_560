@@ -1,0 +1,8 @@
+# ROS Humble / Python 3.10 starting constraints, not a validated lockfile.
+# Keep NumPy below 2 for the original Matplotlib 3.5 / PyTorch 2.1 stack.
+numpy>=1.23.5,<2
+scipy>=1.8,<2
+pandas>=1.5,<3
+matplotlib>=3.5,<4
+sympy>=1.9,<2
+PyQt5>=5.15,<6

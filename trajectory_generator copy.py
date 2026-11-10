@@ -27,9 +27,9 @@ D_DH = np.array([0.0, 0.2435, -0.0934, 0.4331])
 T_BASE = np.eye(4)
 T_BASE[2, 3] = 0.6718
 
-start_id = 001
-Tracking_file = '/home/priyankan/Desktop/FYP-Puma_560/test_traj.csv'
-Output_dir = "/home/priyankan/Desktop/FYP-Puma_560/Test_2"
+start_id = 1
+Tracking_file = str(Path(__file__).resolve().parent / 'test_traj.csv')
+Output_dir = str(Path(__file__).resolve().parent / 'Test_2')
 
 
 # ===================== SETTINGS =====================
@@ -222,7 +222,7 @@ def is_unique_path(candidate: np.ndarray, path_record: np.ndarray, threshold: fl
 
 
 def generate_trajectories(num_paths: int, config: TrajConfig, 
-                         base_dir: str = "/home/priyankan/Desktop/FYP-Puma_560/Dataset", 
+                         base_dir: str = str(Path(__file__).resolve().parent / 'Dataset'),
                          start_id: int = 601,
                          seed: int = None,
                          plot: bool = False,
@@ -239,7 +239,7 @@ def generate_trajectories(num_paths: int, config: TrajConfig,
     config : TrajConfig
         Configuration object
     base_dir : str
-        Base output directory (default: /home/priyankan/Desktop/FYP-Puma_560/Dataset)
+        Base output directory (default: Dataset inside the checkout)
     start_id : int
         Starting path ID
     seed : int
@@ -458,8 +458,8 @@ def main():
     parser.add_argument(
         "--base-dir", 
         type=str, 
-        default="/home/priyankan/Desktop/FYP-Puma_560/Dataset", 
-        help="Base output directory (default: /home/priyankan/Desktop/FYP-Puma_560/Dataset)"
+        default=str(Path(__file__).resolve().parent / 'Dataset'),
+        help="Base output directory (default: Dataset inside the checkout)"
     )
     
     parser.add_argument(

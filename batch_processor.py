@@ -38,7 +38,7 @@ def main():
     parser.add_argument(
         "--base-dir",
         type=str,
-        default="/home/priyankan/Desktop/FYP-Puma_560/Dataset",
+        default=str(Path(__file__).resolve().parent / 'Dataset'),
         help="Base dataset directory"
     )
     

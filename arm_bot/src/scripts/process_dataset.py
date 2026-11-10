@@ -2,6 +2,7 @@ import pandas as pd
 import re
 import os
 import sys
+from pathlib import Path
 
 # ================================
 # Input command line
@@ -15,9 +16,9 @@ TARGET_PATH = int(sys.argv[1])
 # ================================
 # Paths
 # ================================
-log_dir_path = os.path.expanduser('~/Desktop/arm_bot/src/scripts/logs')
-dataset_dir_path = os.path.expanduser('~/Desktop/arm_bot/src/scripts/Joint_states')
-new_dataset_dir_path = os.path.expanduser('~/Desktop/arm_bot/src/scripts/new_generatedDataset')
+script_dir = Path(__file__).resolve().parent
+log_dir_path = str(script_dir / 'logs')
+new_dataset_dir_path = str(script_dir / 'new_generatedDataset')
 
 os.makedirs(new_dataset_dir_path, exist_ok=True)
 

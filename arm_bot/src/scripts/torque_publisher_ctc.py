@@ -27,6 +27,7 @@ import numpy as np
 # Add path to import inverse dynamics model
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
+from project_paths import LOG_DIR
 
 try:
     from inverse_dynamics_model import (
@@ -171,7 +172,7 @@ class TorquePublisher(Node):
         )
 
     # Fixed directory for all trajectories and logs
-    LOGS_DIR = '/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs'
+    LOGS_DIR = str(LOG_DIR)
 
     @staticmethod
     def _build_incremental_log_path(csv_path: str) -> str:

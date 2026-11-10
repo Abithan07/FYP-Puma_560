@@ -29,9 +29,13 @@ import sys
 import re
 import numpy as np
 from collections import deque
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from project_paths import MODEL_DIR
 
 # ── DNN model imports (heavy — only loaded when the node actually starts) ──
-DNN_TEST_DIR = '/home/priyankan/Desktop/FYP-Puma_560/DNN_test'
+DNN_TEST_DIR = str(MODEL_DIR)
 
 
 # ======================================================================== #
@@ -224,7 +228,7 @@ class DNNInferenceEngine:
 # ======================================================================== #
 class DNNTorquePublisher(Node):
 
-    LOGS_DIR = '/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_logs'
+    LOGS_DIR = str(Path(__file__).resolve().parent / 'demo_logs')
 
     def __init__(self, csv_path,
                  delan_path, gru_path, scaler_path,

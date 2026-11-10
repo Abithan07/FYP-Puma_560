@@ -1,37 +1,26 @@
-## Robot Package Template
+# Main PUMA 560 simulation workspace
 
-This is a GitHub template. You can make your own copy by clicking the green "Use this template" button.
+This is the workspace used by the final demo and the DNN/CTC/PID comparisons.
 
-It is recommended that you keep the repo/package name the same, but if you do change it, ensure you do a "Find all" using your IDE (or the built-in GitHub IDE by hitting the `.` key) and rename all instances of `my_bot` to whatever your project's name is.
-
-Note that each directory currently has at least one file in it to ensure that git tracks the files (and, consequently, that a fresh clone has direcctories present for CMake to find). These example files can be removed if required (and the directories can be removed if `CMakeLists.txt` is adjusted accordingly).
-
-
-
-ros2 run joint_state_publisher_gui joint_state_publisher_gui
-# In another terminal
-ros2 launch your_package robot.launch.py
-# In another terminal  
-ros2 run rviz2 rviz2
-
-
-# Using the new launch file
-ros2 launch your_package_name robot_gui.launch.py
-
-
-# To control your current effort controllers:
-ros2 topic pub /joint_1_controller/commands std_msgs/msg/Float64MultiArray "{data: [1.0]}"
-
-
-colcon build
+```bash
+source /opt/ros/humble/setup.bash
+cd arm_bot  # from the repository root
+colcon build --symlink-install --packages-select arm_bot
 source install/setup.bash
-ros2 launch arm_bot robot_gui.launch.py
+python3 src/scripts/Demo_controller/traj_gui.py
+```
 
-python3 /home/abithan_ubuntu/ros2_ws2/arm_bot/scripts/torque_publisher.py
+To launch Gazebo and RViz separately:
 
-colcon build && source install/setup.bash && ros2 launch arm_bot robot_gui.launch.py
-# run for a single indexed file (zero-padded)
-./src/scripts/dataset_generator.sh 1
+```bash
+ros2 launch arm_bot gazebo.launch.py
+```
 
-# run for a range (uses src/scripts/Joint_states/path_<i>_joint_states.csv)
-./src/scripts/dataset_generator.sh 1 10
+The active ROS package is directly inside `src/`; its `package.xml` and `CMakeLists.txt` install the robot description, meshes, launch files, and controller executables.
+
+- [Run workflows](../docs/WORKFLOWS.md)
+- [Controller and data architecture](../docs/ARCHITECTURE.md)
+- [Source inventory](../docs/REPOSITORY_MAP.md)
+- [Dependencies and release notes](../docs/PUBLICATION_NOTES.md)
+
+`all.sh` compares controllers using trajectory CSVs. `pipeline.sh` is the earlier data-generation workflow. Both resolve the workspace from their own location, so they can be invoked from another working directory. Source the ROS environment first.

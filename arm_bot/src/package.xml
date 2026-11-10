@@ -3,7 +3,7 @@
 <package format="3">
   <name>arm_bot</name>
   <version>0.0.0</version>
-  <description>Package description</description>
+  <description>Three-joint PUMA 560 simulation with PID, computed torque, and DeLaN-GRU control.</description>
   <maintainer email="my_email@email.com">Abithan Asokumar</maintainer>
   <license>License declaration</license>
 
@@ -21,6 +21,14 @@
   
   <!-- Other dependencies -->
   <exec_depend>rclpy</exec_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-sympy</exec_depend>
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>visualization_msgs</exec_depend>

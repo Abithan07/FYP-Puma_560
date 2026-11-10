@@ -1,3 +1,5 @@
+> Historical workflow guide. For the final demo and the current 100 Hz configuration, see [the main README](README.md) and [workflows](docs/WORKFLOWS.md).
+
 # Quick Start Guide: PUMA-560 Trajectory Generation & Inverse Dynamics
 
 This guide will get you started generating PUMA-560 trajectories and computing their inverse dynamics.

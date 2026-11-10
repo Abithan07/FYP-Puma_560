@@ -1,169 +1,41 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Run one legacy feedforward trajectory, an inclusive range, or a suffixed range.
+set -eo pipefail
 
-generated_log_files=()
-
-if [ $# -eq 3 ]; then
-
-  echo "You provided the following arguments: $@"
-
-#   convert the arguments to integers from strings
-  start=$1
-  end=$2
-  suffix=$3
-
-  for i in $(seq $start $end); do
-
-    # add a zero padding to the number if it's less than 10
-    if [ $i -lt 10 ]; then
-      i="00$i"
-    elif [ $i -lt 100 ]; then
-      i="0$i"
-    else
-      i="$i"
-    fi
-
-    echo "Running on file src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv"
-    # python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${i}_joint_states.csv
-    python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv 2>&1 | tee -a /tmp/torque_output.log
-
-    sleep 3
-  done
-
-
-elif [ $# -eq 2 ]; then
-
-  echo "You provided the following arguments: $@"
-
-#   convert the arguments to integers from strings
-  start=$1
-  end=$2
-
-  for i in $(seq $start $end); do
-
-    # add a zero padding to the number if it's less than 10
-    if [ $i -lt 10 ]; then
-      i="0$i"
-    elif [ $i -lt 100 ]; then
-      i="0$i"
-    else
-      i="$i"
-    fi
-
-    echo "Running on file src/scripts/Joint_states/path_${i}_joint_states.csv"
-    # python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${i}_joint_states.csv
-    python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${i}_joint_states.csv 2>&1 | tee -a /tmp/torque_output.log
-
-    sleep 3
-  done
-
-elif [ $# -eq 1 ]; then
-
-  # add a zero padding to the number if it's less than 10
-  if [ $1 -lt 10 ]; then
-    i="0$1"
-  else
-    i="$1"
-  fi
-
-  echo "Running on file src/scripts/Joint_states/path_${i}_joint_states.csv"
-#   python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${1}_joint_states.csv
-  python3 src/scripts/torque_publisher.py --csv-path src/scripts/Joint_states/path_${i}_joint_states.csv 2>&1 | tee -a /tmp/torque_output.log
-  sleep 3
-else
-  echo "Invalid arguments provided. You can give either one or two arguments."
+WS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
+if (( $# < 1 || $# > 3 )); then
+    echo 'Usage: dataset_generator.sh START [END [SUFFIX]]' >&2
+    exit 2
 fi
+[[ "$1" =~ ^[0-9]{1,6}$ && "${2:-$1}" =~ ^[0-9]{1,6}$ ]] || {
+    echo 'ERROR: Path IDs must be nonnegative integers.' >&2; exit 2;
+}
+start="$((10#$1))"
+end_arg="${2:-$1}"
+end="$((10#$end_arg))"
+(( start <= end )) || { echo 'ERROR: START must not exceed END.' >&2; exit 2; }
+suffix="${3:-}"
+[[ -z "$suffix" || "$suffix" =~ ^[a-zA-Z0-9_-]+$ ]] || {
+    echo 'ERROR: Invalid filename suffix.' >&2; exit 2;
+}
+cd -- "$WS"
+output_log="$(mktemp "${TMPDIR:-/tmp}/arm_bot_dataset.XXXXXXXX")"
+trap 'rm -f -- "$output_log"' EXIT
 
-# check if the output file exists
-if [ -f /tmp/torque_output.log ]; then
-  # Extract CSV filenames from the saved output (handles multiple matches)
-  mapfile -t csv_files < <(grep -oP 'File saved: \K.*\.csv' /tmp/torque_output.log)
+for ((id = start; id <= end; id++)); do
+    printf -v padded '%03d' "$id"
+    csv="src/scripts/Joint_states/path_${padded}_joint_states${suffix:+_$suffix}.csv"
+    [[ -f "$csv" ]] || { echo "ERROR: CSV not found: $csv" >&2; exit 1; }
+    python3 src/scripts/torque_publisher.py --csv-path "$csv" 2>&1 | tee -a "$output_log"
+    sleep 3
+done
 
-  generated_log_files+=("${csv_files[@]}")
-
-  rm /tmp/torque_output.log
-
-else
-  echo "No output log found. No files were generated."
-fi
-
+mapfile -t generated_log_files < <(sed -n 's/.*File saved: \(.*\.csv\).*/\1/p' "$output_log")
+(( ${#generated_log_files[@]} )) || { echo 'ERROR: No generated log files found.' >&2; exit 1; }
 sleep 2
-
-if [ ${#generated_log_files[@]} -eq 0 ]; then
-  echo "No generated files found. Exiting."
-  exit 1
-else
-  echo ""
-  echo "======================================================================"
-  echo "Generated log files:"
-  echo "======================================================================"
-  # for file in "${generated_log_files[@]}"; do
-  #   echo "$file"
-  # done
-  # echo "======================================================================"
-  # echo ""
-
-  # if [ $# -eq 3 ]; then
-
-  #   for i in $(seq $start $end); do
-
-  #     j=$((i - start))
-
-  #     # add a zero padding to the number if it's less than 10
-  #     if [ $i -lt 10 ]; then
-  #       i="0$i"
-  #     elif [ $i -lt 100 ]; then
-  #       i="0$i"
-  #     else
-  #       i="$i"
-  #     fi
-
-  #     echo "Generating comparison plot for path_${i}_joint_states_${suffix}.csv"
-  #     # echo "python3 /data/ros2/ros2_ws2/arm_bot/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot/src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     # echo "python3 /src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-
-  #     sleep 2
-  #     # python3 /data/ros2/ros2_ws2/arm_bot/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot/src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #     python3 src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states_${suffix}.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-
-  #   done
-
-  # else
-  #   for i in $(seq $start $end); do
-
-  #     j=$((i - start))
-
-  #     # add a zero padding to the number if it's less than 10
-  #     if [ $i -lt 10 ]; then
-  #       i="0$i"
-  #     elif [ $i -lt 100 ]; then
-  #       i="0$i"
-  #     else
-  #       i="$i"
-  #     fi
-
-  #     echo "Generating comparison plot for path_${i}_joint_states.csv"
-  #     # echo "python3 /data/ros2/ros2_ws2/arm_bot/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot/src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     # sleep 2
-  #     # python3 /data/ros2/ros2_ws2/arm_bot/src/scripts/plot_comparison.py /data/ros2/ros2_ws2/arm_bot/src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #     # echo "python3 /src/scripts/plot_comparison.py /src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log"
-  #     sleep 2
-  #     python3 src/scripts/plot_comparison.py src/scripts/Joint_states/path_${i}_joint_states.csv ${generated_log_files[j]} --allinone 2>&1 | tee -a /tmp/plot_output.log
-  #   done
-  # fi
-  for log_file in "${generated_log_files[@]}"; do
-    # Extract file number from log filename (e.g., path_005_log_1.csv -> 005)
-    file_num=$(basename "$log_file" .csv | grep -oP 'path_\K[^_]+')
-    
-    # Determine dataset file based on number of arguments
-    if [ $# -eq 3 ]; then
-      dataset_file="src/scripts/Joint_states/path_${file_num}_joint_states_${suffix}.csv"
-      echo "Generating comparison plot for path_${file_num}_joint_states_${suffix}.csv"
-    else
-      dataset_file="src/scripts/Joint_states/path_${file_num}_joint_states.csv"
-      echo "Generating comparison plot for path_${file_num}_joint_states.csv"
-    fi
-    
-    sleep 2
-    python3 src/scripts/plot_comparison.py "$dataset_file" "$log_file" --allinone
-  done
-fi
+for log_file in "${generated_log_files[@]}"; do
+    filename="$(basename -- "$log_file")"
+    [[ "$filename" =~ path_([0-9]+)_log_ ]] || { echo "ERROR: Unrecognized log filename: $filename" >&2; exit 1; }
+    dataset="src/scripts/Joint_states/path_${BASH_REMATCH[1]}_joint_states${suffix:+_$suffix}.csv"
+    python3 src/scripts/plot_comparison.py "$dataset" "$log_file" --allinone
+done

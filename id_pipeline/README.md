@@ -1,3 +1,5 @@
+> This separate pipeline describes a 1000 Hz experiment. The main demo remains at 100 Hz. Match the rates before running; `config/pipeline.yaml` is a reference sheet and is not loaded automatically. See [current workflows](../docs/WORKFLOWS.md).
+
 # Inverse Dynamics Dataset Pipeline
 
 Drives the PUMA 560 3-DOF arm in Gazebo using a position-tracking controller,

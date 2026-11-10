@@ -30,9 +30,13 @@ import sys
 import re
 import numpy as np
 from collections import deque
+try:
+    from .project_paths import MODEL_DIR, LOG_DIR
+except ImportError:
+    from project_paths import MODEL_DIR, LOG_DIR
 
 # ── DNN model imports (heavy — only loaded when the node actually starts) ──
-DNN_TEST_DIR = '/home/priyankan/Desktop/FYP-Puma_560/DNN_test'
+DNN_TEST_DIR = str(MODEL_DIR)
 
 
 # ======================================================================== #
@@ -229,7 +233,7 @@ class DNNInferenceEngine:
 # ======================================================================== #
 class DNNTorquePublisher(Node):
 
-    LOGS_DIR = '/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs'
+    LOGS_DIR = str(LOG_DIR)
 
     def __init__(self, csv_path,
                  delan_path, gru_path, scaler_path,
@@ -259,9 +263,6 @@ class DNNTorquePublisher(Node):
         self.infer_stride = int(max(1, infer_stride))
         self.marker_publish_every = int(max(1, marker_publish_every))
         self.fb_lpf_alpha = float(np.clip(fb_lpf_alpha, 0.0, 1.0))
-        # self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
-        # self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
-        # self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
         self.kp = np.array(kp if kp is not None else [20.0, 80.0, 20.0])
         self.kd = np.array(kd if kd is not None else [3.5, 18.0, 10.0])
         self.ki = np.array(ki if ki is not None else [0.2, 0.8, 0.1])

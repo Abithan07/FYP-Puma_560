@@ -56,6 +56,7 @@ import argparse
 import csv
 import math
 import os
+from pathlib import Path
 import sys
 
 import numpy as np
@@ -218,9 +219,7 @@ def optional_plot(raw: dict, tau_filt: list[np.ndarray],
 
 # ─── Default paths ────────────────────────────────────────────────────────────
 
-_TRAJ_DIR = os.path.expanduser(
-    '~/Desktop/FYP-Puma_560/Dataset/Trajectories'
-)
+_TRAJ_DIR = str(Path(__file__).resolve().parents[2] / 'Dataset' / 'Trajectories')
 
 
 def _resolve_paths(args) -> tuple[str, str, str]:

@@ -17,9 +17,6 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
-# uncomment the following section in order to fill in
-# further dependencies manually.
-# find_package(<dependency> REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
@@ -47,6 +44,9 @@ install(
     scripts/continuous_logger_triggered.py
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# Support module imported by installed controller executables.
+install(FILES scripts/project_paths.py DESTINATION lib/${PROJECT_NAME})
 
 install(
   PROGRAMS launch/line_drawer.py

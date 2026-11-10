@@ -1,3 +1,37 @@
-Joint_states_601_1120
-arm_bot/path_662_analysis
-*.png
+# Large local datasets retained outside Git by the original project.
+/Joint_states_601_1120/
+/arm_bot/path_662_analysis/
+
+# ROS / colcon generated workspaces.
+**/build/
+**/install/
+**/log/
+
+# Local Python environments and caches.
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Editor and OS state.
+.vscode/
+.idea/
+.DS_Store
+*~
+
+# Generated simulation outputs. Existing tracked research records are retained.
+/arm_bot/run_logs/
+/arm_bot/src/scripts/logs/
+/arm_bot/src/scripts/controller/**/logs/
+/arm_bot/src/scripts/Demo_controller/demo_logs/
+/arm_bot/src/scripts/Demo_controller/demo_trajectories/
+/arm_bot/src/scripts/CTC_Analysis/
+/arm_bot/src/scripts/DNN_Analysis/
+/arm_bot/src/scripts/new_generatedDataset/
+/arm_bot/src/scripts/piri_log/
+/test_output/
+/Test_2/
+*_tracking.png
+*_torques.png

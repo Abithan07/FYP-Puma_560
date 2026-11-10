@@ -1,0 +1,10 @@
+-r runtime.txt
+# Versions from the project's original DNN_test/install_deps.sh.
+jax==0.6.2
+jaxlib==0.6.2
+dm-haiku==0.0.16
+torch==2.1.0
+joblib==1.5.3
+dill==0.4.1
+# Required to deserialize the saved feature scaler.
+scikit-learn==1.7.2

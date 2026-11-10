@@ -1,7 +1,7 @@
 # ─── ID Pipeline Configuration ────────────────────────────────────────────────
 #
-# Copy this file and edit for each run.  Pass as an argument to the scripts
-# or just run the scripts directly with CLI flags.
+# Reference values for experiment planning. The scripts do not load this YAML.
+# Apply corresponding CLI flags or in-code settings explicitly for each run.
 
 pipeline:
 

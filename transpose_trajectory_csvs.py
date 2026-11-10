@@ -15,8 +15,8 @@ import csv
 from pathlib import Path
 
 
-IN_DIR = Path("/home/priyankan/Desktop/FYP-Puma_560/Test_1")
-OUT_DIR = Path("/home/priyankan/Desktop/FYP-Puma_560/Test_1_1")
+IN_DIR = Path(__file__).resolve().parent / 'Test_1'
+OUT_DIR = Path(__file__).resolve().parent / 'Test_1_1'
 
 HEADERS = ["t", "dp1", "dp2", "dp3", "dv1", "dv2", "dv3", "da1", "da2", "da3"]
 

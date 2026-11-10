@@ -17,6 +17,7 @@ import re
 import subprocess
 import shlex
 import signal
+from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QGridLayout, QLabel, QDoubleSpinBox, QSpinBox, QComboBox,
@@ -31,10 +32,10 @@ from PyQt5.QtGui import QColor, QFont, QPalette
 #  CONFIGURATION
 # ══════════════════════════════════════════════════════════════
 
-TRAJ_GEN_SCRIPT   = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/automater.sh"
-SIMULATION_SCRIPT = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/gazebo_launch.sh"
-BASE_DIR          = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_trajectories"
-# /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/traj_gui.py
+DEMO_DIR = Path(__file__).resolve().parent
+TRAJ_GEN_SCRIPT   = str(DEMO_DIR / 'automater.sh')
+SIMULATION_SCRIPT = str(DEMO_DIR / 'gazebo_launch.sh')
+BASE_DIR          = str(DEMO_DIR / 'demo_trajectories')
 
 READY_LINES = [
     "Configured and activated joint_3_controller",
@@ -43,8 +44,7 @@ READY_LINES = [
 ]
 
 # Pre-compiled regex to strip ANSI/VT100 escape sequences from ROS2 output.
-import re as _re
-_ANSI_ESC = _re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
+_ANSI_ESC = re.compile(r'\x1b\[[0-9;]*[A-Za-z]')
 
 def strip_ansi(text: str) -> str:
     return _ANSI_ESC.sub('', text)
