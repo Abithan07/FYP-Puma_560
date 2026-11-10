@@ -15,8 +15,8 @@ def load(name, relative_path):
     return module
 
 
-trajectory = load('puma_trajectory', 'arm_bot/src/scripts/Demo_controller/puma_trajectory_generator.py')
-dynamics = load('puma_dynamics', 'arm_bot/src/scripts/inverse_dynamics_model.py')
+trajectory = load('puma_trajectory', 'arm_bot/src/scripts/demo/trajectory_generator.py')
+dynamics = load('puma_dynamics', 'arm_bot/src/scripts/shared/inverse_dynamics_model.py')
 
 
 class NumericalTests(unittest.TestCase):

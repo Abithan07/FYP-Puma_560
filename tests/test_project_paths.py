@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location('project_paths', ROOT / 'arm_bot/src/scripts/project_paths.py')
+SPEC = importlib.util.spec_from_file_location('project_paths', ROOT / 'arm_bot/src/scripts/shared/project_paths.py')
 paths = importlib.util.module_from_spec(SPEC)
 with patch.dict(os.environ, {}, clear=True):
     SPEC.loader.exec_module(paths)

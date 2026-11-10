@@ -1,33 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(arm_bot)
 
-# Default to C99
-if(NOT CMAKE_C_STANDARD)
-  set(CMAKE_C_STANDARD 99)
-endif()
-
-# Default to C++14
-if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
-endif()
-
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
-endif()
-
-# find dependencies
 find_package(ament_cmake REQUIRED)
-
-if(BUILD_TESTING)
-  find_package(ament_lint_auto REQUIRED)
-  # the following line skips the linter which checks for copyrights
-  # uncomment the line when a copyright and license is not present in all source files
-  #set(ament_cmake_copyright_FOUND TRUE)
-  # the following line skips cpplint (only works in a git repo)
-  # uncomment the line when this package is not in a git repo
-  #set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-endif()
 
 install(
   DIRECTORY config description launch worlds meshes scripts
@@ -36,20 +10,22 @@ install(
 
 install(
   PROGRAMS
-    scripts/torque_publisher_ctc.py
-    scripts/torque_publisher_dnn.py
-    scripts/analyze_dnn_performance.py
-    scripts/inverse_dynamics_model.py
-    scripts/analyze_ctc_performance.py
-    scripts/continuous_logger_triggered.py
+    scripts/controllers/torque_publisher_ctc.py
+    scripts/controllers/torque_publisher_dnn.py
+    scripts/controllers/pid_controller_trajectory.py
+    scripts/analysis/analyze_dnn_performance.py
+    scripts/analysis/analyze_ctc_performance.py
+    scripts/shared/continuous_logger_triggered.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Support module imported by installed controller executables.
-install(FILES scripts/project_paths.py DESTINATION lib/${PROJECT_NAME})
+install(
+  FILES scripts/shared/project_paths.py scripts/shared/inverse_dynamics_model.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 install(
-  PROGRAMS launch/line_drawer.py
+  PROGRAMS scripts/shared/line_drawer.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME line_drawer
 )

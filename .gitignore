@@ -1,37 +1,26 @@
-# Large local datasets retained outside Git by the original project.
-/Joint_states_601_1120/
-/arm_bot/path_662_analysis/
-
-# ROS / colcon generated workspaces.
+# Regenerated ROS workspace products.
 **/build/
 **/install/
 **/log/
 
-# Local Python environments and caches.
+# Local environments, caches, and editor state.
 .venv/
 venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .ruff_cache/
-
-# Editor and OS state.
 .vscode/
 .idea/
+.claude/
 .DS_Store
 *~
 
-# Generated simulation outputs. Existing tracked research records are retained.
-/arm_bot/run_logs/
-/arm_bot/src/scripts/logs/
-/arm_bot/src/scripts/controller/**/logs/
-/arm_bot/src/scripts/Demo_controller/demo_logs/
-/arm_bot/src/scripts/Demo_controller/demo_trajectories/
-/arm_bot/src/scripts/CTC_Analysis/
-/arm_bot/src/scripts/DNN_Analysis/
-/arm_bot/src/scripts/new_generatedDataset/
-/arm_bot/src/scripts/piri_log/
+# Original tracked artifacts are explicitly retained in Git after relocation.
+# Local datasets and new experiment outputs remain local.
+/data/**
+!/data/README.md
+!/data/MANIFEST.csv
+!/data/COLCON_IGNORE
+/research/delan/data/**
 /test_output/
-/Test_2/
-*_tracking.png
-*_torques.png

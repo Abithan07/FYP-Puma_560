@@ -1,7 +1,0 @@
-build/
-install/
-log/
-
-scripts/__pycache__/
-scripts/dataset/
-scripts/logs/

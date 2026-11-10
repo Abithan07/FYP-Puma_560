@@ -23,7 +23,7 @@ class ComparisonRunnerTests(unittest.TestCase):
             data.mkdir()
             if not missing_input:
                 (data / 'path_001_joint_states.csv').touch()
-            models = root / 'DNN_test'
+            models = root / 'models'
             models.mkdir()
             for name in ['fyp_jax_delan_50.jax', 'best_GRUResidual.pt', 'feature_scaler.pkl']:
                 (models / name).touch()

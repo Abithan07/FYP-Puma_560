@@ -1,65 +1,56 @@
 # PUMA 560 — Final Year Project
 
-ROS 2 simulation and trajectory tracking for the first three joints of a modified PUMA 560 arm. The project compares PID feedback, analytical computed torque control (CTC), and learned inverse dynamics using a Deep Lagrangian Network (DeLaN) with a GRU residual.
+Final ROS 2 simulation and trajectory tracking for the first three joints of a modified PUMA 560 arm. The retained controllers compare PID, analytical computed torque control (CTC), and learned inverse dynamics using DeLaN with a GRU residual.
 
-The final demonstration is in **`arm_bot/src/scripts/Demo_controller/`**. The controller comparison workflow starts at **`arm_bot/all.sh`**.
-
-## Start here
-
-| Purpose | Guide |
-| --- | --- |
-| Understand the robot, controllers, and data flow | [Architecture](docs/ARCHITECTURE.md) |
-| Build, launch the demo, and compare controllers | [Workflows](docs/WORKFLOWS.md) |
-| Find source files and distinguish experiments | [Repository map](docs/REPOSITORY_MAP.md) |
-| Understand dependencies, datasets, and publication gaps | [Publication notes](docs/PUBLICATION_NOTES.md) |
-| Review this cleanup and its validation | [Cleanup report](docs/CLEANUP_REPORT.md) |
-
-## Build and run the final demo
-
-Use the project's ROS 2 Humble desktop environment with Gazebo Sim, `gz_ros2_control`, RViz, and the Python dependencies described in [Publication notes](docs/PUBLICATION_NOTES.md). Commands below start in the repository root.
+**[Follow the final run guide](RUN_GUIDE.md).**
 
 ```bash
+# From the repository root, in the project's compatible desktop environment:
 source /opt/ros/humble/setup.bash
-cd arm_bot
-colcon build --symlink-install --packages-select arm_bot
-source install/setup.bash
-python3 src/scripts/Demo_controller/traj_gui.py
+bash arm_bot/run_demo.sh
 ```
 
-In the GUI, choose the endpoint and optional waypoint, then press **RUN**. The GUI starts the simulation, waits for the three effort controllers, generates a trajectory, executes the demo DNN controller, and plots the results. **STOP** terminates the run.
-
-Build from `arm_bot/`: the repository also contains an older workspace with the same ROS package name. Building every directory from the repository root can discover duplicate packages.
-
-## Compare controllers
-
-The original 50-trajectory batch requires local CSV files that are **not tracked in Git**. Check their availability before launching:
+`run_demo.sh` builds the main workspace and starts the final presentation GUI. For the DNN → CTC → PID comparison batch:
 
 ```bash
 source /opt/ros/humble/setup.bash
 bash arm_bot/all.sh --check
+bash arm_bot/all.sh
 ```
 
-Run selected trajectories from an explicit dataset directory:
+The batch CSVs are available in the original local checkout; a fresh clone needs those datasets separately. The current host's NumPy/Matplotlib conflict also needs resolving before an interactive run. Both are covered in the run guide.
 
-```bash
-bash arm_bot/all.sh --csv-dir /absolute/path/to/joint_states 641 647
-```
+## Repository layout
 
-This workflow uses GNOME Terminal windows and preserves the original DNN → CTC → PID order, with simulation resets between controllers. See [Workflows](docs/WORKFLOWS.md) for individual commands and log locations.
+| Directory | Contents |
+| --- | --- |
+| `arm_bot/` | The single final ROS workspace and two user-facing launchers |
+| `arm_bot/src/scripts/demo/` | Final GUI, trajectory generator, demo DNN publisher, and plotter |
+| `arm_bot/src/scripts/controllers/` | Latest comparison DNN, CTC, and trajectory PID controllers |
+| `arm_bot/src/scripts/shared/` | Common paths, triggered logger, inverse dynamics, and RViz drawing |
+| `arm_bot/src/scripts/analysis/` | DNN and CTC result analysis |
+| `models/` | Original learned-model checkpoints and feature scalers |
+| `data/` | Trajectories, datasets, recorded outputs, retained assets, and preservation manifest |
+| `research/` | DeLaN training code, original MATLAB references, and notebooks |
+| `tools/` | Latest standalone inference and repository/data verification |
+| `tests/` | Offline regression checks for the retained workflows |
+| `requirements/` | Python dependency groups and the original training dependency snapshot |
+| `docs/` | Architecture, source map, publication notes, and cleanup report |
 
-## Check the code without launching the simulator
+Earlier simulator packages, numbered inference versions 1–6, experimental torque publishers, old dataset launchers, and obsolete run instructions have been removed. Their source is recoverable from Git history. Existing datasets, models, results, and notebooks were preserved and checked before and after relocation.
+
+## Review and verification
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Retained source map](docs/REPOSITORY_MAP.md)
+- [Cleanup work report](docs/CLEANUP_REPORT.md)
+- [Publication notes](docs/PUBLICATION_NOTES.md)
+- [Data locations and preservation](data/README.md)
 
 ```bash
 python3 tools/check_repository.py
 python3 -m unittest discover -s tests -v
+python3 tools/verify_data.py
 ```
 
-The syntax check uses the Python standard library. The regression checks also require NumPy and SymPy. They cover asset discovery, subprocess error reporting, trajectory boundaries, and inverse dynamics properties.
-
-## Research artifacts
-
-Existing models, CSVs, plots, notebooks, MATLAB scripts, and experiment logs retain their original paths. Earlier implementations are identified in the repository map. Existing HTML/PDF explanations remain available; the guides above describe the source reviewed during this cleanup.
-
-The main configuration runs at **100 Hz**. The separate inverse dynamics data-collection pipeline documents a **1000 Hz** experiment and requires a deliberately matched simulator/controller configuration.
-
-Before public release, resolve the outstanding license and attribution metadata and reproduce an interactive run in a compatible environment. No repository-wide license or unverified performance claim has been added.
+The main simulation remains at 100 Hz. The cleanup changes organization, imports, and output paths; the retained control calculations and model weights are unchanged.

@@ -1,5 +1,5 @@
 -r runtime.txt
-# Versions from the project's original DNN_test/install_deps.sh.
+# Inference versions retained from the original project's dependency records.
 jax==0.6.2
 jaxlib==0.6.2
 dm-haiku==0.0.16

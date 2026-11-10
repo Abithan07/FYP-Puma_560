@@ -3,8 +3,11 @@
 set -eo pipefail
 
 WS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-CSV_DIR="$WS/src/scripts/Joint_states/J"
-LOG_DIR="$WS/run_logs"
+PROJECT_ROOT="$(realpath -m -- "${PUMA_PROJECT_ROOT:-$(dirname -- "$WS")}")"
+DATA_DIR="$(realpath -m -- "${PUMA_DATA_DIR:-$PROJECT_ROOT/data}")"
+export PUMA_DATA_DIR="$DATA_DIR"
+CSV_DIR="$DATA_DIR/trajectories/Joint_states/J"
+LOG_DIR="$DATA_DIR/results/console"
 JOB_SCRIPT="$WS/scripts/terminal_job.sh"
 CONTROLLER_TIMEOUT="${PUMA_CONTROLLER_TIMEOUT:-900}"
 IDS=('641' '647' '648' '649' '650' '652' '653' '659' '660' '661' '663' '665' '666' '677' '682' '687' '697' '698' '699' '701' '704' '705' '711' '712' '715' '720' '724' '725' '727' '728' '733' '741' '742' '744' '750' '758' '759' '760' '761' '762' '766' '770' '773' '780' '782' '783' '786' '788' '799' '800')
@@ -55,7 +58,7 @@ for id in "${IDS[@]}"; do
     csv="$CSV_DIR/path_${id}_joint_states.csv"
     [[ -f "$csv" ]] || { echo "ERROR: CSV not found: $csv" >&2; exit 1; }
 done
-MODEL_DIR="${PUMA_MODEL_DIR:-${PUMA_PROJECT_ROOT:-$(dirname -- "$WS")}/DNN_test}"
+MODEL_DIR="${PUMA_MODEL_DIR:-${PUMA_PROJECT_ROOT:-$(dirname -- "$WS")}/models}"
 [[ -d "$MODEL_DIR" ]] || { echo "ERROR: Model directory not found: $MODEL_DIR" >&2; exit 1; }
 PUMA_MODEL_DIR="$(cd -- "$MODEL_DIR" && pwd)"
 export PUMA_MODEL_DIR
@@ -166,7 +169,7 @@ for id in "${IDS[@]}"; do
     run_controller ctc "$id" ros2 run arm_bot torque_publisher_ctc.py --csv-path "$CSV"
     clear_rviz_markers
     reset_gazebo
-    run_controller pid "$id" python3 src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv "$CSV"
+    run_controller pid "$id" python3 src/scripts/controllers/pid_controller_trajectory.py --trajectory-csv "$CSV"
     clear_rviz_markers
     reset_gazebo
     echo "Completed all controllers for path_$id"
