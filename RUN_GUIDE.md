@@ -18,6 +18,20 @@ Python dependency groups are in `requirements/runtime.txt` and `requirements/dnn
 
 **Existing environment issue:** the current default Python has NumPy 2.2.6 with Matplotlib 3.5.1, and plotting imports fail. Use a compatible environment before running the GUI/controller plots. The focused requirements constrain NumPy below 2 for the original binary stack. No host dependencies were changed during cleanup.
 
+### Launching from Snap-installed VS Code
+
+VS Code's Snap terminal can export GTK/plugin paths that load Snap's older libraries into system Python, Qt, or RViz. This can produce `libpthread.so.0: undefined symbol: __libc_pthread_init, version GLIBC_PRIVATE`. This failure is documented in the [VS Code issue tracker](https://github.com/microsoft/vscode/issues/179274).
+
+The project shell launchers now source `arm_bot/scripts/desktop_environment.sh` automatically. It removes Snap entries from desktop/plugin/library paths while preserving ROS and system entries. The change applies to the launched processes; it does not change your terminal settings or installed libraries. Both normal demo startup and `--no-build` use the fix.
+
+For manual Python/ROS commands launched directly from an affected terminal, first run this from the repository root:
+
+```bash
+source arm_bot/scripts/desktop_environment.sh
+```
+
+This startup-library fix is separate from the NumPy/Matplotlib compatibility issue above.
+
 ## 2. Final presentation demo
 
 ```bash

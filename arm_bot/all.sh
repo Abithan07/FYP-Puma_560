@@ -3,6 +3,7 @@
 set -eo pipefail
 
 WS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$WS/scripts/desktop_environment.sh"
 PROJECT_ROOT="$(realpath -m -- "${PUMA_PROJECT_ROOT:-$(dirname -- "$WS")}")"
 DATA_DIR="$(realpath -m -- "${PUMA_DATA_DIR:-$PROJECT_ROOT/data}")"
 export PUMA_DATA_DIR="$DATA_DIR"

@@ -2,6 +2,7 @@
 # Final presentation launcher. Build the main workspace and start the GUI.
 set -eo pipefail
 WS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$WS/scripts/desktop_environment.sh"
 case "${1:-}" in
     --help|-h)
         echo 'Usage: bash arm_bot/run_demo.sh [--no-build]'

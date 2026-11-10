@@ -37,6 +37,7 @@ Use the [final run guide](../RUN_GUIDE.md) for commands.
 | [`analysis/analyze_dnn_performance.py`](../arm_bot/src/scripts/analysis/analyze_dnn_performance.py) | DNN controller log analysis |
 | [`analysis/analyze_ctc_performance.py`](../arm_bot/src/scripts/analysis/analyze_ctc_performance.py) | CTC controller log analysis |
 | [`scripts/terminal_job.sh`](../arm_bot/scripts/terminal_job.sh) | Internal terminal/process/status helper for `all.sh` |
+| [`scripts/desktop_environment.sh`](../arm_bot/scripts/desktop_environment.sh) | Removes inherited Snap desktop-library paths before host GUI applications start |
 | [`launch/gazebo.launch.py`](../arm_bot/src/launch/gazebo.launch.py) | Sole final simulation launch description |
 
 ## Research and checks

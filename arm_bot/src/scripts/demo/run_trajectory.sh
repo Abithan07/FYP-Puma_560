@@ -24,6 +24,7 @@
 set -euo pipefail
 
 DEMO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+source "$DEMO_DIR/../../../scripts/desktop_environment.sh"
 
 # ── defaults ────────────────────────────────────────────────
 PATH_ID=""

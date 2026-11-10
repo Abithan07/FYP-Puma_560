@@ -17,6 +17,8 @@ class ComparisonRunnerTests(unittest.TestCase):
             workspace = root / 'arm_bot'
             workspace.mkdir()
             shutil.copy(ROOT / 'arm_bot/all.sh', workspace / 'all.sh')
+            (workspace / 'scripts').mkdir()
+            shutil.copy(ROOT / 'arm_bot/scripts/desktop_environment.sh', workspace / 'scripts')
             (workspace / 'install').mkdir()
             (workspace / 'install/setup.bash').write_text(':\n')
             data = root / 'input with spaces'

@@ -28,6 +28,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 cd -- "$workspace"
+source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/desktop_environment.sh"
 source install/setup.bash
 setsid "$@" > >(tee "$log_file") 2>&1 &
 job_pid=$!

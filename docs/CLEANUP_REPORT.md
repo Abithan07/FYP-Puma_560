@@ -77,3 +77,13 @@ A full interactive motion/plotting run and a closed-loop controller comparison w
 Original model/data training provenance, license/maintainer metadata, and attribution still need author decisions before publication. Research notebook/MATLAB internal paths remain historical; their bytes were preserved, and they are not advertised as final executable workflows. See [publication notes](PUBLICATION_NOTES.md).
 
 The work is local to the cleanup branch. No remote push or public release was made.
+
+## Startup fix — 2026-11-10
+
+Investigated the reported `libpthread.so.0` / `__libc_pthread_init` / `GLIBC_PRIVATE` crash after a successful build. The VS Code Snap terminal exported GTK and GIO paths into its Snap runtime. The inherited Snap GTK module's RPATH explicitly includes `/snap/core20/current/lib/x86_64-linux-gnu`; loading it directly reproduced a `GLIBC_PRIVATE` libpthread failure.
+
+Added `arm_bot/scripts/desktop_environment.sh` and sourced it from the demo/comparison launchers and their simulation/trajectory/terminal helpers. It strips Snap-specific desktop/plugin/library paths from launched processes while preserving ROS/system/custom non-Snap paths. No system libraries, Python packages, terminal settings, datasets, or controller code were changed.
+
+Added regression coverage for inherited Snap paths, mixed ROS/Snap library paths, custom system paths, unset variables, repeated sourcing, and cleanup before both build and GUI launch. The suite now passes **26 tests**. Source checks pass for **27 Python files, six shell files, and seven XML/Xacro/world files**. The actual final GUI initializes with the cleaned environment in an offscreen Qt test. Desktop interaction and a full simulation remain outside that test.
+
+The final run guide documents automatic cleanup and the equivalent environment setup for manual commands. The existing NumPy/Matplotlib issue is separate from this startup fix.
