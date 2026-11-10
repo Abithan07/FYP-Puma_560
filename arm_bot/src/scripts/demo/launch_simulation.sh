@@ -9,4 +9,5 @@ if [[ ! -f "$WS/install/setup.bash" ]]; then
     exit 1
 fi
 source "$WS/install/setup.bash"
+source "$WS/scripts/runtime_environment.sh"
 exec ros2 launch arm_bot gazebo.launch.py

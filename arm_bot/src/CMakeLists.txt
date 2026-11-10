@@ -21,6 +21,7 @@ install(
 
 install(
   FILES scripts/shared/project_paths.py scripts/shared/inverse_dynamics_model.py
+    scripts/shared/runtime_compatibility.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

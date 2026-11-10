@@ -34,6 +34,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'shared'))
 from project_paths import MODEL_DIR, LOG_DIR, SHARED_DIR
+from runtime_compatibility import require_torch_numpy
 
 # ── DNN model imports (heavy — only loaded when the node actually starts) ──
 DNN_TEST_DIR = str(MODEL_DIR)
@@ -60,6 +61,7 @@ class DNNInferenceEngine:
         os.environ['XLA_PYTHON_CLIENT_ALLOCATOR']   = 'platform'
 
         import torch
+        require_torch_numpy(torch, np)
         import torch.nn as nn
         import dill as pickle
         import joblib
@@ -322,6 +324,7 @@ class DNNTorquePublisher(Node):
         self.joint_states_received  = False
         self.last_joint_state_wall_t = None
         self.trajectory_active      = False
+        self.trajectory_error       = None
         self.trajectory_timer       = None
         self.last_ctrl_wall_t       = None
         self.deadline_miss_count    = 0
@@ -691,7 +694,7 @@ class DNNTorquePublisher(Node):
     def launch_logger(self):
         try:
             logger_path = str(SHARED_DIR / 'continuous_logger_triggered.py')
-            cmd = ['python3', logger_path, '--dataset-path', self.csv_path]
+            cmd = [sys.executable, logger_path, '--dataset-path', self.csv_path]
             self.logger_process     = subprocess.Popen(cmd, stdout=None, stderr=None)
             time.sleep(0.1)
             self.logger_start_client = self.create_client(Trigger, '/logger/start')
@@ -991,17 +994,13 @@ class DNNTorquePublisher(Node):
              q_des, qd_des, qdd_des, e_pos, e_vel, gru_active, infer_ms, inference_skipped) = \
                 self.compute_torques(self.current_idx)
         except Exception as e:
-            self.get_logger().error(f'Torque error at idx {self.current_idx}: {e}')
-            tau_total = tau_dnn = tau_delan = tau_fb = np.zeros(3)
-            idx = self.current_idx
-            q_des   = np.array([self.dp1[idx], self.dp2[idx], self.dp3[idx]])
-            qd_des  = np.array([self.dv1[idx], self.dv2[idx], self.dv3[idx]])
-            qdd_des = np.array([self.da1[idx], self.da2[idx], self.da3[idx]])
-            e_pos   = q_des - self.current_joint_pos
-            e_vel   = qd_des - self.current_joint_vel
-            gru_active = False
-            infer_ms = 0.0
-            inference_skipped = False
+            self.trajectory_error = f'Torque computation failed at idx {self.current_idx}: {e}'
+            self.get_logger().error(self.trajectory_error)
+            self._publish_zero_torque()
+            if self.trajectory_timer:
+                self.trajectory_timer.cancel()
+            self.trajectory_active = False
+            return
 
         self.msg1.data = [tau_total[0]]
         self.msg2.data = [tau_total[1]]
@@ -1154,6 +1153,8 @@ class DNNTorquePublisher(Node):
         if self.logger_stop_client:
             self.stop_logger()
         self.close_log_file()
+        if self.trajectory_error:
+            raise RuntimeError(self.trajectory_error)
         self.get_logger().info(f'Done. Log: {self.log_path}')
 
 
@@ -1254,6 +1255,9 @@ def main(args=None):
         node.run()
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
+    except RuntimeError as error:
+        node.get_logger().error(str(error))
+        raise SystemExit(1)
     finally:
         node.shutdown_logger()
         node.close_log_file()

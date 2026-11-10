@@ -16,7 +16,31 @@ The GUI needs PyQt5; inference needs JAX/Haiku, PyTorch, joblib, dill, and sciki
 
 Python dependency groups are in `requirements/runtime.txt` and `requirements/dnn.txt`. They are starting constraints, not a verified environment lock. Install them into an isolated Python 3.10 environment compatible with ROS; avoid replacing packages in the working ROS installation.
 
-**Existing environment issue:** the current default Python has NumPy 2.2.6 with Matplotlib 3.5.1, and plotting imports fail. Use a compatible environment before running the GUI/controller plots. The focused requirements constrain NumPy below 2 for the original binary stack. No host dependencies were changed during cleanup.
+### Project runtime setup
+
+The host Python has NumPy 2.2.6, which is incompatible with the installed PyTorch 2.1 / Matplotlib 3.5 binaries. The project now uses `.venv-ros/` with NumPy **1.26.4** and scikit-learn **1.6.1** (the version recorded in the saved feature scaler).
+
+This environment has already been created in this checkout. To create or repair it on another checkout:
+
+```bash
+source /opt/ros/humble/setup.bash
+bash arm_bot/setup_runtime.sh
+```
+
+The setup reuses installed ROS/scientific packages through `--system-site-packages` and installs the two compatibility overrides only inside `.venv-ros/`. It does not downgrade the system or user-site NumPy. The existing inference dependencies must already be installed; a fresh environment can install `requirements/dnn.txt` inside the project venv.
+
+The demo, comparison, and trajectory launchers select this interpreter automatically. They check NumPy, both PyTorch/NumPy conversion directions, JAX, ROS imports, and Matplotlib rendering before starting a run. The logger inherits the controller's exact interpreter. An incompatible runtime stops before launching motion; a later inference failure cancels the trajectory, sends zero torque, and exits with an error instead of claiming completion.
+
+For manual commands and tests, select the same runtime from the repository root:
+
+```bash
+source /opt/ros/humble/setup.bash
+source arm_bot/scripts/desktop_environment.sh
+source arm_bot/scripts/runtime_environment.sh
+python3 tools/check_runtime.py
+```
+
+`PUMA_PYTHON` can explicitly select another compatible Python executable. New launchers must be started after changing the runtime; stop any GUI/simulation left running by an earlier failed attempt.
 
 ### Launching from Snap-installed VS Code
 
@@ -30,7 +54,7 @@ For manual Python/ROS commands launched directly from an affected terminal, firs
 source arm_bot/scripts/desktop_environment.sh
 ```
 
-This startup-library fix is separate from the NumPy/Matplotlib compatibility issue above.
+The Snap cleanup and project Python selection are both applied automatically by the launchers.
 
 ## 2. Final presentation demo
 
@@ -114,6 +138,7 @@ source /opt/ros/humble/setup.bash
 cd arm_bot
 colcon build --symlink-install --packages-select arm_bot
 source install/setup.bash
+source scripts/runtime_environment.sh
 ```
 
 Launch the single retained simulator entry point:
@@ -128,6 +153,7 @@ In a second terminal, from `arm_bot/`:
 ```bash
 source /opt/ros/humble/setup.bash
 source install/setup.bash
+source scripts/runtime_environment.sh
 
 # Choose one controller; do not run them simultaneously.
 ros2 run arm_bot torque_publisher_dnn.py --csv-path /absolute/path/to/trajectory.csv
@@ -141,6 +167,7 @@ Each controller exposes further options with `--help`. The CTC command requires 
 ## 5. Generate a trajectory without simulation
 
 ```bash
+source arm_bot/scripts/runtime_environment.sh
 python3 arm_bot/src/scripts/demo/trajectory_generator.py \
   --path-id 1 --q-end '[120,-30,80]' --q-mid '[60,10,110]' \
   --t-total 20 --base-dir /tmp/puma-trajectories
@@ -163,6 +190,7 @@ The wrapper generates a trajectory, executes it, and opens the plotter. It alloc
 The latest standalone inference version, formerly `inf7.py`, is retained as:
 
 ```bash
+source arm_bot/scripts/runtime_environment.sh
 python3 tools/infer_torques.py 461
 ```
 
@@ -180,6 +208,7 @@ models/feature_scaler.pkl
 
 | Environment variable | Purpose |
 | --- | --- |
+| `PUMA_PYTHON` | Explicit compatible Python executable; defaults to the project runtime when present |
 | `PUMA_PROJECT_ROOT` | Checkout root; needed by copied ROS installs outside the checkout |
 | `PUMA_DATA_DIR` | Data root; defaults to this repository's `data/` |
 | `PUMA_MODEL_DIR` | Checkpoint/scaler root; defaults to `models/` |
@@ -188,6 +217,9 @@ models/feature_scaler.pkl
 Prefer absolute override paths. Source and symlink installs locate the checkout automatically. Data relocation is recorded in `data/MANIFEST.csv`, including original paths, new paths, hashes, and whether each artifact was originally tracked.
 
 ```bash
+source /opt/ros/humble/setup.bash
+source arm_bot/scripts/desktop_environment.sh
+source arm_bot/scripts/runtime_environment.sh
 python3 tools/check_repository.py
 python3 -m unittest discover -s tests -v
 python3 tools/verify_data.py         # original tracked artifacts

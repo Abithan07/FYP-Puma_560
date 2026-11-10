@@ -18,7 +18,7 @@ bash arm_bot/all.sh --check
 bash arm_bot/all.sh
 ```
 
-The batch CSVs are available in the original local checkout; a fresh clone needs those datasets separately. The current host's NumPy/Matplotlib conflict also needs resolving before an interactive run. Both are covered in the run guide.
+The batch CSVs are available in the original local checkout; a fresh clone needs those datasets separately. The launchers use the compatible `.venv-ros` runtime automatically. On a fresh checkout, run `bash arm_bot/setup_runtime.sh` first. Runtime setup and data requirements are covered in the run guide.
 
 ## Repository layout
 
@@ -48,6 +48,9 @@ Earlier simulator packages, numbered inference versions 1–6, experimental torq
 - [Data locations and preservation](data/README.md)
 
 ```bash
+source /opt/ros/humble/setup.bash
+source arm_bot/scripts/desktop_environment.sh
+source arm_bot/scripts/runtime_environment.sh
 python3 tools/check_repository.py
 python3 -m unittest discover -s tests -v
 python3 tools/verify_data.py

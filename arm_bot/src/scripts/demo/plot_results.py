@@ -3,8 +3,9 @@
 import numpy as np
 import argparse
 import pandas as pd
+import os
 import matplotlib
-matplotlib.use('TkAgg')   # or Qt5Agg
+matplotlib.use(os.environ.get('MPLBACKEND', 'TkAgg'))
 import matplotlib.pyplot as plt
 import sys
 

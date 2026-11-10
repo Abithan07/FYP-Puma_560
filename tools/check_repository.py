@@ -7,7 +7,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED = {'.git', '.venv', 'venv', 'build', 'install', 'log', '__pycache__'}
+EXCLUDED = {'.git', '.venv', '.venv-ros', 'venv', 'build', 'install', 'log', '__pycache__'}
 
 
 def main():

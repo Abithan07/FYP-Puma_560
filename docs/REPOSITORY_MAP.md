@@ -7,6 +7,7 @@ The latest final run workflows were selected from the `demo` history and their a
 | Script | Purpose |
 | --- | --- |
 | [`arm_bot/run_demo.sh`](../arm_bot/run_demo.sh) | Build/source the main workspace and start the final presentation GUI |
+| [`arm_bot/setup_runtime.sh`](../arm_bot/setup_runtime.sh) | Create/check the compatible project Python overlay |
 | [`arm_bot/all.sh`](../arm_bot/all.sh) | Check/run the original or selected DNN → CTC → PID comparison batch |
 | [`tools/infer_torques.py`](../tools/infer_torques.py) | Latest standalone DeLaN + GRU inference |
 
@@ -37,6 +38,7 @@ Use the [final run guide](../RUN_GUIDE.md) for commands.
 | [`analysis/analyze_dnn_performance.py`](../arm_bot/src/scripts/analysis/analyze_dnn_performance.py) | DNN controller log analysis |
 | [`analysis/analyze_ctc_performance.py`](../arm_bot/src/scripts/analysis/analyze_ctc_performance.py) | CTC controller log analysis |
 | [`scripts/terminal_job.sh`](../arm_bot/scripts/terminal_job.sh) | Internal terminal/process/status helper for `all.sh` |
+| [`scripts/runtime_environment.sh`](../arm_bot/scripts/runtime_environment.sh) | Select one Python interpreter for GUI, controllers, logger, and plots |
 | [`scripts/desktop_environment.sh`](../arm_bot/scripts/desktop_environment.sh) | Removes inherited Snap desktop-library paths before host GUI applications start |
 | [`launch/gazebo.launch.py`](../arm_bot/src/launch/gazebo.launch.py) | Sole final simulation launch description |
 
@@ -44,6 +46,6 @@ Use the [final run guide](../RUN_GUIDE.md) for commands.
 
 `research/delan/` retains the original dataset packing, DeLaN training, and black-box baseline training scripts. `research/matlab/` and `research/notebooks/` retain original research references byte-for-byte. They are not alternative final launchers.
 
-`tools/check_repository.py` checks Python/shell/XML syntax. `tools/verify_data.py` checks preservation hashes. `tests/` covers the retained launchers, process reporting, asset discovery, trajectory CLI, and numerical properties.
+`tools/check_runtime.py` exercises actual numerical/plotting imports and conversions before motion. `tools/check_repository.py` checks Python/shell/XML syntax. `tools/verify_data.py` checks preservation hashes. `tests/` covers the retained launchers, process reporting, asset discovery, trajectory CLI, and numerical properties.
 
 Earlier torque publishers, one-/two-joint experiments, home/sweep utilities, numbered inference versions 1–6, the modular DNN experiment, old PID controller, old dataset pipelines, and the three extra simulator/controller packages were removed. The obsolete launch wrapper was replaced by the final full launch at `gazebo.launch.py`. [Removal list](REMOVED_FILES.txt) records retired tracked paths; commit `76212c2` retains their source in Git history.

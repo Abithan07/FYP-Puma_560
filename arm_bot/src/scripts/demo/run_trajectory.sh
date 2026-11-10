@@ -25,6 +25,7 @@ set -euo pipefail
 
 DEMO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$DEMO_DIR/../../../scripts/desktop_environment.sh"
+source "$DEMO_DIR/../../../scripts/runtime_environment.sh"
 
 # ── defaults ────────────────────────────────────────────────
 PATH_ID=""
@@ -134,7 +135,7 @@ run_simulation_with_csv() {
   echo "  log-path          : $generated_log_csv"
   echo "─────────────────────────────────────────"
 
-  python3 "$SIMULATION_SCRIPT" --csv-path "$csv_path" --log-path "$generated_log_csv"
+  "$PUMA_PYTHON" "$SIMULATION_SCRIPT" --csv-path "$csv_path" --log-path "$generated_log_csv"
 
   if [[ ! -f "$generated_log_csv" ]]; then
     echo "ERROR: Expected simulation log not found: $generated_log_csv" >&2
@@ -148,7 +149,7 @@ run_simulation_with_csv() {
   echo "  log-csv-path      : $generated_log_csv"
   echo "─────────────────────────────────────────"
 
-  python3 "$PLOT_SCRIPT" --log-csv-path "$generated_log_csv"
+  "$PUMA_PYTHON" "$PLOT_SCRIPT" --log-csv-path "$generated_log_csv"
 }
 
 # ── help ────────────────────────────────────────────────────
@@ -229,6 +230,8 @@ if [[ ! -f "$SCRIPT_PATH" ]]; then
   exit 1
 fi
 
+"$PUMA_PYTHON" "$DEMO_DIR/../../../../tools/check_runtime.py" --quiet
+
 # ── CSV batch mode ───────────────────────────────────────────
 if [[ -n "$CSV_FILE" ]]; then
   if [[ ! -f "$CSV_FILE" ]]; then
@@ -243,7 +246,7 @@ if [[ -n "$CSV_FILE" ]]; then
   echo "  output    : $BASE_DIR"
   echo "─────────────────────────────────────────"
 
-  python3 "$SCRIPT_PATH" \
+  "$PUMA_PYTHON" "$SCRIPT_PATH" \
     --csv      "$CSV_FILE" \
     --base-dir "$BASE_DIR" \
     --dt       "$DT" \
@@ -294,7 +297,7 @@ echo "────────────────────────�
 # Build the python command incrementally so optional args are
 # only passed when they were actually provided by the user.
 CMD=(
-  python3 "$SCRIPT_PATH"
+  "$PUMA_PYTHON" "$SCRIPT_PATH"
   --path-id   "$PATH_ID"
   --q-end     "$Q_END"
   --num-paths "$NUM_PATHS"

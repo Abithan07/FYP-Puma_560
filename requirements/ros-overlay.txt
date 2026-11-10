@@ -1,0 +1,4 @@
+# Project-only overrides; reuse the installed ROS/inference stack.
+numpy==1.26.4
+# Version recorded in the default saved StandardScaler.
+scikit-learn==1.6.1

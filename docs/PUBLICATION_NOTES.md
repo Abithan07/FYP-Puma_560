@@ -8,15 +8,17 @@ The cleanup recorded and verified **4,106 protected artifacts**, including 719 o
 
 Original tracked data remains tracked after moving. Large local-only datasets/results remain local-only, including the inputs for the original 50-path comparison. The manifest inventories those local files but does not make them part of a fresh clone. Use `python3 tools/verify_data.py --all` in the original working checkout to check them.
 
-Control/inference calculations and default gains/periods remain those of the retained final implementations. Imports, subprocess paths, and output directories were updated for the new layout. The main ROS controller rate remains 100 Hz. The separate intermediate 1000 Hz pipeline was removed with the obsolete experiments.
+Successful control/inference calculations and default gains/periods remain those of the retained final implementations. Inference exceptions now abort the trajectory, send zero torque, and return a failure code rather than silently continuing with zero-valued samples. Imports, subprocess paths, and output directories were updated for the new layout. The main ROS controller rate remains 100 Hz. The separate intermediate 1000 Hz pipeline was removed with the obsolete experiments.
 
 ## Environment and validation limits
 
 The main package targets the original ROS 2 Humble/Python 3.10 desktop environment, using `ros_gz_sim`, `ros_gz_bridge`, and `gz_ros2_control`. The runtime/inference requirements are focused starting constraints, not a verified environment lock. `requirements/delan-original.txt` preserves the separate original training snapshot.
 
-The default local Python environment has NumPy 2.2.6 and Matplotlib 3.5.1. Importing plotting fails because those binaries are incompatible. No host dependencies or existing virtual environments were modified. The focused requirements constrain NumPy below 2 for the original Matplotlib/PyTorch stack.
+The default host Python has NumPy 2.2.6 and Matplotlib 3.5.1, which are incompatible. The project now selects `.venv-ros/`, an overlay with NumPy 1.26.4 and the saved scaler's scikit-learn 1.6.1. It reuses the existing ROS/inference packages without changing host dependencies or the earlier `.venv/`. `arm_bot/setup_runtime.sh` recreates the overlay; `tools/check_runtime.py` validates conversions and rendering before motion. The launchers and logger use one consistent interpreter.
 
-Build, CLI/launch loading, offline regression checks, data preservation, and offscreen GUI construction were checked. A complete interactive motion/plotting run and a closed-loop comparison were not validated during organization. Record a successful run in a compatible environment, then export its actual Python, ROS, Gazebo, and control-plugin versions before reporting a reproduced release.
+Build, CLI/launch loading, offline regression checks, data preservation, and offscreen GUI construction were checked. A complete interactive motion/plotting run and a closed-loop comparison were not validated during organization. The repaired runtime also passed the full 1,802-sample demo-model inference sequence and a render of the reported log. These are offline checks, not closed-loop tracking validation. Record a successful interactive run, then export its actual Python, ROS, Gazebo, and control-plugin versions before reporting a reproduced release.
+
+The tested scientific versions are NumPy 1.26.4, PyTorch 2.1.0+cpu, JAX/jaxlib 0.6.2, Haiku 0.0.16, SciPy 1.15.3, pandas 2.3.3, Matplotlib 3.5.1, and scikit-learn 1.6.1. This records the tested local stack, not a complete fresh-install lockfile.
 
 The comparison runner retains the original best-effort reset calls. Validate simulator reset behavior on the target installation before interpreting controller comparisons.
 

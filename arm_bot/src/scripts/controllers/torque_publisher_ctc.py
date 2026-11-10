@@ -432,7 +432,7 @@ class TorquePublisher(Node):
             self.get_logger().info('Launching triggered logger subprocess...')
             # Don't pipe stdout/stderr - let subprocess output directly to console
             # This prevents ROS2 initialization blocking issues in subprocess
-            cmd = ['python3', logger_script]
+            cmd = [sys.executable, logger_script]
             # Pass dataset path to logger so it can include it in the log filename
             if self.csv_path:
                 cmd.extend(['--dataset-path', self.csv_path])

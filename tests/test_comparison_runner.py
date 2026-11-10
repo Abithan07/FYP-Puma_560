@@ -19,6 +19,7 @@ class ComparisonRunnerTests(unittest.TestCase):
             shutil.copy(ROOT / 'arm_bot/all.sh', workspace / 'all.sh')
             (workspace / 'scripts').mkdir()
             shutil.copy(ROOT / 'arm_bot/scripts/desktop_environment.sh', workspace / 'scripts')
+            shutil.copy(ROOT / 'arm_bot/scripts/runtime_environment.sh', workspace / 'scripts')
             (workspace / 'install').mkdir()
             (workspace / 'install/setup.bash').write_text(':\n')
             data = root / 'input with spaces'
@@ -31,7 +32,7 @@ class ComparisonRunnerTests(unittest.TestCase):
                 (models / name).touch()
             bin_dir = root / 'bin'
             bin_dir.mkdir()
-            for name in ['colcon', 'ros2', 'sleep']:
+            for name in ['colcon', 'ros2', 'sleep', 'python3']:
                 path = bin_dir / name
                 path.write_text('#!/usr/bin/env bash\nexit 0\n')
                 path.chmod(0o755)
@@ -50,6 +51,7 @@ if status.name != 'gazebo.status':
             terminal.chmod(0o755)
             env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ['PATH'],
                        PUMA_TEST_CALLS=str(calls), PUMA_MODEL_DIR=str(models))
+            env.pop('PUMA_PYTHON', None)
             if failed_controller:
                 env['PUMA_TEST_FAIL'] = failed_controller
             result = subprocess.run(

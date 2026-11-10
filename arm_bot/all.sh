@@ -4,6 +4,7 @@ set -eo pipefail
 
 WS="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$WS/scripts/desktop_environment.sh"
+source "$WS/scripts/runtime_environment.sh"
 PROJECT_ROOT="$(realpath -m -- "${PUMA_PROJECT_ROOT:-$(dirname -- "$WS")}")"
 DATA_DIR="$(realpath -m -- "${PUMA_DATA_DIR:-$PROJECT_ROOT/data}")"
 export PUMA_DATA_DIR="$DATA_DIR"
@@ -70,6 +71,7 @@ done
 for command in colcon ros2 gnome-terminal setsid; do
     command -v "$command" >/dev/null || { echo "ERROR: Missing command: $command. Source ROS first." >&2; exit 1; }
 done
+"$PUMA_PYTHON" "$WS/../tools/check_runtime.py" --quiet
 if "$CHECK_ONLY"; then
     echo "Preflight passed for ${#IDS[@]} trajectories in $CSV_DIR."
     exit 0
@@ -170,7 +172,7 @@ for id in "${IDS[@]}"; do
     run_controller ctc "$id" ros2 run arm_bot torque_publisher_ctc.py --csv-path "$CSV"
     clear_rviz_markers
     reset_gazebo
-    run_controller pid "$id" python3 src/scripts/controllers/pid_controller_trajectory.py --trajectory-csv "$CSV"
+    run_controller pid "$id" "$PUMA_PYTHON" src/scripts/controllers/pid_controller_trajectory.py --trajectory-csv "$CSV"
     clear_rviz_markers
     reset_gazebo
     echo "Completed all controllers for path_$id"

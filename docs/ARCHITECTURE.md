@@ -86,6 +86,8 @@ The sole launch file, `gazebo.launch.py`, starts Gazebo, the clock bridge, robot
 
 Trajectory CSVs generally store signal labels in the first column and timesteps across columns: `t`, `dp1..dp3`, `dv1..dv3`, `da1..da3`. CLI endpoint/waypoint angles use degrees; trajectory signals use radians and their time derivatives. Detailed controller logs use one header row and one row per timestep.
 
+`scripts/runtime_environment.sh` selects the project `.venv-ros` interpreter for all Python children. A startup check validates the tensor/NumPy bridge and rendering before motion. The DNN engines repeat the conversion check before loading models. If an inference calculation later fails, the controller cancels its timer, publishes zero torque, stops logging, and exits with failure; the wrapper does not plot that run as successful.
+
 `shared/project_paths.py` discovers the checkout and centralizes `data/` and `models/` paths. Source/symlink installs resolve automatically; copied installs need `PUMA_PROJECT_ROOT`. Data and results are outside the ROS installation so rebuilding does not copy datasets into the package.
 
 All 4,106 protected artifacts are recorded in [the preservation manifest](../data/MANIFEST.csv). Original local-only data remains local-only; original tracked artifacts remain tracked after relocation. Research training source, MATLAB references, and notebooks are separate under `research/`.

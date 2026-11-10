@@ -5,6 +5,7 @@
 
 # Local environments, caches, and editor state.
 .venv/
+.venv-ros/
 venv/
 __pycache__/
 *.py[cod]

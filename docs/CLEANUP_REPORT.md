@@ -87,3 +87,24 @@ Added `arm_bot/scripts/desktop_environment.sh` and sourced it from the demo/comp
 Added regression coverage for inherited Snap paths, mixed ROS/Snap library paths, custom system paths, unset variables, repeated sourcing, and cleanup before both build and GUI launch. The suite now passes **26 tests**. Source checks pass for **27 Python files, six shell files, and seven XML/Xacro/world files**. The actual final GUI initializes with the cleaned environment in an offscreen Qt test. Desktop interaction and a full simulation remain outside that test.
 
 The final run guide documents automatic cleanup and the equivalent environment setup for manual commands. The existing NumPy/Matplotlib issue is separate from this startup fix.
+
+## NumPy/inference runtime fix — 2026-11-10
+
+The reported run used host NumPy 2.2.6 with PyTorch 2.1.0+cpu and Matplotlib 3.5.1 binaries compiled for NumPy 1.x. The GRU tensor-to-NumPy conversion failed after the history window filled, and the plotter could not import its compiled extension. Successful checkpoint loading alone had not tested that conversion boundary.
+
+Created a new project-only `.venv-ros` overlay with NumPy 1.26.4 and scikit-learn 1.6.1, matching the version recorded in the default saved scaler. It reuses installed ROS/inference dependencies through system-site packages. Host/user-site NumPy 2.2.6, other global packages, the earlier `.venv`, all weights, and all recorded data remain unchanged. `arm_bot/setup_runtime.sh` recreates this overlay from `requirements/ros-overlay.txt`.
+
+Added runtime selection shared by the shell launchers and explicit interpreter inheritance for logger subprocesses. Added a preflight that checks real tensor/array conversion, JAX, required imports, and Matplotlib rendering before GUI/motion launch. `PUMA_PYTHON` supports an explicit compatible interpreter. The DNN engines independently validate the conversion before model initialization.
+
+Corrected the controller error path: an inference exception now cancels the timer, sends zero torque, stops/flushes logging, and returns a failure exit code. It no longer advances through zero-torque samples and prints a completed trajectory. The generator wrapper therefore stops before plotting a failed execution. Successful inference/control equations and gains are unchanged. The demo plotter now honors `MPLBACKEND`, retaining TkAgg as its default while allowing headless verification.
+
+Validation in the repaired runtime:
+
+- The actual demo model produced finite predictions for all 1,802 samples of the reported `path_127` trajectory, including 1,675 GRU-active steps. The comparison model also passed beyond its 128-sample history window.
+- The default scaler loaded under its original scikit-learn 1.6.1 without a version-mismatch warning.
+- The actual plotter rendered the reported log to a temporary PNG successfully. The original failed log was preserved and remains an invalid tracking-performance run.
+- The original incompatible `/usr/bin/python3` was rejected by preflight before GUI/motion startup.
+- All 32 regression tests passed, including real callback abort behavior, interpreter selection, and rejection of a failed startup check.
+- The ROS package rebuilt successfully with the new shared runtime helper installed.
+
+The model checks ran offline with bounded CPU threads; no torques were sent to a simulator or physical arm during verification. They establish inference/conversion and plotting functionality, not closed-loop tracking performance. Stop any process from the earlier failed run and relaunch to use the new runtime.

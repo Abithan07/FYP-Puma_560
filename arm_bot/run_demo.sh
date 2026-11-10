@@ -12,9 +12,11 @@ case "${1:-}" in
     *) echo 'Usage: bash arm_bot/run_demo.sh [--no-build]' >&2; exit 2 ;;
 esac
 (( $# <= 1 )) || { echo 'ERROR: Too many arguments.' >&2; exit 2; }
+source "$WS/scripts/runtime_environment.sh"
 for command in colcon ros2 python3; do
     command -v "$command" >/dev/null || { echo "ERROR: Missing $command. Source ROS Humble first." >&2; exit 1; }
 done
+"$PUMA_PYTHON" "$WS/../tools/check_runtime.py" --quiet
 # Resolve relative overrides before moving into the workspace.
 for variable in PUMA_PROJECT_ROOT PUMA_DATA_DIR PUMA_MODEL_DIR PUMA_LOG_DIR; do
     if [[ -n "${!variable:-}" ]]; then
@@ -28,4 +30,4 @@ if [[ "${1:-}" != --no-build ]]; then
 fi
 [[ -f install/setup.bash ]] || { echo 'ERROR: Build arm_bot before using --no-build.' >&2; exit 1; }
 source install/setup.bash
-exec python3 src/scripts/demo/traj_gui.py
+exec "$PUMA_PYTHON" src/scripts/demo/traj_gui.py
