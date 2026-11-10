@@ -31,6 +31,7 @@ The batch CSVs are available in the original local checkout; a fresh clone needs
 | Compare all three algorithms on the same input | [Automatic comparisons](RUN_GUIDE.md#8-run-automatic-comparisons) |
 | Find logs and export tracking/torque reports | [Outputs](RUN_GUIDE.md#9-find-and-interpret-outputs), [analysis](RUN_GUIDE.md#10-plot-and-analyze-results) |
 | Explore training, MATLAB, or notebook references | [Research workflows](RUN_GUIDE.md#14-use-the-research-references) |
+| Understand each code file and its role in the project | [File-by-file code reference](docs/CODE_REFERENCE.md) |
 
 The GUI currently uses PID + DNN automatically. Other controllers are selected through the manual commands in the guide; `all.sh` runs all three main controllers.
 
@@ -56,6 +57,7 @@ Earlier simulator packages, numbered inference versions 1–6, experimental torq
 ## Review and verification
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [File-by-file code reference](docs/CODE_REFERENCE.md)
 - [Retained source map](docs/REPOSITORY_MAP.md)
 - [Cleanup work report](docs/CLEANUP_REPORT.md)
 - [Publication notes](docs/PUBLICATION_NOTES.md)

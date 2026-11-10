@@ -116,3 +116,11 @@ Expanded `RUN_GUIDE.md` into the main user manual with navigation and complete w
 Added workflow links to the root/workspace READMEs and research notes. Documented the original/local-only dataset distinction, temporary versus retained experiment inputs, failed-log interpretation, analysis-command output side effects, and research training limitations. Runtime/controller implementation and recorded data were not changed by this documentation update.
 
 Checked current CLI help and documented Python flags against their argument parsers. All local links/section anchors and fenced shell syntax passed validation. Executed the direct/conditions-CSV generation examples, a generated-reference batch preflight, DNN/CTC report exports, paired analysis, the CTC text-summary command, and the shared analytical-model example using scratch files. Analysis generated 27 temporary PNGs. These checks did not start simulated motion or retrain models.
+
+## File-by-file code reference — 2026-11-10
+
+Added [CODE_REFERENCE.md](CODE_REFERENCE.md), explaining all **50 retained code files**: 31 Python files, eight shell scripts, three MATLAB scripts, and eight notebooks. It describes each file's purpose, important functions/classes, inputs, outputs, and role in the presentation, comparison, analysis, or research workflows. It also covers 18 build/configuration/dependency support files and the preservation manifest, with a presentation-flow diagram, ROS topic connections, units, and CSV orientation notes.
+
+Documented the differences between the demo and comparison DNN publishers, cached versus online inference, CTC versus torque-domain PID feedback, the separate PID baseline, and actual plotting/logging behavior. Research entries explain historical path assumptions, the training packer's row-order contract, differing analytical models, and notebook processing calculations. Linked the reference from the root/workspace READMEs, run guide, source map, and research README.
+
+Checked descriptions against source, verified that every tracked Python/shell/MATLAB/notebook file has an entry and source link, and validated local links/section anchors and whitespace. This update changes documentation only; executable code, datasets, checkpoints, and notebook contents were not modified. No simulation or training run was needed for this documentation change.

@@ -13,6 +13,8 @@ The latest final run workflows were selected from the `demo` history and their a
 
 Use the [final run guide](../RUN_GUIDE.md) for commands.
 
+Use the [file-by-file code reference](CODE_REFERENCE.md) for each file's responsibilities, main functions, inputs/outputs, and relationship to the rest of the system, including research and test files.
+
 ## Final demo and required helpers
 
 | Source | Purpose |

@@ -2,6 +2,8 @@
 
 This guide describes the organized PUMA 560 codebase, from setup to controller selection, data generation, evaluation, and research references. It controls the first three joints of the modified PUMA arm in ROS 2/Gazebo simulation.
 
+For an explanation of each source file, its main functions, inputs, outputs, and dependencies, read the separate [code reference](docs/CODE_REFERENCE.md).
+
 **Working-directory rule:** every command below starts in the **repository root**, the directory containing this file, `arm_bot/`, `models/`, and `data/`. The research section explicitly changes directory. Repeat the terminal setup whenever you open a new terminal.
 
 ## Contents

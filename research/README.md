@@ -10,4 +10,6 @@ The training scripts use paths relative to the current working directory. Run th
 
 Historical paths inside MATLAB files and notebook cells were retained as provenance. These research notebooks and MATLAB references have not been revalidated as runnable workflows after relocation. Their file contents were preserved byte-for-byte. A complete GRU training recipe, seeds, and train/test provenance still need to be supplied for training-level reproducibility.
 
+The [research scripts](../docs/CODE_REFERENCE.md#9-research-python-and-matlab-scripts) and [notebook reference](../docs/CODE_REFERENCE.md#10-research-notebooks) explain every retained research code file, including its data format and differences from the final runtime.
+
 Intermediate Python run scripts and obsolete simulator packages were removed from the working tree. They remain recoverable from Git commit `76212c2` and the earlier `demo` history.
