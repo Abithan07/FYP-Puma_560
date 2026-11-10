@@ -92,8 +92,10 @@ expected = pd.read_csv('data/reproduction/path_461_expected.csv', header=None, i
 actual = pd.read_csv(os.environ['PUMA_REPRO_OUTPUT'], header=None, index_col=0)
 assert expected.index.tolist() == actual.index.tolist(), 'Signal labels differ'
 assert expected.shape == actual.shape, 'Sample counts differ'
+assert np.isfinite(expected.to_numpy(dtype=float)).all(), 'Reference contains nonfinite values'
+assert np.isfinite(actual.to_numpy(dtype=float)).all(), 'Output contains nonfinite values'
 np.testing.assert_allclose(actual.to_numpy(dtype=float), expected.to_numpy(dtype=float),
-                           rtol=1e-5, atol=1e-6)
+                           rtol=1e-5, atol=1e-6, equal_nan=False)
 print('PASS: all reference states and predicted torques match within tolerance.')
 PY
 ```
@@ -117,6 +119,21 @@ The comparison preflight now finds the original default inputs in the clone. To 
 The committed data and weights remove missing-input differences. Matching closed-loop plots and tracking statistics also requires matching controller settings, input paths, simulator initialization/reset behavior, timestep, and environment. Exact log bytes/timestamps and identical errors across machines are not guaranteed. A full interactive motion and closed-loop comparison have not been certified by the publication preparation checks. Do not present the offline inference comparison as that validation.
 
 Full retraining is a further level of reproducibility. The DeLaN research sources/data are included, but the complete GRU training recipe, original splits/seeds, and checkpoint-selection provenance still require author input. See [publication notes](PUBLICATION_NOTES.md).
+
+### Checks completed on a separate clone
+
+The data release at commit `787c63b` was cloned into a separate temporary directory with independent Git objects, without supplying unpublished local datasets. The clone reused the author's installed Python/ROS dependencies through an explicit interpreter selection; it was not a blank OS installation.
+
+| Check in the separate clone | Result |
+| --- | --- |
+| Published snapshot verification | 1,852 assets passed |
+| Original tracked preservation check | 719 artifacts passed |
+| Source syntax/XML checks | 32 Python, eight shell, seven XML files passed |
+| Regression suite | 36 tests passed |
+| Original comparison preflight | All 50 selected trajectories passed |
+| ROS package build from the clone | Passed |
+| CPU inference versus bundled reference | All 16 signals × 1,148 finite samples passed; maximum numerical difference was zero on this host |
+| Working tree after checks | Clean; generated outputs remained ignored |
 
 ## 5. Make the prepared branch accessible
 

@@ -22,6 +22,8 @@ The tested scientific versions are NumPy 1.26.4, PyTorch 2.1.0+cpu, JAX/jaxlib 0
 
 The comparison runner retains the original best-effort reset calls. Validate simulator reset behavior on the target installation before interpreting controller comparisons.
 
+A separate clone of data-release commit `787c63b` verified all 1,852 published assets, passed 36 tests and the original 50-path preflight, built the ROS package, and reproduced all 16 signals/1,148 samples of the bundled CPU inference reference with zero numerical difference on the tested host. It reused the existing host dependencies. This establishes that required inputs are present in Git and the offline example reproduces in a clean checkout; it does not validate a blank-machine installation or closed-loop tracking. Commands and recorded versions are in the [reproduction guide](REPRODUCIBILITY.md).
+
 ## Research provenance
 
 The original DeLaN training code/data, MATLAB references, and notebooks are retained under `research/`. Notebook/MATLAB internal paths remain historical and have not been revalidated after relocation. The standalone inference version was reduced to the latest `inf7.py` implementation, now `tools/infer_torques.py`, with asset/output paths updated.
