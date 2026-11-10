@@ -1,6 +1,6 @@
 # Retained research source
 
-The final presentation and comparison workflows are documented in [the run guide](../RUN_GUIDE.md). This directory retains research material that supports the project but is not an alternative final launcher.
+The final presentation and comparison workflows are documented in [the run guide](../RUN_GUIDE.md). Its [research section](../RUN_GUIDE.md#14-use-the-research-references) explains the training data contract, a separate experiment environment/copy, and validation limits. This directory retains research material that supports the project but is not an alternative final launcher.
 
 - `delan/`: original DeLaN/black-box training and CSV-to-pickle code, with its original `data/` layout preserved.
 - `matlab/`: original MATLAB trajectory/dynamics references.

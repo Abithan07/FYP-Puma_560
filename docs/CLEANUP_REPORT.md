@@ -108,3 +108,11 @@ Validation in the repaired runtime:
 - The ROS package rebuilt successfully with the new shared runtime helper installed.
 
 The model checks ran offline with bounded CPU threads; no torques were sent to a simulator or physical arm during verification. They establish inference/conversion and plotting functionality, not closed-loop tracking performance. Stop any process from the earlier failed run and relaunch to use the new runtime.
+
+## Complete usage guide — 2026-11-10
+
+Expanded `RUN_GUIDE.md` into the main user manual with navigation and complete workflows: runtime prerequisites/bootstrap, per-terminal setup, GUI operation and limits, manual PID/CTC/DNN selection, all five DNN modes, direct/waypoint/conditions-CSV generation, filename conversion for automatic comparisons, raw logging, result locations/formats, analysis exports, standalone inference, configuration, verification, research references, stopping, and troubleshooting. The guide explicitly distinguishes the GUI's fixed PID+DNN workflow, the comparison controllers, the DNN publisher's PID ablation, and the standalone PID baseline.
+
+Added workflow links to the root/workspace READMEs and research notes. Documented the original/local-only dataset distinction, temporary versus retained experiment inputs, failed-log interpretation, analysis-command output side effects, and research training limitations. Runtime/controller implementation and recorded data were not changed by this documentation update.
+
+Checked current CLI help and documented Python flags against their argument parsers. All local links/section anchors and fenced shell syntax passed validation. Executed the direct/conditions-CSV generation examples, a generated-reference batch preflight, DNN/CTC report exports, paired analysis, the CTC text-summary command, and the shared analytical-model example using scratch files. Analysis generated 27 temporary PNGs. These checks did not start simulated motion or retrain models.
