@@ -1,0 +1,289 @@
+[INFO] [1778154024.321291984] [dnn_torque_publisher]: Loading DNN models (DeLaN + GRU)...
+WARNING:2026-05-07 17:10:26,111:jax._src.xla_bridge:794: An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
+/home/priyankan/.local/lib/python3.10/site-packages/sklearn/base.py:442: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.6.1 when using version 1.7.2. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+[INFO] [1778154027.439962542] [dnn_torque_publisher]: DNN models loaded and ready.
+[INFO] [1778154027.440742165] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154027.441139890] [dnn_torque_publisher]: PID + DNN (DeLaN + GRU)
+[INFO] [1778154027.441451415] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154027.441757519] [dnn_torque_publisher]: Trajectory: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Joint_states/J/path_698_joint_states.csv  (1201 pts, 12.00s)
+[INFO] [1778154027.442093369] [dnn_torque_publisher]: Model: True  Feedback: True  GRU: True  Kp=[20.0, 80.0, 20.0]  Kd=[3.5, 18.0, 10.0]  Ki=[0.2, 0.8, 0.1]
+[INFO] [1778154027.442435410] [dnn_torque_publisher]: Model frame: desired | Timing warn threshold: 2.00 ms
+[INFO] [1778154027.442745261] [dnn_torque_publisher]: Infer stride: 2 (1=every step) | Marker publish every 20 steps
+[INFO] [1778154027.443057387] [dnn_torque_publisher]: Feedback LPF alpha: 0.35 | Torque slew limits: [250.0, 300.0, 220.0] Nm/s
+[INFO] [1778154027.443357630] [dnn_torque_publisher]: Feedforward inference input: desired (q_des, qd_des, qdd_des). Feedback uses sensed state errors.
+[INFO] [1778154027.443655408] [dnn_torque_publisher]: GRU warmup: first 128 steps use DeLaN only
+[INFO] [1778154027.443961262] [dnn_torque_publisher]: Torque limits: [100.0, 100.0, 60.0] Nm
+[INFO] [1778154027.444258139] [dnn_torque_publisher]: Log: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_698_joint_states_pid_dnn_log_1.csv
+[INFO] [1778154027.444551278] [dnn_torque_publisher]: Waiting for joint states...
+[INFO] [1778154027.445400922] [dnn_torque_publisher]: Current position: [46.93546800543471, -225.00000003079958, 44.626458295181905] deg
+[INFO] [1778154027.445743565] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154027.446057153] [dnn_torque_publisher]: PHASE 1: STABILISATION
+[INFO] [1778154027.446353990] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154027.947260788] [dnn_torque_publisher]:   t=0.5s  err=[-16.889°, 229.324°, 37.356°]  max=229.324°
+[INFO] [1778154028.447490284] [dnn_torque_publisher]:   t=1.0s  err=[13.100°, 172.028°, -1.052°]  max=172.028°
+[INFO] [1778154028.947507132] [dnn_torque_publisher]:   t=1.5s  err=[10.583°, 114.732°, -4.650°]  max=114.732°
+[INFO] [1778154029.447324374] [dnn_torque_publisher]:   t=2.0s  err=[0.976°, 57.437°, -8.940°]  max=57.437°
+[INFO] [1778154029.947348073] [dnn_torque_publisher]:   t=2.5s  err=[0.213°, 1.396°, -9.336°]  max=9.336°
+[INFO] [1778154030.447289166] [dnn_torque_publisher]:   t=3.0s  err=[-0.937°, -7.241°, -7.365°]  max=7.365°
+[INFO] [1778154030.947627093] [dnn_torque_publisher]:   t=3.5s  err=[0.263°, -2.559°, -6.720°]  max=6.720°
+[INFO] [1778154031.447692177] [dnn_torque_publisher]:   t=4.0s  err=[1.557°, -3.695°, -6.551°]  max=6.551°
+[INFO] [1778154031.947865103] [dnn_torque_publisher]:   t=4.5s  err=[0.968°, -3.194°, -6.071°]  max=6.071°
+[INFO] [1778154032.447741822] [dnn_torque_publisher]:   t=5.0s  err=[0.440°, -3.070°, -5.736°]  max=5.736°
+[INFO] [1778154032.947265859] [dnn_torque_publisher]:   t=5.5s  err=[0.495°, -2.885°, -5.384°]  max=5.384°
+[INFO] [1778154033.447472235] [dnn_torque_publisher]:   t=6.0s  err=[0.666°, -2.705°, -5.060°]  max=5.060°
+[INFO] [1778154033.947785201] [dnn_torque_publisher]:   t=6.5s  err=[0.641°, -2.549°, -4.757°]  max=4.757°
+[INFO] [1778154034.447790028] [dnn_torque_publisher]:   t=7.0s  err=[0.538°, -2.402°, -4.471°]  max=4.471°
+[INFO] [1778154034.947983448] [dnn_torque_publisher]:   t=7.5s  err=[0.494°, -2.262°, -4.202°]  max=4.202°
+[INFO] [1778154035.447495529] [dnn_torque_publisher]:   t=8.0s  err=[0.493°, -2.128°, -3.948°]  max=3.948°
+[INFO] [1778154035.947236298] [dnn_torque_publisher]:   t=8.5s  err=[0.479°, -2.003°, -3.710°]  max=3.710°
+[INFO] [1778154036.447382387] [dnn_torque_publisher]:   t=9.0s  err=[0.448°, -1.886°, -3.486°]  max=3.486°
+[INFO] [1778154036.947670331] [dnn_torque_publisher]:   t=9.5s  err=[0.421°, -1.776°, -3.276°]  max=3.276°
+[INFO] [1778154037.447264774] [dnn_torque_publisher]:   t=10.0s  err=[0.401°, -1.672°, -3.078°]  max=3.078°
+[INFO] [1778154037.947406523] [dnn_torque_publisher]:   t=10.5s  err=[0.383°, -1.574°, -2.892°]  max=2.892°
+[INFO] [1778154038.447694485] [dnn_torque_publisher]:   t=11.0s  err=[0.364°, -1.482°, -2.717°]  max=2.717°
+[INFO] [1778154038.947856159] [dnn_torque_publisher]:   t=11.5s  err=[0.345°, -1.395°, -2.553°]  max=2.553°
+[INFO] [1778154039.447590822] [dnn_torque_publisher]:   t=12.0s  err=[0.328°, -1.314°, -2.399°]  max=2.399°
+[INFO] [1778154039.947507015] [dnn_torque_publisher]:   t=12.5s  err=[0.312°, -1.237°, -2.253°]  max=2.253°
+[INFO] [1778154040.447315224] [dnn_torque_publisher]:   t=13.0s  err=[0.296°, -1.164°, -2.117°]  max=2.117°
+[INFO] [1778154040.947382429] [dnn_torque_publisher]:   t=13.5s  err=[0.281°, -1.096°, -1.989°]  max=1.989°
+[INFO] [1778154041.447700122] [dnn_torque_publisher]:   t=14.0s  err=[0.267°, -1.032°, -1.868°]  max=1.868°
+[INFO] [1778154041.947443217] [dnn_torque_publisher]:   t=14.5s  err=[0.254°, -0.971°, -1.755°]  max=1.755°
+[INFO] [1778154042.447269287] [dnn_torque_publisher]:   t=15.0s  err=[0.241°, -0.915°, -1.649°]  max=1.649°
+[INFO] [1778154042.947482973] [dnn_torque_publisher]:   t=15.5s  err=[0.229°, -0.861°, -1.549°]  max=1.549°
+[INFO] [1778154043.447222910] [dnn_torque_publisher]:   t=16.0s  err=[0.218°, -0.811°, -1.455°]  max=1.455°
+[INFO] [1778154043.947184843] [dnn_torque_publisher]:   t=16.5s  err=[0.207°, -0.763°, -1.366°]  max=1.366°
+[INFO] [1778154044.447153127] [dnn_torque_publisher]:   t=17.0s  err=[0.197°, -0.718°, -1.284°]  max=1.284°
+[INFO] [1778154044.947135677] [dnn_torque_publisher]:   t=17.5s  err=[0.187°, -0.676°, -1.206°]  max=1.206°
+[INFO] [1778154045.447481257] [dnn_torque_publisher]:   t=18.0s  err=[0.177°, -0.637°, -1.132°]  max=1.132°
+[INFO] [1778154045.947544967] [dnn_torque_publisher]:   t=18.5s  err=[0.169°, -0.599°, -1.064°]  max=1.064°
+[INFO] [1778154046.447390017] [dnn_torque_publisher]:   t=19.0s  err=[0.160°, -0.564°, -0.999°]  max=0.999°
+[INFO] [1778154046.947294518] [dnn_torque_publisher]:   t=19.5s  err=[0.152°, -0.531°, -0.938°]  max=0.938°
+[INFO] [1778154047.447656375] [dnn_torque_publisher]:   t=20.0s  err=[0.145°, -0.500°, -0.881°]  max=0.881°
+[INFO] [1778154047.947168770] [dnn_torque_publisher]:   t=20.5s  err=[0.137°, -0.471°, -0.828°]  max=0.828°
+[INFO] [1778154048.447366127] [dnn_torque_publisher]:   t=21.0s  err=[0.130°, -0.443°, -0.778°]  max=0.778°
+[INFO] [1778154048.947639176] [dnn_torque_publisher]:   t=21.5s  err=[0.124°, -0.417°, -0.730°]  max=0.730°
+[INFO] [1778154049.447181424] [dnn_torque_publisher]:   t=22.0s  err=[0.118°, -0.393°, -0.686°]  max=0.686°
+[INFO] [1778154049.947131005] [dnn_torque_publisher]:   t=22.5s  err=[0.112°, -0.370°, -0.644°]  max=0.644°
+[INFO] [1778154050.447872280] [dnn_torque_publisher]:   t=23.0s  err=[0.106°, -0.348°, -0.605°]  max=0.605°
+[INFO] [1778154050.947162914] [dnn_torque_publisher]:   t=23.5s  err=[0.101°, -0.328°, -0.568°]  max=0.568°
+[INFO] [1778154051.447426181] [dnn_torque_publisher]:   t=24.0s  err=[0.096°, -0.308°, -0.534°]  max=0.534°
+[INFO] [1778154051.947818279] [dnn_torque_publisher]:   t=24.5s  err=[0.091°, -0.290°, -0.501°]  max=0.501°
+[INFO] [1778154052.447715528] [dnn_torque_publisher]:   t=25.0s  err=[0.087°, -0.273°, -0.471°]  max=0.471°
+[INFO] [1778154052.947605223] [dnn_torque_publisher]:   t=25.5s  err=[0.082°, -0.257°, -0.442°]  max=0.442°
+[INFO] [1778154053.447549128] [dnn_torque_publisher]:   t=26.0s  err=[0.078°, -0.242°, -0.415°]  max=0.415°
+[INFO] [1778154053.947734496] [dnn_torque_publisher]:   t=26.5s  err=[0.074°, -0.228°, -0.390°]  max=0.390°
+[INFO] [1778154054.447636982] [dnn_torque_publisher]:   t=27.0s  err=[0.071°, -0.215°, -0.366°]  max=0.366°
+[INFO] [1778154054.947473364] [dnn_torque_publisher]:   t=27.5s  err=[0.067°, -0.202°, -0.344°]  max=0.344°
+[INFO] [1778154055.447445539] [dnn_torque_publisher]:   t=28.0s  err=[0.064°, -0.190°, -0.323°]  max=0.323°
+[INFO] [1778154055.947498626] [dnn_torque_publisher]:   t=28.5s  err=[0.061°, -0.179°, -0.304°]  max=0.304°
+[INFO] [1778154056.447379589] [dnn_torque_publisher]:   t=29.0s  err=[0.057°, -0.168°, -0.285°]  max=0.285°
+[INFO] [1778154056.947733358] [dnn_torque_publisher]:   t=29.5s  err=[0.055°, -0.159°, -0.268°]  max=0.268°
+[INFO] [1778154057.447566991] [dnn_torque_publisher]:   t=30.0s  err=[0.052°, -0.149°, -0.251°]  max=0.251°
+[INFO] [1778154057.947491003] [dnn_torque_publisher]:   t=30.5s  err=[0.049°, -0.140°, -0.236°]  max=0.236°
+[INFO] [1778154058.448132550] [dnn_torque_publisher]:   t=31.0s  err=[0.047°, -0.132°, -0.222°]  max=0.222°
+[INFO] [1778154058.947259265] [dnn_torque_publisher]:   t=31.5s  err=[0.045°, -0.124°, -0.208°]  max=0.208°
+[INFO] [1778154059.447505509] [dnn_torque_publisher]:   t=32.0s  err=[0.042°, -0.117°, -0.196°]  max=0.196°
+[INFO] [1778154059.947135106] [dnn_torque_publisher]:   t=32.5s  err=[0.040°, -0.110°, -0.184°]  max=0.184°
+[INFO] [1778154060.447274468] [dnn_torque_publisher]:   t=33.0s  err=[0.038°, -0.104°, -0.173°]  max=0.173°
+[INFO] [1778154060.947725124] [dnn_torque_publisher]:   t=33.5s  err=[0.036°, -0.098°, -0.162°]  max=0.162°
+[INFO] [1778154061.447253468] [dnn_torque_publisher]:   t=34.0s  err=[0.034°, -0.092°, -0.152°]  max=0.152°
+[INFO] [1778154061.947641284] [dnn_torque_publisher]:   t=34.5s  err=[0.033°, -0.087°, -0.143°]  max=0.143°
+[INFO] [1778154062.447491662] [dnn_torque_publisher]:   t=35.0s  err=[0.031°, -0.081°, -0.134°]  max=0.134°
+[INFO] [1778154062.947657150] [dnn_torque_publisher]:   t=35.5s  err=[0.030°, -0.077°, -0.126°]  max=0.126°
+[INFO] [1778154063.447158671] [dnn_torque_publisher]:   t=36.0s  err=[0.028°, -0.072°, -0.118°]  max=0.118°
+[INFO] [1778154063.947532198] [dnn_torque_publisher]:   t=36.5s  err=[0.027°, -0.068°, -0.111°]  max=0.111°
+[INFO] [1778154064.447798653] [dnn_torque_publisher]:   t=37.0s  err=[0.025°, -0.064°, -0.105°]  max=0.105°
+[INFO] [1778154064.947689924] [dnn_torque_publisher]:   t=37.5s  err=[0.024°, -0.060°, -0.098°]  max=0.098°
+[INFO] [1778154065.447148202] [dnn_torque_publisher]:   t=38.0s  err=[0.023°, -0.057°, -0.092°]  max=0.092°
+[INFO] [1778154065.947479677] [dnn_torque_publisher]:   t=38.5s  err=[0.022°, -0.053°, -0.087°]  max=0.087°
+[INFO] [1778154066.447774892] [dnn_torque_publisher]:   t=39.0s  err=[0.021°, -0.050°, -0.081°]  max=0.081°
+[INFO] [1778154066.947516731] [dnn_torque_publisher]:   t=39.5s  err=[0.020°, -0.047°, -0.076°]  max=0.076°
+[INFO] [1778154067.447403780] [dnn_torque_publisher]:   t=40.0s  err=[0.019°, -0.044°, -0.072°]  max=0.072°
+[INFO] [1778154067.947214055] [dnn_torque_publisher]:   t=40.5s  err=[0.018°, -0.042°, -0.067°]  max=0.067°
+[INFO] [1778154068.447278585] [dnn_torque_publisher]:   t=41.0s  err=[0.017°, -0.039°, -0.063°]  max=0.063°
+[INFO] [1778154068.947453372] [dnn_torque_publisher]:   t=41.5s  err=[0.016°, -0.037°, -0.059°]  max=0.059°
+[INFO] [1778154069.447203732] [dnn_torque_publisher]:   t=42.0s  err=[0.015°, -0.035°, -0.056°]  max=0.056°
+[INFO] [1778154069.947502080] [dnn_torque_publisher]:   t=42.5s  err=[0.014°, -0.033°, -0.052°]  max=0.052°
+[INFO] [1778154070.337405212] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049950°
+[INFO] [1778154070.338137916] [dnn_torque_publisher]: Holding for 1 second...
+[INFO] [1778154070.348978477] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049887°
+[INFO] [1778154070.359294493] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049825°
+[INFO] [1778154070.368844523] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049762°
+[INFO] [1778154070.378959022] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049700°
+[INFO] [1778154070.388796501] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049638°
+[INFO] [1778154070.398959661] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049577°
+[INFO] [1778154070.408952531] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049516°
+[INFO] [1778154070.418984125] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049455°
+[INFO] [1778154070.428879112] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049395°
+[INFO] [1778154070.438844891] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049336°
+[INFO] [1778154070.448875382] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049276°
+[INFO] [1778154070.458817107] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049218°
+[INFO] [1778154070.469019350] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049160°
+[INFO] [1778154070.478845548] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049103°
+[INFO] [1778154070.489022674] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.049046°
+[INFO] [1778154070.498833954] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048991°
+[INFO] [1778154070.508899231] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048936°
+[INFO] [1778154070.518907751] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048881°
+[INFO] [1778154070.528785445] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048828°
+[INFO] [1778154070.538916064] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048776°
+[INFO] [1778154070.548720752] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048724°
+[INFO] [1778154070.558917384] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048674°
+[INFO] [1778154070.569020392] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048625°
+[INFO] [1778154070.578976052] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048576°
+[INFO] [1778154070.588845121] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048529°
+[INFO] [1778154070.598865373] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048482°
+[INFO] [1778154070.608759268] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048437°
+[INFO] [1778154070.618882623] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048393°
+[INFO] [1778154070.629145420] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048350°
+[INFO] [1778154070.638838217] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048309°
+[INFO] [1778154070.648919464] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048268°
+[INFO] [1778154070.658975793] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048229°
+[INFO] [1778154070.669059334] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048191°
+[INFO] [1778154070.678955313] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048154°
+[INFO] [1778154070.688940429] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048119°
+[INFO] [1778154070.699011226] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048085°
+[INFO] [1778154070.708872880] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048052°
+[INFO] [1778154070.718967692] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048020°
+[INFO] [1778154070.728815520] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047990°
+[INFO] [1778154070.739063159] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047961°
+[INFO] [1778154070.748824385] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047934°
+[INFO] [1778154070.758990781] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047908°
+[INFO] [1778154070.768970387] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047883°
+[INFO] [1778154070.778850406] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047860°
+[INFO] [1778154070.789143299] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047838°
+[INFO] [1778154070.798869279] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047817°
+[INFO] [1778154070.808948081] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047798°
+[INFO] [1778154070.818831866] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047781°
+[INFO] [1778154070.828909366] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047764°
+[INFO] [1778154070.838995982] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047750°
+[INFO] [1778154070.849024459] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047736°
+[INFO] [1778154070.859186507] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047724°
+[INFO] [1778154070.868910954] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047713°
+[INFO] [1778154070.879044288] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047704°
+[INFO] [1778154070.888815704] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047696°
+[INFO] [1778154070.899384013] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047690°
+[INFO] [1778154070.908916310] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047685°
+[INFO] [1778154070.919028835] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047681°
+[INFO] [1778154070.928883787] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047679°
+[INFO] [1778154070.939058919] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047678°
+[INFO] [1778154070.949042633] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047678°
+[INFO] [1778154070.959009565] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047680°
+[INFO] [1778154070.968967841] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047683°
+[INFO] [1778154070.978860423] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047687°
+[INFO] [1778154070.989019455] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047692°
+[INFO] [1778154070.998995013] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047699°
+[INFO] [1778154071.009008873] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047707°
+[INFO] [1778154071.018993528] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047717°
+[INFO] [1778154071.029078542] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047727°
+[INFO] [1778154071.039250117] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047739°
+[INFO] [1778154071.048862494] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047752°
+[INFO] [1778154071.059091047] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047766°
+[INFO] [1778154071.069022492] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047781°
+[INFO] [1778154071.079064315] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047798°
+[INFO] [1778154071.088862560] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047815°
+[INFO] [1778154071.099202572] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047834°
+[INFO] [1778154071.109167249] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047853°
+[INFO] [1778154071.118960155] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047874°
+[INFO] [1778154071.129112104] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047896°
+[INFO] [1778154071.138964681] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047918°
+[INFO] [1778154071.148933366] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047942°
+[INFO] [1778154071.159099932] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047966°
+[INFO] [1778154071.169154970] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.047992°
+[INFO] [1778154071.178884667] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048018°
+[INFO] [1778154071.189182950] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048045°
+[INFO] [1778154071.198909932] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048073°
+[INFO] [1778154071.208842459] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048102°
+[INFO] [1778154071.219066934] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048131°
+[INFO] [1778154071.229021863] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048161°
+[INFO] [1778154071.239206403] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048192°
+[INFO] [1778154071.248834410] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048224°
+[INFO] [1778154071.258929752] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048256°
+[INFO] [1778154071.268944724] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048289°
+[INFO] [1778154071.278877572] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048322°
+[INFO] [1778154071.289225429] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048356°
+[INFO] [1778154071.298917004] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048390°
+[INFO] [1778154071.309073001] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048425°
+[INFO] [1778154071.318888509] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048461°
+[INFO] [1778154071.328980876] [dnn_torque_publisher]: ✓ Start position reached. Max error: 0.048496°
+[INFO] [1778154071.338870853] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154071.659220644] [triggered_logger]: Dataset: path_698
+[INFO] [1778154071.659703179] [triggered_logger]: Log directory: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs
+[INFO] [1778154071.688711531] [triggered_logger]: ======================================================================
+[INFO] [1778154071.689100761] [triggered_logger]: TRIGGERED LOGGER - Ready for Commands
+[INFO] [1778154071.689430530] [triggered_logger]: ======================================================================
+[INFO] [1778154071.689761520] [triggered_logger]: Log file ready: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs/path_698_log_1.csv
+[INFO] [1778154071.690223727] [triggered_logger]: Test number: 1
+[INFO] [1778154071.690603890] [triggered_logger]: Waiting for /logger/start service call...
+[INFO] [1778154071.691160314] [triggered_logger]: ======================================================================
+[INFO] [1778154071.694532488] [dnn_torque_publisher]: ✓ Logger ready
+[INFO] [1778154071.695667216] [dnn_torque_publisher]: ✓ Log: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_698_joint_states_pid_dnn_log_1.csv
+[INFO] [1778154071.803703977] [dnn_torque_publisher]: Published expected path (1201 points)
+[INFO] [1778154071.805354082] [dnn_torque_publisher]: Precomputing DNN rollout for 1201 trajectory steps...
+[INFO] [1778154085.435024007] [dnn_torque_publisher]: ✓ Cached DNN rollout ready: 1201 steps in 13.63s
+[INFO] [1778154085.435542720] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154085.435963980] [dnn_torque_publisher]: PHASE 2: DNN TRAJECTORY EXECUTION (cached rollout)
+[INFO] [1778154085.436398846] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154085.436878335] [dnn_torque_publisher]: 1201 steps | dt=10.0ms | cached DNN rollout injected step-by-step
+[INFO] [1778154085.538580282] [triggered_logger]: ✓ LOGGING STARTED - Recording trajectory data at 100Hz
+[INFO] [1778154085.539705552] [dnn_torque_publisher]: ✓ Logger recording started
+[INFO] [1778154086.051325280] [dnn_torque_publisher]: t=0.5s | idx=50/1201 | τ=[0.0,-22.7,-0.1] Nm | err=0.55° | DeLaN-only (warmup 50/128) | infer=0.87ms dt=9.95ms age=7.68ms miss=0 skip=0
+[INFO] [1778154086.537999555] [triggered_logger]: t=1.0s | Samples: 100 | Pos: [0.005, 0.765, 2.355] rad
+[INFO] [1778154086.552417163] [dnn_torque_publisher]: t=1.0s | idx=100/1201 | τ=[0.1,-22.4,-0.1] Nm | err=0.25° | DeLaN-only (warmup 100/128) | infer=1.01ms dt=9.99ms age=7.70ms miss=0 skip=0
+[INFO] [1778154087.051584306] [dnn_torque_publisher]: t=1.5s | idx=150/1201 | τ=[0.1,-24.6,-0.5] Nm | err=0.03° | GRU+DeLaN | infer=12.52ms dt=10.06ms age=7.79ms miss=0 skip=0
+[INFO] [1778154087.537689342] [triggered_logger]: t=2.0s | Samples: 200 | Pos: [0.028, 0.673, 2.361] rad
+[INFO] [1778154087.552300704] [dnn_torque_publisher]: t=2.0s | idx=200/1201 | τ=[0.2,-26.2,-0.9] Nm | err=0.05° | GRU+DeLaN | infer=11.66ms dt=9.95ms age=7.33ms miss=0 skip=0
+[INFO] [1778154088.051272219] [dnn_torque_publisher]: t=2.5s | idx=250/1201 | τ=[0.2,-28.7,-1.5] Nm | err=0.02° | GRU+DeLaN | infer=13.62ms dt=10.00ms age=7.87ms miss=0 skip=0
+[INFO] [1778154088.538094208] [triggered_logger]: t=3.0s | Samples: 300 | Pos: [0.083, 0.453, 2.369] rad
+[INFO] [1778154088.552097960] [dnn_torque_publisher]: t=3.0s | idx=300/1201 | τ=[0.2,-31.7,-2.3] Nm | err=0.08° | GRU+DeLaN | infer=12.43ms dt=10.04ms age=7.77ms miss=0 skip=0
+[INFO] [1778154089.051142391] [dnn_torque_publisher]: t=3.5s | idx=350/1201 | τ=[0.3,-34.6,-3.2] Nm | err=0.11° | GRU+DeLaN | infer=14.12ms dt=10.01ms age=7.63ms miss=0 skip=0
+[INFO] [1778154089.537781606] [triggered_logger]: t=4.0s | Samples: 400 | Pos: [0.171, 0.108, 2.382] rad
+[INFO] [1778154089.552855846] [dnn_torque_publisher]: t=4.0s | idx=400/1201 | τ=[0.3,-36.9,-4.2] Nm | err=0.13° | GRU+DeLaN | infer=11.37ms dt=10.00ms age=7.70ms miss=0 skip=0
+[INFO] [1778154090.051374769] [dnn_torque_publisher]: t=4.5s | idx=450/1201 | τ=[0.3,-38.0,-5.1] Nm | err=0.16° | GRU+DeLaN | infer=11.19ms dt=10.01ms age=7.60ms miss=0 skip=0
+[INFO] [1778154090.537850146] [triggered_logger]: t=5.0s | Samples: 500 | Pos: [0.282, -0.338, 2.399] rad
+[INFO] [1778154090.552658617] [dnn_torque_publisher]: t=5.0s | idx=500/1201 | τ=[0.2,-37.2,-6.0] Nm | err=0.19° | GRU+DeLaN | infer=12.10ms dt=10.06ms age=7.68ms miss=0 skip=0
+[INFO] [1778154091.051200132] [dnn_torque_publisher]: t=5.5s | idx=550/1201 | τ=[0.2,-34.2,-6.5] Nm | err=0.21° | GRU+DeLaN | infer=11.23ms dt=9.97ms age=7.70ms miss=0 skip=0
+[INFO] [1778154091.538126964] [triggered_logger]: t=6.0s | Samples: 600 | Pos: [0.407, -0.840, 2.419] rad
+[INFO] [1778154091.552235502] [dnn_torque_publisher]: t=6.0s | idx=600/1201 | τ=[0.1,-29.1,-6.6] Nm | err=0.22° | GRU+DeLaN | infer=11.66ms dt=10.00ms age=7.66ms miss=0 skip=0
+[INFO] [1778154092.051396598] [dnn_torque_publisher]: t=6.5s | idx=650/1201 | τ=[-0.1,-22.1,-6.4] Nm | err=0.22° | GRU+DeLaN | infer=14.85ms dt=10.06ms age=7.77ms miss=0 skip=0
+[INFO] [1778154092.537598389] [triggered_logger]: t=7.0s | Samples: 700 | Pos: [0.533, -1.345, 2.439] rad
+[INFO] [1778154092.552403784] [dnn_torque_publisher]: t=7.0s | idx=700/1201 | τ=[-0.2,-13.7,-5.8] Nm | err=0.16° | GRU+DeLaN | infer=13.20ms dt=9.99ms age=7.72ms miss=0 skip=0
+[INFO] [1778154093.051101419] [dnn_torque_publisher]: t=7.5s | idx=750/1201 | τ=[-0.2,-5.5,-4.9] Nm | err=0.30° | GRU+DeLaN | infer=12.81ms dt=10.01ms age=7.72ms miss=0 skip=0
+[INFO] [1778154093.537823926] [triggered_logger]: t=8.0s | Samples: 800 | Pos: [0.641, -1.797, 2.469] rad
+[INFO] [1778154093.552951916] [dnn_torque_publisher]: t=8.0s | idx=800/1201 | τ=[-0.2,2.0,-4.1] Nm | err=0.76° | GRU+DeLaN | infer=11.26ms dt=9.99ms age=7.54ms miss=0 skip=0
+[INFO] [1778154094.051187102] [dnn_torque_publisher]: t=8.5s | idx=850/1201 | τ=[-0.1,10.0,-2.9] Nm | err=0.98° | GRU+DeLaN | infer=11.48ms dt=9.93ms age=7.52ms miss=0 skip=0
+[INFO] [1778154094.538024944] [triggered_logger]: t=9.0s | Samples: 900 | Pos: [0.730, -2.186, 2.452] rad
+[INFO] [1778154094.553081570] [dnn_torque_publisher]: t=9.0s | idx=900/1201 | τ=[-0.2,17.0,-1.6] Nm | err=2.17° | GRU+DeLaN | infer=11.58ms dt=9.99ms age=7.60ms miss=0 skip=0
+[INFO] [1778154095.051287260] [dnn_torque_publisher]: t=9.5s | idx=950/1201 | τ=[-0.4,21.8,-0.4] Nm | err=2.87° | GRU+DeLaN | infer=11.74ms dt=10.01ms age=7.74ms miss=0 skip=0
+[INFO] [1778154095.537888857] [triggered_logger]: t=10.0s | Samples: 1000 | Pos: [0.796, -2.420, 2.406] rad
+[INFO] [1778154095.553175815] [dnn_torque_publisher]: t=10.0s | idx=1000/1201 | τ=[-0.5,24.6,0.3] Nm | err=4.17° | GRU+DeLaN | infer=12.72ms dt=9.95ms age=7.31ms miss=0 skip=0
+[INFO] [1778154096.051544459] [dnn_torque_publisher]: t=10.5s | idx=1050/1201 | τ=[-0.4,25.9,0.7] Nm | err=4.71° | GRU+DeLaN | infer=16.38ms dt=10.10ms age=7.43ms miss=0 skip=0
+[INFO] [1778154096.537957451] [triggered_logger]: t=11.0s | Samples: 1100 | Pos: [0.806, -2.506, 2.401] rad
+[INFO] [1778154096.552944216] [dnn_torque_publisher]: t=11.0s | idx=1100/1201 | τ=[-0.1,26.3,0.8] Nm | err=4.68° | GRU+DeLaN | infer=18.41ms dt=9.89ms age=7.31ms miss=0 skip=0
+[INFO] [1778154097.051257686] [dnn_torque_publisher]: t=11.5s | idx=1150/1201 | τ=[0.1,26.3,0.8] Nm | err=4.45° | GRU+DeLaN | infer=12.74ms dt=10.02ms age=7.61ms miss=0 skip=0
+[INFO] [1778154097.537725630] [triggered_logger]: t=12.0s | Samples: 1200 | Pos: [0.798, -2.518, 2.409] rad
+[INFO] [1778154097.552856535] [dnn_torque_publisher]: t=12.0s | idx=1200/1201 | τ=[0.2,25.9,0.7] Nm | err=4.24° | GRU+DeLaN | infer=12.31ms dt=10.00ms age=7.71ms miss=0 skip=0
+[INFO] [1778154097.571051246] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154097.571522099] [dnn_torque_publisher]: TRAJECTORY EXECUTION COMPLETED
+[INFO] [1778154097.571985298] [dnn_torque_publisher]: ================================================================================
+[INFO] [1778154097.573877837] [triggered_logger]: ======================================================================
+[INFO] [1778154097.574330686] [triggered_logger]: ✓ LOGGING STOPPED
+[INFO] [1778154097.574671946] [triggered_logger]: ======================================================================
+[INFO] [1778154097.575030539] [triggered_logger]: File saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs/path_698_log_1.csv
+[INFO] [1778154097.575335430] [triggered_logger]: Total samples: 1203
+[INFO] [1778154097.575636154] [triggered_logger]: Duration: 12.035s
+[INFO] [1778154097.575961705] [triggered_logger]: Average rate: 100.0 Hz
+[INFO] [1778154097.576263781] [triggered_logger]: ======================================================================
+[INFO] [1778154097.577487065] [dnn_torque_publisher]: ✓ Logger stopped: Logged 1203 samples in 12.035s
+[INFO] [1778154097.578160709] [dnn_torque_publisher]: ✓ Log closed: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_698_joint_states_pid_dnn_log_1.csv
+[INFO] [1778154097.578525052] [dnn_torque_publisher]: Done. Log: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_698_joint_states_pid_dnn_log_1.csv
+[INFO] [1778154097.582896460] [triggered_logger]: 
+Received termination signal...
+[INFO] [1778154097.793827884] [dnn_torque_publisher]: ✓ Log closed: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_698_joint_states_pid_dnn_log_1.csv
+  Loading DeLaN model from /home/priyankan/Desktop/FYP-Puma_560/DNN_test/fyp_jax_delan_50.jax
+  Warming up JAX JIT...
+  DeLaN ready.
+  Loading GRU model from /home/priyankan/Desktop/FYP-Puma_560/DNN_test/best_GRUResidual.pt
+  Loading feature scaler from /home/priyankan/Desktop/FYP-Puma_560/DNN_test/feature_scaler.pkl
+  DNNInferenceEngine ready.

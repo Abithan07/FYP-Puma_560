@@ -1,4 +1,19 @@
+# For run with the GUI
+In a new terminal run
+```bash
+cd /home/priyankan/Desktop/FYP-Puma_560/arm_bot
+
+colcon build --symlink-install && source install/setup.bash
+
+python3 /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/traj_gui.py
+
+```
+
 # For all run this in Terminal 1 at start
+```bash
+cd /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller
+```
+
 ```bash
 colcon build --symlink-install && source install/setup.bash && ros2 launch arm_bot gazebo.launch.py
 ```
@@ -13,7 +28,10 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # DNN Controller
 ```bash
 ros2 run arm_bot torque_publisher_dnn.py --csv-path \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
+    /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Joint_states/J/path_611_joint_states.csv
+
+ros2 run arm_bot torque_publisher_dnn.py --csv-path \
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_400_traj.csv
 ```
 
 ### This has options as,
@@ -33,6 +51,9 @@ After the mode type the needed option from below list
 ```bash
 python3 src/scripts/analyze_dnn_performance.py \
   /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_004_traj_pid_dnn_log_2.csv --plots
+
+ python3 src/scripts/analyze_dnn_performance.py \ 
+  /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_logs/path_030_traj_pid_dnn_log_1.csv
 ```
 ---
 
@@ -40,7 +61,10 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # CTC Controller
 ```bash
 ros2 run arm_bot torque_publisher_ctc.py --csv-path \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
+    /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Joint_states/J/path_611_joint_states.csv
+
+ros2 run arm_bot torque_publisher_ctc.py --csv-path \
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_400_traj.csv
 ```
 
 ### This has options as,
@@ -61,5 +85,8 @@ $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 # PID Controller
 ```bash
 python3 src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv \
-    /home/priyankan/Desktop/FYP-Puma_560/Test_data/E/path_021_traj.csv
+    /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Joint_states/J/path_611_joint_states.csv
+
+python3 src/scripts/controller/pid_controller/pid_controller_trajectory.py --trajectory-csv \
+    /home/priyankan/Desktop/FYP-Puma_560/Test_data/path_400_traj.csv
 ```

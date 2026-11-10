@@ -1,0 +1,101 @@
+[INFO] [1778156880.670434400] [pid_trajectory_controller]: ======================================================================
+[INFO] [1778156880.670737238] [pid_trajectory_controller]: PID TRAJECTORY CONTROLLER
+[INFO] [1778156880.670993970] [pid_trajectory_controller]: ======================================================================
+[INFO] [1778156880.671245021] [pid_trajectory_controller]: Kp=[50.0, 200.0, 150.0]  Ki=[5.0, 25.0, 20.0]  Kd=[12.0, 35.0, 10.0]
+[INFO] [1778156880.671484440] [pid_trajectory_controller]: Torque limits: [2.0, 45.0, 10.0] Nm
+[INFO] [1778156880.671724159] [pid_trajectory_controller]: Control rate: 100.0 Hz
+[INFO] [1778156880.671975431] [pid_trajectory_controller]: Feedforward enabled: True
+[INFO] [1778156880.672239266] [pid_trajectory_controller]: Settle tolerance: 1.000 deg
+[INFO] [1778156880.672483023] [pid_trajectory_controller]: Loading trajectory from: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Joint_states/J/path_733_joint_states.csv
+[INFO] [1778156880.791443944] [pid_trajectory_controller]: Trajectory set: 2401 points, duration: 24.00s
+[INFO] [1778156880.791769735] [pid_trajectory_controller]: Target start: [0.0, 44.99999999999998, 134.99999999999972]
+[INFO] [1778156880.792053457] [pid_trajectory_controller]: Target end: [-62.12203225681814, -32.44398693427524, 24.928294483830584]
+[INFO] [1778156880.792351416] [pid_trajectory_controller]: Waiting for joint states...
+[INFO] [1778156880.793142299] [pid_trajectory_controller]: Running home stabilizer before trajectory tracking
+[INFO] [1778156880.793426062] [pid_trajectory_controller]: ======================================================================
+[INFO] [1778156880.793679998] [pid_trajectory_controller]: PHASE 1: HOME STABILIZATION (Moving to trajectory start)
+[INFO] [1778156880.793940216] [pid_trajectory_controller]: ======================================================================
+[INFO] [1778156880.794200194] [pid_trajectory_controller]: Target start pose: [0.0, 44.99999999999998, 134.99999999999972] deg
+[INFO] [1778156880.794453689] [pid_trajectory_controller]: Settle tolerance: 1.000 deg
+[INFO] [1778156881.295150990] [pid_trajectory_controller]:   home t=0.5s | Error: [21.05898°, 5.10049°, -2.92828°] | Max: 21.05898°
+[INFO] [1778156881.794996923] [pid_trajectory_controller]:   home t=1.0s | Error: [-18.41232°, 3.13742°, -4.55316°] | Max: 18.41232°
+[INFO] [1778156882.295407144] [pid_trajectory_controller]:   home t=1.5s | Error: [-13.84651°, 1.89984°, -4.04909°] | Max: 13.84651°
+[INFO] [1778156882.795277233] [pid_trajectory_controller]:   home t=2.0s | Error: [2.41480°, 2.92416°, -3.61543°] | Max: 3.61543°
+[INFO] [1778156883.295374456] [pid_trajectory_controller]:   home t=2.5s | Error: [4.27421°, 2.46835°, -3.48630°] | Max: 4.27421°
+[INFO] [1778156883.795332008] [pid_trajectory_controller]:   home t=3.0s | Error: [-1.51117°, 2.15385°, -3.28355°] | Max: 3.28355°
+[INFO] [1778156884.295043207] [pid_trajectory_controller]:   home t=3.5s | Error: [-3.33014°, 1.96203°, -3.07717°] | Max: 3.33014°
+[INFO] [1778156884.795455291] [pid_trajectory_controller]:   home t=4.0s | Error: [-1.43848°, 1.90395°, -2.85981°] | Max: 2.85981°
+[INFO] [1778156885.295244405] [pid_trajectory_controller]:   home t=4.5s | Error: [-0.28798°, 1.81000°, -2.67500°] | Max: 2.67500°
+[INFO] [1778156885.794960513] [pid_trajectory_controller]:   home t=5.0s | Error: [-0.70703°, 1.66886°, -2.50999°] | Max: 2.50999°
+[INFO] [1778156886.295325357] [pid_trajectory_controller]:   home t=5.5s | Error: [-1.17185°, 1.54430°, -2.35102°] | Max: 2.35102°
+[INFO] [1778156886.795602967] [pid_trajectory_controller]:   home t=6.0s | Error: [-1.05155°, 1.44791°, -2.19824°] | Max: 2.19824°
+[INFO] [1778156887.295057934] [pid_trajectory_controller]:   home t=6.5s | Error: [-0.79623°, 1.36011°, -2.05603°] | Max: 2.05603°
+[INFO] [1778156887.794996428] [pid_trajectory_controller]:   home t=7.0s | Error: [-0.73823°, 1.27052°, -1.92472°] | Max: 1.92472°
+[INFO] [1778156888.295223241] [pid_trajectory_controller]:   home t=7.5s | Error: [-0.77474°, 1.18449°, -1.80185°] | Max: 1.80185°
+[INFO] [1778156888.795014909] [pid_trajectory_controller]:   home t=8.0s | Error: [-0.75810°, 1.10646°, -1.68622°] | Max: 1.68622°
+[INFO] [1778156889.295336450] [pid_trajectory_controller]:   home t=8.5s | Error: [-0.69693°, 1.03490°, -1.57785°] | Max: 1.57785°
+[INFO] [1778156889.795026176] [pid_trajectory_controller]:   home t=9.0s | Error: [-0.64900°, 0.96740°, -1.47665°] | Max: 1.47665°
+[INFO] [1778156890.294995786] [pid_trajectory_controller]:   home t=9.5s | Error: [-0.62279°, 0.90367°, -1.38205°] | Max: 1.38205°
+[INFO] [1778156890.795843303] [pid_trajectory_controller]:   home t=10.0s | Error: [-0.59797°, 0.84421°, -1.29345°] | Max: 1.29345°
+[INFO] [1778156891.295016780] [pid_trajectory_controller]:   home t=10.5s | Error: [-0.56707°, 0.78892°, -1.21049°] | Max: 1.21049°
+[INFO] [1778156891.795002620] [pid_trajectory_controller]:   home t=11.0s | Error: [-0.53619°, 0.73726°, -1.13286°] | Max: 1.13286°
+[INFO] [1778156892.295104797] [pid_trajectory_controller]:   home t=11.5s | Error: [-0.50931°, 0.68888°, -1.06023°] | Max: 1.06023°
+[INFO] [1778156892.744932568] [pid_trajectory_controller]: ✓ Home position reached! Max error: 0.998860°
+[INFO] [1778156892.745229705] [pid_trajectory_controller]: Publishing expected path and starting trajectory tracking
+[INFO] [1778156892.811876922] [pid_trajectory_controller]: Published expected end-effector path (2401 points)
+[INFO] [1778156892.823512957] [pid_trajectory_controller]: idx=0 t=0.000s | err_deg=0.990 | tau=[-0.41, 2.19, -2.57]
+[INFO] [1778156893.323397135] [pid_trajectory_controller]: idx=50 t=0.500s | err_deg=6.714 | tau=[0.20, -29.75, 1.37]
+[INFO] [1778156893.823593309] [pid_trajectory_controller]: idx=100 t=1.000s | err_deg=4.709 | tau=[-0.30, -16.10, 0.52]
+[INFO] [1778156894.322972510] [pid_trajectory_controller]: idx=150 t=1.500s | err_deg=4.876 | tau=[0.07, -20.35, 0.38]
+[INFO] [1778156894.823208758] [pid_trajectory_controller]: idx=200 t=2.000s | err_deg=4.566 | tau=[-0.00, -19.52, 0.43]
+[INFO] [1778156895.323623580] [pid_trajectory_controller]: idx=250 t=2.500s | err_deg=4.395 | tau=[-0.07, -20.20, 0.22]
+[INFO] [1778156895.823055730] [pid_trajectory_controller]: idx=300 t=3.000s | err_deg=4.243 | tau=[-0.09, -20.57, 0.09]
+[INFO] [1778156896.322899811] [pid_trajectory_controller]: idx=350 t=3.500s | err_deg=4.122 | tau=[-0.07, -21.13, -0.13]
+[INFO] [1778156896.823650042] [pid_trajectory_controller]: idx=400 t=4.000s | err_deg=4.039 | tau=[-0.06, -21.77, -0.37]
+[INFO] [1778156897.323423801] [pid_trajectory_controller]: idx=450 t=4.500s | err_deg=3.989 | tau=[-0.08, -22.51, -0.67]
+[INFO] [1778156897.823383298] [pid_trajectory_controller]: idx=500 t=5.000s | err_deg=3.973 | tau=[-0.08, -23.36, -1.02]
+[INFO] [1778156898.323691810] [pid_trajectory_controller]: idx=550 t=5.500s | err_deg=3.985 | tau=[-0.08, -24.30, -1.41]
+[INFO] [1778156898.822678712] [pid_trajectory_controller]: idx=600 t=6.000s | err_deg=4.023 | tau=[-0.08, -25.34, -1.85]
+[INFO] [1778156899.323546803] [pid_trajectory_controller]: idx=650 t=6.500s | err_deg=4.084 | tau=[-0.08, -26.46, -2.32]
+[INFO] [1778156899.823345367] [pid_trajectory_controller]: idx=700 t=7.000s | err_deg=4.162 | tau=[-0.08, -27.65, -2.83]
+[INFO] [1778156900.323666822] [pid_trajectory_controller]: idx=750 t=7.500s | err_deg=4.251 | tau=[-0.07, -28.89, -3.36]
+[INFO] [1778156900.823474853] [pid_trajectory_controller]: idx=800 t=8.000s | err_deg=4.345 | tau=[-0.07, -30.16, -3.91]
+[INFO] [1778156901.322910075] [pid_trajectory_controller]: idx=850 t=8.500s | err_deg=4.437 | tau=[-0.06, -31.43, -4.46]
+[INFO] [1778156901.823213284] [pid_trajectory_controller]: idx=900 t=9.000s | err_deg=4.520 | tau=[-0.06, -32.68, -4.99]
+[INFO] [1778156902.323722520] [pid_trajectory_controller]: idx=950 t=9.500s | err_deg=4.586 | tau=[-0.05, -33.88, -5.48]
+[INFO] [1778156902.823316980] [pid_trajectory_controller]: idx=1000 t=10.000s | err_deg=4.627 | tau=[-0.04, -34.95, -5.93]
+[INFO] [1778156903.323260033] [pid_trajectory_controller]: idx=1050 t=10.500s | err_deg=4.800 | tau=[-0.02, -35.88, -6.29]
+[INFO] [1778156903.823060909] [pid_trajectory_controller]: idx=1100 t=11.000s | err_deg=5.081 | tau=[-0.02, -36.76, -6.59]
+[INFO] [1778156904.323474334] [pid_trajectory_controller]: idx=1150 t=11.500s | err_deg=5.274 | tau=[-0.01, -37.39, -6.78]
+[INFO] [1778156904.823303302] [pid_trajectory_controller]: idx=1200 t=12.000s | err_deg=5.437 | tau=[0.01, -37.90, -6.88]
+[INFO] [1778156905.323967958] [pid_trajectory_controller]: idx=1250 t=12.500s | err_deg=5.545 | tau=[0.02, -38.21, -6.86]
+[INFO] [1778156905.823399590] [pid_trajectory_controller]: idx=1300 t=13.000s | err_deg=5.600 | tau=[0.03, -38.33, -6.74]
+[INFO] [1778156906.323448841] [pid_trajectory_controller]: idx=1350 t=13.500s | err_deg=5.600 | tau=[0.04, -38.27, -6.51]
+[INFO] [1778156906.823677367] [pid_trajectory_controller]: idx=1400 t=14.000s | err_deg=5.547 | tau=[0.05, -38.01, -6.17]
+[INFO] [1778156907.323070607] [pid_trajectory_controller]: idx=1450 t=14.500s | err_deg=5.442 | tau=[0.06, -37.58, -5.75]
+[INFO] [1778156907.823422815] [pid_trajectory_controller]: idx=1500 t=15.000s | err_deg=5.291 | tau=[0.07, -37.00, -5.25]
+[INFO] [1778156908.323748113] [pid_trajectory_controller]: idx=1550 t=15.500s | err_deg=5.100 | tau=[0.07, -36.29, -4.69]
+[INFO] [1778156908.823341727] [pid_trajectory_controller]: idx=1600 t=16.000s | err_deg=4.878 | tau=[0.07, -35.48, -4.10]
+[INFO] [1778156909.323084832] [pid_trajectory_controller]: idx=1650 t=16.500s | err_deg=4.633 | tau=[0.08, -34.60, -3.50]
+[INFO] [1778156909.823361878] [pid_trajectory_controller]: idx=1700 t=17.000s | err_deg=4.375 | tau=[0.08, -33.69, -2.90]
+[INFO] [1778156910.323443838] [pid_trajectory_controller]: idx=1750 t=17.500s | err_deg=4.111 | tau=[0.08, -32.75, -2.32]
+[INFO] [1778156910.823443483] [pid_trajectory_controller]: idx=1800 t=18.000s | err_deg=3.854 | tau=[0.07, -31.88, -1.77]
+[INFO] [1778156911.323319446] [pid_trajectory_controller]: idx=1850 t=18.500s | err_deg=3.606 | tau=[0.07, -31.03, -1.27]
+[INFO] [1778156911.823198324] [pid_trajectory_controller]: idx=1900 t=19.000s | err_deg=3.377 | tau=[0.07, -30.25, -0.83]
+[INFO] [1778156912.323824454] [pid_trajectory_controller]: idx=1950 t=19.500s | err_deg=3.170 | tau=[0.07, -29.56, -0.44]
+[INFO] [1778156912.823478680] [pid_trajectory_controller]: idx=2000 t=20.000s | err_deg=2.989 | tau=[0.06, -28.96, -0.11]
+[INFO] [1778156913.323316149] [pid_trajectory_controller]: idx=2050 t=20.500s | err_deg=2.837 | tau=[0.06, -28.47, 0.15]
+[INFO] [1778156913.822661445] [pid_trajectory_controller]: idx=2100 t=21.000s | err_deg=2.714 | tau=[0.05, -28.07, 0.36]
+[INFO] [1778156914.323968571] [pid_trajectory_controller]: idx=2150 t=21.500s | err_deg=2.620 | tau=[0.05, -27.78, 0.51]
+[INFO] [1778156914.823148126] [pid_trajectory_controller]: idx=2200 t=22.000s | err_deg=2.554 | tau=[0.04, -27.59, 0.62]
+[INFO] [1778156915.323753715] [pid_trajectory_controller]: idx=2250 t=22.500s | err_deg=2.512 | tau=[0.03, -27.47, 0.68]
+[INFO] [1778156915.823250925] [pid_trajectory_controller]: idx=2300 t=23.000s | err_deg=2.492 | tau=[0.02, -27.42, 0.71]
+[INFO] [1778156916.323579644] [pid_trajectory_controller]: idx=2350 t=23.500s | err_deg=2.487 | tau=[0.01, -27.43, 0.71]
+[INFO] [1778156916.833089784] [pid_trajectory_controller]: idx=2400 t=24.000s | err_deg=2.493 | tau=[-0.00, -27.46, 0.69]
+[INFO] [1778156916.843119777] [pid_trajectory_controller]: Trajectory complete at t=24.000s
+[INFO] [1778156916.885125323] [pid_trajectory_controller]: ✓ Log saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/logs/path_733_joint_states_pid_log_1.csv
+[INFO] [1778156916.886240786] [pid_trajectory_controller]: ✓ CSV copied to scripts logs: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_733_joint_states_pid_log_1.csv
+[INFO] [1778156918.297947547] [pid_trajectory_controller]: ✓ Tracking plots saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/logs/path_733_joint_states_pid_log_1_tracking.png
+[INFO] [1778156918.690955531] [pid_trajectory_controller]: ✓ Torque breakdown saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/logs/path_733_joint_states_pid_log_1_torques.png
+[INFO] [1778156919.025833506] [pid_trajectory_controller]: ✓ Trajectory saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/logs/path_733_joint_states_pid_log_1_trajectory.png
+[INFO] [1778156919.375932119] [pid_trajectory_controller]: ✓ Velocity saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/controller/pid_controller/logs/path_733_joint_states_pid_log_1_velocity.png

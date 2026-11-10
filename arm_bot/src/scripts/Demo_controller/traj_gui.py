@@ -34,6 +34,7 @@ from PyQt5.QtGui import QColor, QFont, QPalette
 TRAJ_GEN_SCRIPT   = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/automater.sh"
 SIMULATION_SCRIPT = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/gazebo_launch.sh"
 BASE_DIR          = "/home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/demo_trajectories"
+# /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/Demo_controller/traj_gui.py
 
 READY_LINES = [
     "Configured and activated joint_3_controller",
@@ -50,14 +51,14 @@ def strip_ansi(text: str) -> str:
 
 
 JOINT_LIMITS = {
-    "Q1 (Base)":     [(-170, -20), (20, 170)],
-    "Q2 (Shoulder)": [(-90, 180)],
-    "Q3 (Elbow)":    [(-45, 225)],
+    "Q1 (Base)":     [(-150, 0), (0, 150)],
+    "Q2 (Shoulder)": [(-60, 45)],
+    "Q3 (Elbow)":    [(0, 225)],
 }
 
 Q_START_DEG   = [0.0, 45.0, 135.0]
-T_TOTAL_MIN   = 5.0
-T_TOTAL_MAX   = 60.0
+T_TOTAL_MIN   = 10.0
+T_TOTAL_MAX   = 30.0
 T_TOTAL_DEF   = 18.0
 
 

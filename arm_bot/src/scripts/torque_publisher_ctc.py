@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
 Computed Torque Control Publisher - Full Dynamic Control + Feedback
-Implements τ = D(q)q̈ + C(q,q̇) + G(q) + Kp(q_des-q_act) + Kd(q̇_des-q̇_act)
+Implements the canonical CTC law:
+τ = D(q) * (q̈_des + Kp e_pos + Kd e_vel + Ki ∫e_pos) + C(q,q̇) + G(q)
 with comprehensive logging of all control terms and tracking errors.
 """
 
@@ -45,7 +46,7 @@ except ImportError:
 class TorquePublisher(Node):
     def __init__(self, csv_path=None, skip_stabilization_threshold_deg=1.0, 
                  kp=None, kd=None, ki=None, use_feedback=True, use_model=True,
-                 dynamics_frame='desired', torque_limits=None,
+                 dynamics_frame='actual', torque_limits=None,
                  vel_filter_alpha=0.25, log_path=None):
         super().__init__('torque_publisher')
         
@@ -56,21 +57,20 @@ class TorquePublisher(Node):
         self.vel_filter_alpha = float(np.clip(vel_filter_alpha, 0.0, 1.0))
         
         # Control gains (can be overridden by arguments)
+        # CTC feedback gains are acceleration-domain gains: they shape qdd_des before D(q)
+        # maps them into torques. Keep them moderate; the model term provides feedforward.
         if kp is None:
-            # self.kp = np.array([30.0, 100.0, 50.0])  # Proportional gains
-            self.kp = np.array([30.0, 100.0, 200.0])  # Proportional gains
+            self.kp = np.array([10.0, 40.0, 45.0])
         else:
             self.kp = np.array(kp)
             
         if kd is None:
-            # self.kd = np.array([4.0, 10.0, 5.0])  # Derivative gains
-            self.kd = np.array([4.0, 10.0, 20.0])  # Derivative gains
+            self.kd = np.array([2, 15.0, 18.0])
         else:
             self.kd = np.array(kd)
 
         if ki is None:
-            # Keep small integral action to remove slow bias without windup.
-            self.ki = np.array([0.2, 1.0, 0.8])
+            self.ki = np.array([0.05, 0.12, 0.1])
         else:
             self.ki = np.array(ki)
 
@@ -149,17 +149,18 @@ class TorquePublisher(Node):
         self.skip_stabilization_threshold_rad = math.radians(skip_stabilization_threshold_deg)
         
         self.get_logger().info('='*80)
-        self.get_logger().info('COMPUTED TORQUE CONTROL PUBLISHER - FULL DYNAMIC FEEDBACK')
+        self.get_logger().info('COMPUTED TORQUE CONTROL PUBLISHER - COMPUTED TORQUE CONTROL')
         self.get_logger().info('='*80)
         self.get_logger().info(f'Loaded {len(self.time_data)} trajectory points')
         self.get_logger().info(f'Trajectory duration: {self.time_data[-1]:.2f}s')
         self.get_logger().info(f'Control frequency: 100 Hz (dt={self.dt:.4f}s)')
         self.get_logger().info(f'Initial target: [{self.dp1[0]:.4f}, {self.dp2[0]:.4f}, {self.dp3[0]:.4f}] rad')
+        self.get_logger().info('Control law: τ = D(q) * (q̈_des + Kp*e + Kd*ė + Ki*∫e) + C(q,q̇) + G(q)')
         self.get_logger().info(f'Model-based control: {self.use_model}')
         self.get_logger().info(f'Feedback control: {self.use_feedback}')
-        self.get_logger().info(f'Dynamics frame: {self.dynamics_frame} (for consistent model/feedback decomposition)')
+        self.get_logger().info(f'Dynamics frame: {self.dynamics_frame} (state used for D,C,G evaluation)')
         self.get_logger().info(
-            f'Control gains: Kp={self.kp.tolist()}, Kd={self.kd.tolist()}, Ki={self.ki.tolist()}'
+            f'Control gains (acceleration-domain): Kp={self.kp.tolist()}, Kd={self.kd.tolist()}, Ki={self.ki.tolist()}'
         )
         self.get_logger().info(f'Torque limits: {self.torque_limits.tolist()} Nm')
         self.get_logger().info(f'Velocity filter alpha: {self.vel_filter_alpha:.3f}')
@@ -621,10 +622,8 @@ class TorquePublisher(Node):
     
     def compute_control_torques(self, idx):
         """
-        Compute control torques using computed torque control law:
-        τ_total = τ_model + τ_fb
-        τ_model = D(q)q̈ + C(q,q̇) + G(q)
-        τ_fb = Kp*e_pos + Kd*e_vel
+        Compute control torques using canonical computed torque control:
+        τ = D(q) * (q̈_des + Kp*e_pos + Kd*e_vel + Ki*∫e_pos) + C(q,q̇) + G(q)
         
         Returns: tau_model, tau_fb, tau_total, D, C, G
         """
@@ -642,12 +641,11 @@ class TorquePublisher(Node):
         max_i = np.array([0.4, 0.8, 0.8])
         self.traj_integral_error = np.clip(self.traj_integral_error, -max_i, max_i)
 
+        # Compute feedback acceleration term for the canonical CTC law.
+        # This acceleration command is mapped into torque by D(q).
         v_fb = np.zeros(3)
         if self.use_feedback:
             v_fb = self.kp * e_pos + self.kd * e_vel + self.ki * self.traj_integral_error
-
-        # Full CTC virtual acceleration.
-        v = qdd_des + v_fb
 
         if self.use_model and HAS_INV_DYN:
             try:
@@ -658,19 +656,26 @@ class TorquePublisher(Node):
                     q_dyn = q_des
                     qd_dyn = qd_des
 
-                # Feedforward model term and full model+feedback term.
-                tau_model, _, _, _ = compute_inverse_dynamics(q_dyn, qd_dyn, qdd_des)
-                tau_total, D, C, G = compute_inverse_dynamics(q_dyn, qd_dyn, v)
+                # Compute model-based feedforward torque
+                # τ_model = D(q)*q̈_des + C(q,q̇) + G(q)
+                tau_model, D, C, G = compute_inverse_dynamics(q_dyn, qd_dyn, qdd_des)
+                D = np.asarray(D, dtype=float)
+
+                # Canonical CTC: q̈_cmd = q̈_des + v_fb, then map through inverse dynamics.
+                qdd_cmd = qdd_des + v_fb
+                tau_total, _, _, _ = compute_inverse_dynamics(q_dyn, qd_dyn, qdd_cmd)
                 tau_fb = tau_total - tau_model
+                
             except Exception as e:
                 self.get_logger().warn(f'Inverse dynamics computation failed: {e}')
                 tau_model = np.zeros(3)
                 tau_fb = v_fb
-                tau_total = tau_fb
+                tau_total = tau_model + tau_fb
                 D = np.eye(3)
                 C = np.zeros(3)
                 G = np.zeros(3)
         else:
+            # If model disabled, fall back to the feedback acceleration as a torque command.
             tau_model = np.zeros(3)
             tau_fb = v_fb
             tau_total = tau_fb
@@ -691,7 +696,7 @@ class TorquePublisher(Node):
         max_error = np.max(np.abs(errors))
         
         # Check convergence (strict threshold: 0.2°)
-        if max_error < 0.0000035:  # 0.0002° in radians
+        if max_error < math.radians(0.05):  # 0.05° in radians
             self.get_logger().info(f'✓ Initial position reached! Max error: {max_error*180/3.14159:.6f}°')
             if self.stabilization_timer:
                 self.stabilization_timer.cancel()
@@ -897,7 +902,9 @@ class TorquePublisher(Node):
         self.get_logger().info('PHASE 2: TRAJECTORY EXECUTION (Computed Torque Control)')
         self.get_logger().info('='*80)
         self.get_logger().info(f'Publishing {len(self.time_data)} torque commands at 100Hz...')
-        self.get_logger().info(f'Control law: τ = τ_model + τ_fb (model={self.use_model}, feedback={self.use_feedback})')
+        self.get_logger().info(f'Control law: τ_total = τ_model + τ_fb (model={self.use_model}, feedback={self.use_feedback})')
+        self.get_logger().info(f'  τ_model provides feedforward compensation for desired accelerations')
+        self.get_logger().info(f'  τ_fb provides error feedback: τ_fb = Kp*e + Kd*ė + Ki*∫e')
         
         # Start logger 100ms before trajectory execution
         time.sleep(0.1)
@@ -953,28 +960,28 @@ def main(args=None):
         type=float,
         nargs=3,
         default=None,
-        help='Proportional gains [kp1, kp2, kp3] (default: 30 100 50)'
+        help='Acceleration-domain proportional gains [kp1, kp2, kp3]'
     )
     parser.add_argument(
         '--kd',
         type=float,
         nargs=3,
         default=None,
-        help='Derivative gains [kd1, kd2, kd3] (default: 4 10 5)'
+        help='Acceleration-domain derivative gains [kd1, kd2, kd3]'
     )
     parser.add_argument(
         '--ki',
         type=float,
         nargs=3,
         default=None,
-        help='Integral gains [ki1, ki2, ki3] (default: 0.2 1.0 0.8)'
+        help='Acceleration-domain integral gains [ki1, ki2, ki3]'
     )
     parser.add_argument(
         '--dynamics-frame',
         type=str,
         choices=['actual', 'desired'],
-        default='desired',
-        help='State used for D,C,G evaluation (default: desired for consistent model decomposition)'
+        default='actual',
+        help='State used for D,C,G evaluation (default: actual for better robustness)'
     )
     parser.add_argument(
         '--torque-limits',

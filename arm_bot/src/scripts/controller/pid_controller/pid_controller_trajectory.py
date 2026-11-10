@@ -13,6 +13,7 @@ import argparse
 import math
 import csv
 import os
+import shutil
 import time
 from typing import Optional, Tuple
 import re
@@ -217,7 +218,7 @@ class PIDTrajectoryController(Node):
         torque_bias=None,
         dt=0.01,
         vel_filter_alpha=0.25,
-        settle_tolerance_deg=1.0,
+        settle_tolerance_deg=0.05,
         use_feedforward=True,
     ):
         super().__init__('pid_trajectory_controller')
@@ -236,7 +237,7 @@ class PIDTrajectoryController(Node):
         )
         # Default bias (applied to commanded torques). Matches requested start torques.
         if torque_bias is None:
-            torque_bias = [0.0, -21.8606490720699, -3.5527136788005e-14]
+            torque_bias = [0.0, 0.0, 0.0]
         self.torque_bias = np.array(torque_bias, dtype=np.float64)
 
         self.pub1 = self.create_publisher(Float64MultiArray, '/joint_1_controller/commands', 10)
@@ -262,6 +263,12 @@ class PIDTrajectoryController(Node):
         self.traj_idx = 0
         self.trajectory_complete = False
         self.timer = None
+
+        # Home-position stabilization phase before trajectory tracking.
+        self.home_stabilization_timer = None
+        self.home_stabilization_complete = False
+        self.home_stabilization_iterations = 0
+        self.home_target_pos = None
 
         # Trajectory data
         self.traj_t = None  # Time vector
@@ -301,6 +308,7 @@ class PIDTrajectoryController(Node):
         self.get_logger().info(f'Torque limits: {self.torque_limits.tolist()} Nm')
         self.get_logger().info(f'Control rate: {1.0 / self.dt:.1f} Hz')
         self.get_logger().info(f'Feedforward enabled: {self.use_feedforward}')
+        self.get_logger().info(f'Settle tolerance: {math.degrees(self.settle_tolerance_rad):.3f} deg')
 
     @staticmethod
     def _mat_mul(a, b):
@@ -490,6 +498,107 @@ class PIDTrajectoryController(Node):
         self.get_logger().info(f'Target start: {np.degrees(q[0]).tolist()}')
         self.get_logger().info(f'Target end: {np.degrees(q[-1]).tolist()}')
 
+    def _home_stabilization_callback(self):
+        if self.home_target_pos is None:
+            self.get_logger().error('Home stabilization target is not set')
+            if self.home_stabilization_timer is not None:
+                self.home_stabilization_timer.cancel()
+                self.home_stabilization_timer = None
+            self.home_stabilization_complete = True
+            return
+
+        errors = self.home_target_pos - self.current_joint_pos
+        max_error = float(np.max(np.abs(errors)))
+
+        # Match the CTC startup behavior: stop once the start pose is close enough.
+        if max_error < self.settle_tolerance_rad:
+            self.get_logger().info(
+                f'✓ Home position reached! Max error: {math.degrees(max_error):.6f}°'
+            )
+            if self.home_stabilization_timer is not None:
+                self.home_stabilization_timer.cancel()
+                self.home_stabilization_timer = None
+            self.home_stabilization_complete = True
+            return
+
+        self.home_stabilization_iterations += 1
+        if self.home_stabilization_iterations >= int(round(120.0 / self.dt)):
+            self.get_logger().error(
+                f'Timeout! Failed to reach home position. Current error: {math.degrees(max_error):.6f}°'
+            )
+            if self.home_stabilization_timer is not None:
+                self.home_stabilization_timer.cancel()
+                self.home_stabilization_timer = None
+            self.home_stabilization_complete = True
+            return
+
+        # Use the same stabilization structure as the CTC controller: PID + gravity compensation.
+        kp = np.array([50.0, 200.0, 150.0], dtype=np.float64)
+        ki = np.array([5.0, 25.0, 20.0], dtype=np.float64)
+        kd = np.array([12.0, 35.0, 10.0], dtype=np.float64)
+
+        self.integral_error += errors * self.dt
+        max_integral = np.array([0.5, 1.0, 1.0], dtype=np.float64)
+        self.integral_error = np.clip(self.integral_error, -max_integral, max_integral)
+
+        q2 = self.current_joint_pos[1]
+        q3 = self.current_joint_pos[2]
+        gravity_comp = np.array([
+            0.0,
+            -44.0 * np.cos(q2),
+            -12.0 * np.cos(q2 + q3),
+        ], dtype=np.float64)
+
+        torques = kp * errors + ki * self.integral_error - kd * self.current_joint_vel + gravity_comp
+        home_torque_limits = np.array([100.0, 100.0, 50.0], dtype=np.float64)
+        torques = np.clip(torques, -home_torque_limits, home_torque_limits)
+
+        self.msg1.data = [float(torques[0])]
+        self.msg2.data = [float(torques[1])]
+        self.msg3.data = [float(torques[2])]
+        self.pub1.publish(self.msg1)
+        self.pub2.publish(self.msg2)
+        self.pub3.publish(self.msg3)
+
+        if self.home_stabilization_iterations % 50 == 0:
+            self.get_logger().info(
+                f'  home t={self.home_stabilization_iterations * self.dt:.1f}s | '
+                f'Error: [{math.degrees(errors[0]):.5f}°, {math.degrees(errors[1]):.5f}°, {math.degrees(errors[2]):.5f}°] | '
+                f'Max: {math.degrees(max_error):.5f}°'
+            )
+
+    def stabilize_to_start_pose(self) -> bool:
+        if self.traj_q is None or self.traj_n == 0:
+            self.get_logger().error('No trajectory available for home stabilization')
+            return False
+
+        self.home_target_pos = np.array(self.traj_q[0], dtype=np.float64)
+        self.home_stabilization_iterations = 0
+        self.home_stabilization_complete = False
+        self.integral_error[:] = 0.0
+
+        self.get_logger().info('=' * 70)
+        self.get_logger().info('PHASE 1: HOME STABILIZATION (Moving to trajectory start)')
+        self.get_logger().info('=' * 70)
+        self.get_logger().info(f'Target start pose: {np.degrees(self.home_target_pos).tolist()} deg')
+        self.get_logger().info(
+            f'Settle tolerance: {math.degrees(self.settle_tolerance_rad):.3f} deg'
+        )
+
+        self.home_stabilization_timer = self.create_timer(self.dt, self._home_stabilization_callback)
+
+        while not self.home_stabilization_complete and rclpy.ok():
+            rclpy.spin_once(self, timeout_sec=0.001)
+
+        if self.home_stabilization_timer is not None:
+            self.home_stabilization_timer.cancel()
+            self.home_stabilization_timer = None
+
+        if not rclpy.ok():
+            return False
+
+        return True
+
     def joint_state_callback(self, msg: JointState):
         try:
             idx1 = msg.name.index('joint_1')
@@ -530,15 +639,26 @@ class PIDTrajectoryController(Node):
         self.trajectory_complete = False
         self.timer = self.create_timer(self.dt, self.control_callback)
 
+    def _publish_zero_torque(self):
+        zero = Float64MultiArray()
+        zero.data = [0.0]
+        self.pub1.publish(zero)
+        self.pub2.publish(zero)
+        self.pub3.publish(zero)
+
     def control_callback(self):
         # Check if trajectory is complete
-        if self.traj_idx >= self.traj_n - 1:
+        if self.traj_idx >= self.traj_n:
             if not self.trajectory_complete:
                 self.trajectory_complete = True
                 self.get_logger().info(
-                    f'Trajectory complete at t={self.traj_t[self.traj_idx]:.3f}s'
+                    f'Trajectory complete at t={self.traj_t[self.traj_n - 1]:.3f}s'
                 )
-            self.traj_idx = self.traj_n - 1  # Stay at last point
+            self._publish_zero_torque()
+            if self.timer is not None:
+                self.timer.cancel()
+                self.timer = None
+            return
         
         # Get reference trajectory at current index
         idx = min(self.traj_idx, self.traj_n - 1)
@@ -694,6 +814,17 @@ class PIDTrajectoryController(Node):
 
             self.last_log_path = path
             self.get_logger().info(f'✓ Log saved: {path}')
+            try:
+                scripts_logs_dir = os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+                    'logs',
+                )
+                os.makedirs(scripts_logs_dir, exist_ok=True)
+                dest = os.path.join(scripts_logs_dir, os.path.basename(path))
+                shutil.copy(path, dest)
+                self.get_logger().info(f'✓ CSV copied to scripts logs: {dest}')
+            except Exception as exc2:
+                self.get_logger().warning(f'Failed to copy CSV to scripts logs: {exc2}')
             return path
         except Exception as exc:
             self.get_logger().error(f'Failed to save log: {exc}')
@@ -844,11 +975,7 @@ class PIDTrajectoryController(Node):
 
     def shutdown(self):
         try:
-            zero = Float64MultiArray()
-            zero.data = [0.0]
-            self.pub1.publish(zero)
-            self.pub2.publish(zero)
-            self.pub3.publish(zero)
+            self._publish_zero_torque()
         except Exception:
             pass
         log_path = self.save_log()
@@ -948,6 +1075,9 @@ def main():
             node.get_logger().error('No joint states received, exiting')
             return
 
+        node.get_logger().info('Running home stabilizer before trajectory tracking')
+        node.stabilize_to_start_pose()
+
         node.get_logger().info('Publishing expected path and starting trajectory tracking')
         try:
             node.publish_expected_path_marker()
@@ -956,6 +1086,8 @@ def main():
         node.start()
         while rclpy.ok():
             rclpy.spin_once(node, timeout_sec=0.1)
+            if node.trajectory_complete and node.timer is None:
+                break
     except KeyboardInterrupt:
         node.get_logger().info('Interrupted by user')
     except Exception as e:

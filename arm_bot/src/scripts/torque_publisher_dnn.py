@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """
-DNN Torque Publisher — Online Inference
+DNN Torque Publisher — Trajectory-First Inference
 Implements τ = τ_dnn(q, q̇, q̈) + Kp·e + Kd·ė + Ki·∫e dt
 
-τ_dnn is predicted ONLINE at every 100 Hz timestep:
-  Step 1 — DeLaN (JAX physics baseline): instant, any timestep
-  Step 2 — GRU residual (PyTorch):       applied once 128-step history is built
-            During the 128-step warmup, DeLaN-only torque is used.
+The DNN feedforward trajectory is precomputed once before execution and then
+injected step-by-step during control:
+    Step 1 — DeLaN (JAX physics baseline): instant, any timestep
+    Step 2 — GRU residual (PyTorch):       applied once 128-step history is built
+                        During the 128-step warmup, DeLaN-only torque is used.
 
 Models are loaded once at startup from DNN_TEST_DIR.
 """
@@ -40,7 +41,7 @@ DNN_TEST_DIR = '/home/priyankan/Desktop/FYP-Puma_560/DNN_test'
 class DNNInferenceEngine:
     """
     Loads DeLaN (JAX/Haiku) and GRU residual (PyTorch) once at construction,
-    then exposes a predict() method for per-timestep online inference.
+    then exposes a predict() method for single-step inference.
     """
 
     SEQ_LEN   = 128
@@ -175,10 +176,14 @@ class DNNInferenceEngine:
         self._buffer = deque(maxlen=self.SEQ_LEN)
         print('  DNNInferenceEngine ready.')
 
+    def reset_rollout_state(self):
+        if self._use_gru:
+            self._buffer.clear()
+
     # ------------------------------------------------------------------ #
     def predict(self, q, qd, qdd):
         """
-        Online per-timestep inference.
+        Single-step inference used during precompute or online fallback.
 
         Parameters
         ----------
@@ -233,22 +238,37 @@ class DNNTorquePublisher(Node):
                  use_feedback=True,
                  use_model=True,
                  use_gru=True,
+                 model_frame='desired',
                  torque_limits=None,
                  vel_filter_alpha=0.25,
+                 timing_warn_ms=2.0,
+                 infer_stride=2,
+                 marker_publish_every=20,
+                 fb_lpf_alpha=0.35,
+                 torque_rate_limit=None,
                  log_path=None):
         super().__init__('dnn_torque_publisher')
 
         self.use_feedback    = use_feedback
         self.use_model       = use_model
         self.use_gru         = use_gru
+        self.model_frame     = model_frame
         self.mode_key, self.mode_label = self._resolve_mode()
         self.vel_filter_alpha = float(np.clip(vel_filter_alpha, 0.0, 1.0))
+        self.timing_warn_ms = float(max(0.0, timing_warn_ms))
+        self.infer_stride = int(max(1, infer_stride))
+        self.marker_publish_every = int(max(1, marker_publish_every))
+        self.fb_lpf_alpha = float(np.clip(fb_lpf_alpha, 0.0, 1.0))
         # self.kp = np.array(kp if kp is not None else [30.0, 80.0, 40.0 ]) #old 5.0, 20.0, 10.0
         # self.kd = np.array(kd if kd is not None else [5.0, 12.0, 8.0 ]) #old 1.0,  3.0,  2.0 
         # self.ki = np.array(ki if ki is not None else [0.5, 1.0, 0.5 ]) #old 0.05, 0.2,  0.1 
-        self.kp = np.array(kp if kp is not None else [ 15.0, 25.0, 13.0 ])
-        self.kd = np.array(kd if kd is not None else [ 2.0,  5.0,  2.5 ])
-        self.ki = np.array(ki if ki is not None else [ 0.1, 0.2,  0.1 ])
+        self.kp = np.array(kp if kp is not None else [20.0, 80.0, 20.0])
+        self.kd = np.array(kd if kd is not None else [3.5, 18.0, 10.0])
+        self.ki = np.array(ki if ki is not None else [0.2, 0.8, 0.1])
+        self.fb_boost = np.array([1.0, 1.4, 1.0])
+        self.torque_rate_limit = np.array(
+            torque_rate_limit if torque_rate_limit is not None else [250.0, 300.0, 220.0]
+        )
         self.torque_limits = np.array(
             torque_limits if torque_limits is not None else [100.0, 100.0, 60.0])
 
@@ -299,8 +319,12 @@ class DNNTorquePublisher(Node):
         self.current_joint_vel = np.zeros(3)
         self.current_joint_efforts = np.zeros(3)  # Sensed torques from Gazebo
         self.joint_states_received  = False
+        self.last_joint_state_wall_t = None
         self.trajectory_active      = False
         self.trajectory_timer       = None
+        self.last_ctrl_wall_t       = None
+        self.deadline_miss_count    = 0
+        self.infer_skip_count       = 0
         self.stabilization_timer    = None
         self.stabilization_complete = False
         self.stabilization_iterations = 0
@@ -319,6 +343,16 @@ class DNNTorquePublisher(Node):
         self.log_data   = []
         self.log_buffer_size = 100
         self.current_path_points = []
+        self.last_tau_dnn = np.zeros(3)
+        self.last_tau_delan = np.zeros(3)
+        self.last_gru_active = False
+        self.prev_tau_fb = np.zeros(3)
+        self.prev_tau_cmd = np.zeros(3)
+        self.model_rollout_precomputed = False
+        self.precomputed_tau_dnn = None
+        self.precomputed_tau_delan = None
+        self.precomputed_gru_active = None
+        self.precomputed_infer_ms = None
 
         self.skip_stabilization_threshold_rad = math.radians(skip_stabilization_threshold_deg)
 
@@ -331,6 +365,18 @@ class DNNTorquePublisher(Node):
             f'Model: {self.use_model}  Feedback: {self.use_feedback}  '
             f'GRU: {self.use_gru}  '
             f'Kp={self.kp.tolist()}  Kd={self.kd.tolist()}  Ki={self.ki.tolist()}')
+        self.get_logger().info(
+            f'Model frame: {self.model_frame} | Timing warn threshold: {self.timing_warn_ms:.2f} ms')
+        self.get_logger().info(
+            f'Infer stride: {self.infer_stride} (1=every step) | Marker publish every {self.marker_publish_every} steps')
+        self.get_logger().info(
+            f'Feedback LPF alpha: {self.fb_lpf_alpha:.2f} | Torque slew limits: {self.torque_rate_limit.tolist()} Nm/s')
+        self.get_logger().info(
+            'Feedforward inference input: desired (q_des, qd_des, qdd_des). '
+            'Feedback uses sensed state errors.')
+        if self.model_frame == 'actual':
+            self.get_logger().warning(
+                'model-frame=actual is enabled; this deviates from pure desired-trajectory feedforward.')
         if self.use_model and self.use_gru:
             self.get_logger().info(f'GRU warmup: first {self.dnn.SEQ_LEN} steps use DeLaN only')
         self.get_logger().info(f'Torque limits: {self.torque_limits.tolist()} Nm')
@@ -495,6 +541,56 @@ class DNNTorquePublisher(Node):
         ordered_modes = ['pid', 'delan', 'dnn', 'pid_delan', 'pid_dnn']
         return [latest[m][1] for m in ordered_modes if m in latest]
 
+    def precompute_model_rollout(self):
+        if not self.use_model or self.dnn is None:
+            return False
+        if self.model_frame != 'desired':
+            self.get_logger().info(
+                'model-frame=actual keeps online inference; cached rollout is only built for desired-frame control.')
+            return False
+
+        self.get_logger().info(
+            f'Precomputing DNN rollout for {self.n_points} trajectory steps...')
+        self.dnn.reset_rollout_state()
+
+        tau_dnn_cache = np.zeros((self.n_points, 3), dtype=np.float64)
+        tau_delan_cache = np.zeros((self.n_points, 3), dtype=np.float64)
+        gru_active_cache = np.zeros(self.n_points, dtype=bool)
+        infer_ms_cache = np.zeros(self.n_points, dtype=np.float64)
+
+        total_t0 = time.perf_counter()
+        try:
+            for idx in range(self.n_points):
+                q_des = np.array([self.dp1[idx], self.dp2[idx], self.dp3[idx]])
+                qd_des = np.array([self.dv1[idx], self.dv2[idx], self.dv3[idx]])
+                qdd_des = np.array([self.da1[idx], self.da2[idx], self.da3[idx]])
+                step_t0 = time.perf_counter()
+                tau_dnn, tau_delan, gru_active = self.dnn.predict(q_des, qd_des, qdd_des)
+                infer_ms_cache[idx] = (time.perf_counter() - step_t0) * 1000.0
+                tau_dnn_cache[idx] = tau_dnn
+                tau_delan_cache[idx] = tau_delan
+                gru_active_cache[idx] = bool(gru_active)
+        except Exception as exc:
+            self.dnn.reset_rollout_state()
+            self.model_rollout_precomputed = False
+            self.precomputed_tau_dnn = None
+            self.precomputed_tau_delan = None
+            self.precomputed_gru_active = None
+            self.precomputed_infer_ms = None
+            self.get_logger().error(f'Failed to precompute DNN rollout: {exc}')
+            return False
+
+        self.precomputed_tau_dnn = tau_dnn_cache
+        self.precomputed_tau_delan = tau_delan_cache
+        self.precomputed_gru_active = gru_active_cache
+        self.precomputed_infer_ms = infer_ms_cache
+        self.model_rollout_precomputed = True
+
+        total_ms = (time.perf_counter() - total_t0) * 1000.0
+        self.get_logger().info(
+            f'✓ Cached DNN rollout ready: {self.n_points} steps in {total_ms/1000.0:.2f}s')
+        return True
+
     # ------------------------------------------------------------------ #
     #  FK for Cartesian path marker (same as CTC)                         #
     # ------------------------------------------------------------------ #
@@ -580,6 +676,7 @@ class DNNTorquePublisher(Node):
                 self.current_joint_efforts = np.array(
                     [msg.effort[i1], msg.effort[i2], msg.effort[i3]])
             self.joint_states_received = True
+            self.last_joint_state_wall_t = time.perf_counter()
         except (ValueError, IndexError):
             pass
 
@@ -647,6 +744,14 @@ class DNNTorquePublisher(Node):
             except subprocess.TimeoutExpired:
                 self.logger_process.kill()
 
+    def _publish_zero_torque(self):
+        self.msg1.data = [0.0]
+        self.msg2.data = [0.0]
+        self.msg3.data = [0.0]
+        self.pub1.publish(self.msg1)
+        self.pub2.publish(self.msg2)
+        self.pub3.publish(self.msg3)
+
     # ------------------------------------------------------------------ #
     #  Log file                                                            #
     # ------------------------------------------------------------------ #
@@ -670,6 +775,11 @@ class DNNTorquePublisher(Node):
                 'e_pos_1',    'e_pos_2',    'e_pos_3',
                 'e_vel_1',    'e_vel_2',    'e_vel_3',
                 'gru_active',                               # 0=warmup, 1=GRU on
+                'infer_ms',
+                'control_dt_ms',
+                'cycle_ms',
+                'joint_state_age_ms',
+                'inference_skipped',
             ])
             self.log_file.flush()
             self.get_logger().info(f'✓ Log: {self.log_path}')
@@ -679,12 +789,19 @@ class DNNTorquePublisher(Node):
             return False
 
     def log_timestep(self, t, q_des, qd_des, qdd_des, q_act, qd_act,
-                     tau_delan, tau_dnn, tau_fb, tau_total, tau_sensed, e_pos, e_vel, gru_active):
+                     tau_delan, tau_dnn, tau_fb, tau_total, tau_sensed, e_pos, e_vel,
+                     gru_active, infer_ms, control_dt_ms, cycle_ms, joint_state_age_ms,
+                     inference_skipped):
         row = [f'{t:.3f}']
         for v in [*q_des, *qd_des, *qdd_des, *q_act, *qd_act,
                   *tau_delan, *tau_dnn, *tau_fb, *tau_total, *tau_sensed, *e_pos, *e_vel]:
             row.append(f'{v:.8f}')
         row.append('1' if gru_active else '0')
+        row.append(f'{infer_ms:.6f}')
+        row.append(f'{control_dt_ms:.6f}')
+        row.append(f'{cycle_ms:.6f}')
+        row.append(f'{joint_state_age_ms:.6f}')
+        row.append('1' if inference_skipped else '0')
         self.log_data.append(row)
         if len(self.log_data) >= self.log_buffer_size:
             self.flush_log()
@@ -715,30 +832,80 @@ class DNNTorquePublisher(Node):
         e_pos = q_des  - self.current_joint_pos
         e_vel = qd_des - self.current_joint_vel
 
-        # Online DNN prediction (DeLaN every step, GRU after warmup if enabled)
+        # Online DNN prediction (DeLaN every step, GRU after warmup if enabled).
+        # Canonical usage is model_frame='desired': infer feedforward on trajectory states,
+        # then correct with feedback from sensed tracking errors.
+        if self.model_frame == 'actual':
+            model_q = self.current_joint_pos
+            model_qd = self.current_joint_vel
+        else:
+            model_q = q_des
+            model_qd = qd_des
+
+        inference_skipped = False
         if self.use_model:
-            tau_dnn, tau_delan, gru_active = self.dnn.predict(q_des, qd_des, qdd_des)
+            if self.model_rollout_precomputed and self.model_frame == 'desired':
+                tau_dnn = self.precomputed_tau_dnn[idx].copy()
+                tau_delan = self.precomputed_tau_delan[idx].copy()
+                gru_active = bool(self.precomputed_gru_active[idx])
+                infer_ms = float(self.precomputed_infer_ms[idx])
+            else:
+                infer_t0 = time.perf_counter()
+                if (self.infer_stride > 1 and idx > 0 and (idx % self.infer_stride) != 0):
+                    # Reuse latest model output when inference is decimated.
+                    tau_dnn = self.last_tau_dnn.copy()
+                    tau_delan = self.last_tau_delan.copy()
+                    gru_active = self.last_gru_active
+                    inference_skipped = True
+                    self.infer_skip_count += 1
+                else:
+                    tau_dnn, tau_delan, gru_active = self.dnn.predict(model_q, model_qd, qdd_des)
+                    self.last_tau_dnn = tau_dnn.copy()
+                    self.last_tau_delan = tau_delan.copy()
+                    self.last_gru_active = bool(gru_active)
+                infer_ms = (time.perf_counter() - infer_t0) * 1000.0
         else:
             tau_dnn = np.zeros(3)
             tau_delan = np.zeros(3)
             gru_active = False
+            infer_ms = 0.0
 
         tau_fb = np.zeros(3)
         if self.use_feedback:
             self.traj_integral_error += e_pos * self.dt
             self.traj_integral_error = np.clip(
                 self.traj_integral_error,
-                -np.array([0.3, 0.5, 0.5]), np.array([0.3, 0.5, 0.5]))
-            tau_fb = (self.kp * e_pos
-                      + self.kd * e_vel
+                -np.array([0.6, 1.2, 0.8]), np.array([0.6, 1.2, 0.8]))
+            tau_fb_raw = ((self.kp * e_pos
+                      + self.kd * e_vel) * self.fb_boost
                       + self.ki * self.traj_integral_error)
-            if not self.use_model:
-                q2, q3 = self.current_joint_pos[1], self.current_joint_pos[2]
-                gravity = np.array([0.0, -44.0 * np.cos(q2), -12.0 * np.cos(q2 + q3)])
-                tau_fb = tau_fb + gravity
 
-        tau_total = np.clip(tau_dnn + tau_fb, -self.torque_limits, self.torque_limits)
-        return tau_dnn, tau_delan, tau_fb, tau_total, q_des, qd_des, qdd_des, e_pos, e_vel, gru_active
+            q2, q3 = self.current_joint_pos[1], self.current_joint_pos[2]
+            gravity = np.array([0.0, -44.0 * np.cos(q2), -12.0 * np.cos(q2 + q3)])
+            if not self.use_model:
+                grav_blend = 1.0
+            else:
+                max_err_deg = math.degrees(float(np.max(np.abs(e_pos))))
+                grav_blend = float(np.clip((max_err_deg - 5.0) / 25.0, 0.0, 0.4))
+            tau_fb_raw = tau_fb_raw + grav_blend * gravity
+
+            # Smooth feedback action to reduce sign-flip oscillations.
+            a_fb = self.fb_lpf_alpha
+            tau_fb = (a_fb * tau_fb_raw) + ((1.0 - a_fb) * self.prev_tau_fb)
+            self.prev_tau_fb = tau_fb.copy()
+
+        tau_cmd_raw = tau_dnn + tau_fb
+
+        # Torque slew-rate limiter (Nm/s) to avoid aggressive command reversals.
+        max_step = self.torque_rate_limit * max(self.dt, 1e-6)
+        delta = np.clip(tau_cmd_raw - self.prev_tau_cmd, -max_step, max_step)
+        tau_total = self.prev_tau_cmd + delta
+        tau_total = np.clip(tau_total, -self.torque_limits, self.torque_limits)
+        self.prev_tau_cmd = tau_total.copy()
+        return (
+            tau_dnn, tau_delan, tau_fb, tau_total,
+            q_des, qd_des, qdd_des, e_pos, e_vel, gru_active, infer_ms, inference_skipped
+        )
 
     # ------------------------------------------------------------------ #
     #  Phase 1: PID stabilisation                                         #
@@ -748,7 +915,8 @@ class DNNTorquePublisher(Node):
         errors  = target - self.current_joint_pos
         max_err = np.max(np.abs(errors))
 
-        if max_err < 0.0000035:
+        # if max_err < 0.0000035: math.radians(float(settle_tolerance_deg))
+        if max_err < math.radians(float(0.05)):
             self.get_logger().info(
                 f'✓ Start position reached. Max error: {math.degrees(max_err):.6f}°')
             if self.stabilization_timer:
@@ -795,10 +963,24 @@ class DNNTorquePublisher(Node):
     #  Phase 2: DNN trajectory execution                                  #
     # ------------------------------------------------------------------ #
     def trajectory_callback(self):
+        cb_start = time.perf_counter()
+        if self.last_ctrl_wall_t is None:
+            control_dt_ms = self.dt * 1000.0
+        else:
+            control_dt_ms = (cb_start - self.last_ctrl_wall_t) * 1000.0
+        self.last_ctrl_wall_t = cb_start
+
+        if self.last_joint_state_wall_t is None:
+            joint_state_age_ms = -1.0
+        else:
+            joint_state_age_ms = (cb_start - self.last_joint_state_wall_t) * 1000.0
+
         if self.current_idx >= self.n_points:
             self.get_logger().info('=' * 80)
             self.get_logger().info('TRAJECTORY EXECUTION COMPLETED')
             self.get_logger().info('=' * 80)
+            # Soft-stop immediately to avoid drawing a small tail after trajectory end.
+            self._publish_zero_torque()
             if self.trajectory_timer:
                 self.trajectory_timer.cancel()
             self.trajectory_active = False
@@ -806,7 +988,7 @@ class DNNTorquePublisher(Node):
 
         try:
             (tau_dnn, tau_delan, tau_fb, tau_total,
-             q_des, qd_des, qdd_des, e_pos, e_vel, gru_active) = \
+             q_des, qd_des, qdd_des, e_pos, e_vel, gru_active, infer_ms, inference_skipped) = \
                 self.compute_torques(self.current_idx)
         except Exception as e:
             self.get_logger().error(f'Torque error at idx {self.current_idx}: {e}')
@@ -818,6 +1000,8 @@ class DNNTorquePublisher(Node):
             e_pos   = q_des - self.current_joint_pos
             e_vel   = qd_des - self.current_joint_vel
             gru_active = False
+            infer_ms = 0.0
+            inference_skipped = False
 
         self.msg1.data = [tau_total[0]]
         self.msg2.data = [tau_total[1]]
@@ -826,16 +1010,26 @@ class DNNTorquePublisher(Node):
         self.pub2.publish(self.msg2)
         self.pub3.publish(self.msg3)
 
-        self.current_path_points.append(self._fk_tip_world(*self.current_joint_pos))
-        self.publish_current_path_marker()
+        # Keep the live trace focused on the active trajectory only.
+        if self.trajectory_active and self.current_idx < self.n_points - 1:
+            self.current_path_points.append(self._fk_tip_world(*self.current_joint_pos))
+        if self.trajectory_active and self.current_idx % self.marker_publish_every == 0:
+            self.publish_current_path_marker()
 
         if self.log_writer:
+            cycle_ms = (time.perf_counter() - cb_start) * 1000.0
             self.log_timestep(
                 self.time_data[self.current_idx],
                 q_des, qd_des, qdd_des,
                 self.current_joint_pos, self.current_joint_vel,
                 tau_delan, tau_dnn, tau_fb, tau_total, self.current_joint_efforts,
-                e_pos, e_vel, gru_active)
+                e_pos, e_vel, gru_active,
+                infer_ms, control_dt_ms, cycle_ms, joint_state_age_ms, inference_skipped)
+        else:
+            cycle_ms = (time.perf_counter() - cb_start) * 1000.0
+
+        if cycle_ms > (self.dt * 1000.0 + self.timing_warn_ms):
+            self.deadline_miss_count += 1
 
         self.current_idx += 1
 
@@ -851,7 +1045,10 @@ class DNNTorquePublisher(Node):
                 f't={self.time_data[self.current_idx]:.1f}s | '
                 f'idx={self.current_idx}/{self.n_points} | '
                 f'τ=[{tau_total[0]:.1f},{tau_total[1]:.1f},{tau_total[2]:.1f}] Nm | '
-                f'err={max_err_deg:.2f}° | {gru_label}')
+                f'err={max_err_deg:.2f}° | {gru_label} | '
+                f'infer={infer_ms:.2f}ms dt={control_dt_ms:.2f}ms '
+                f'age={joint_state_age_ms:.2f}ms miss={self.deadline_miss_count} '
+                f'skip={self.infer_skip_count}')
 
     # ------------------------------------------------------------------ #
     #  Main run sequence                                                   #
@@ -906,16 +1103,25 @@ class DNNTorquePublisher(Node):
 
         self.publish_expected_path_marker()
 
+        if self.use_model:
+            self.precompute_model_rollout()
+
         self.get_logger().info('=' * 80)
         if not self.use_model:
             phase2_label = 'PHASE 2: TRAJECTORY EXECUTION (PID feedback)'
+        elif self.model_rollout_precomputed:
+            phase2_label = 'PHASE 2: DNN TRAJECTORY EXECUTION (cached rollout)'
         elif self.use_gru:
             phase2_label = 'PHASE 2: DNN TRAJECTORY EXECUTION (online inference)'
         else:
             phase2_label = 'PHASE 2: DeLaN TRAJECTORY EXECUTION'
         self.get_logger().info(phase2_label)
         self.get_logger().info('=' * 80)
-        if self.use_model and self.use_gru:
+        if self.use_model and self.model_rollout_precomputed:
+            self.get_logger().info(
+                f'{self.n_points} steps | dt={self.dt*1000:.1f}ms | '
+                f'cached DNN rollout injected step-by-step')
+        elif self.use_model and self.use_gru:
             self.get_logger().info(
                 f'{self.n_points} steps | dt={self.dt*1000:.1f}ms | '
                 f'GRU active after step {self.dnn.SEQ_LEN}')
@@ -935,17 +1141,19 @@ class DNNTorquePublisher(Node):
         self.current_idx         = 0
         self.traj_integral_error = np.zeros(3)
         self.current_path_points = []
+        self.prev_tau_fb = np.zeros(3)
+        self.prev_tau_cmd = np.zeros(3)
         self.trajectory_active   = True
         self.trajectory_timer    = self.create_timer(self.dt, self.trajectory_callback)
 
         while self.trajectory_active and rclpy.ok():
             rclpy.spin_once(self, timeout_sec=0.001)
 
-        time.sleep(0.1)
+        # Ensure the robot is not held by the last command while logger is still active.
+        self._publish_zero_torque()
         if self.logger_stop_client:
             self.stop_logger()
         self.close_log_file()
-        time.sleep(0.1)
         self.get_logger().info(f'Done. Log: {self.log_path}')
 
 
@@ -976,11 +1184,23 @@ def main(args=None):
         default=None,
         help='Control test mode: pid-only, delan-only, dnn, pid-delan, or pid-dnn')
     parser.add_argument('--kp',  type=float, nargs=3, default=None,
-                        help='Feedback Kp [j1 j2 j3] (default: 5 20 10)')
+                        help='Feedback Kp [j1 j2 j3] (default: 20 85 24)')
     parser.add_argument('--kd',  type=float, nargs=3, default=None,
-                        help='Feedback Kd [j1 j2 j3] (default: 1 3 2)')
+                        help='Feedback Kd [j1 j2 j3] (default: 3.5 18 8)')
     parser.add_argument('--ki',  type=float, nargs=3, default=None,
-                        help='Feedback Ki [j1 j2 j3] (default: 0.05 0.2 0.1)')
+                        help='Feedback Ki [j1 j2 j3] (default: 0.2 0.8 0.1)')
+    parser.add_argument('--model-frame', type=str, choices=['actual', 'desired'], default='desired',
+                        help='State used as DNN input q,qd (default: desired)')
+    parser.add_argument('--timing-warn-ms', type=float, default=2.0,
+                        help='Warn budget above dt for control cycle deadline misses (default: 2.0)')
+    parser.add_argument('--infer-stride', type=int, default=2,
+                        help='Run DNN inference every N control steps and reuse last output in between (default: 2)')
+    parser.add_argument('--marker-publish-every', type=int, default=20,
+                        help='Publish current trajectory marker every N steps to reduce callback load (default: 20)')
+    parser.add_argument('--fb-lpf-alpha', type=float, default=0.35,
+                        help='Low-pass alpha for feedback torque smoothing in [0,1] (default: 0.35)')
+    parser.add_argument('--torque-rate-limit', type=float, nargs=3, default=None,
+                        help='Torque slew limits [j1 j2 j3] in Nm/s (default: 250 300 220)')
     parser.add_argument('--torque-limits', type=float, nargs=3, default=None,
                         help='Torque limits Nm (default: 100 100 60)')
     parser.add_argument('--vel-filter-alpha', type=float, default=0.25,
@@ -1020,8 +1240,14 @@ def main(args=None):
         use_feedback=use_feedback,
         use_model=use_model,
         use_gru=use_gru,
+        model_frame=parsed.model_frame,
         torque_limits=parsed.torque_limits,
         vel_filter_alpha=parsed.vel_filter_alpha,
+        timing_warn_ms=parsed.timing_warn_ms,
+        infer_stride=parsed.infer_stride,
+        marker_publish_every=parsed.marker_publish_every,
+        fb_lpf_alpha=parsed.fb_lpf_alpha,
+        torque_rate_limit=parsed.torque_rate_limit,
         log_path=parsed.log_path,
     )
     try:

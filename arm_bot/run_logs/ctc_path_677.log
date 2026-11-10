@@ -1,0 +1,302 @@
+[INFO] [1778153307.253065261] [torque_publisher]: ================================================================================
+[INFO] [1778153307.253604942] [torque_publisher]: COMPUTED TORQUE CONTROL PUBLISHER - COMPUTED TORQUE CONTROL
+[INFO] [1778153307.254007717] [torque_publisher]: ================================================================================
+[INFO] [1778153307.254384483] [torque_publisher]: Loaded 1601 trajectory points
+[INFO] [1778153307.254752913] [torque_publisher]: Trajectory duration: 16.00s
+[INFO] [1778153307.255054559] [torque_publisher]: Control frequency: 100 Hz (dt=0.0100s)
+[INFO] [1778153307.255341987] [torque_publisher]: Initial target: [0.0000, 0.7854, 2.3562] rad
+[INFO] [1778153307.255614999] [torque_publisher]: Control law: τ = D(q) * (q̈_des + Kp*e + Kd*ė + Ki*∫e) + C(q,q̇) + G(q)
+[INFO] [1778153307.255907116] [torque_publisher]: Model-based control: True
+[INFO] [1778153307.256184286] [torque_publisher]: Feedback control: True
+[INFO] [1778153307.256453170] [torque_publisher]: Dynamics frame: actual (state used for D,C,G evaluation)
+[INFO] [1778153307.256737502] [torque_publisher]: Control gains (acceleration-domain): Kp=[10.0, 40.0, 45.0], Kd=[2.0, 15.0, 18.0], Ki=[0.05, 0.12, 0.1]
+[INFO] [1778153307.257018779] [torque_publisher]: Torque limits: [100.0, 100.0, 60.0] Nm
+[INFO] [1778153307.257291160] [torque_publisher]: Velocity filter alpha: 0.250
+[INFO] [1778153307.257580943] [torque_publisher]: Logging to: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_677_joint_states_ctc_log_1.csv
+[INFO] [1778153307.257865015] [torque_publisher]: Skip stabilization threshold: 1.000 deg (0.017453 rad)
+[INFO] [1778153307.258140431] [torque_publisher]: Waiting for joint states...
+[INFO] [1778153307.259264117] [torque_publisher]: Current position: [1.6739, -3.9270, 0.7809] rad
+[INFO] [1778153307.259673765] [torque_publisher]: ================================================================================
+[INFO] [1778153307.260003282] [torque_publisher]: PHASE 1: STABILIZATION (Moving to initial position)
+[INFO] [1778153307.260337078] [torque_publisher]: ================================================================================
+[INFO] [1778153307.260653390] [torque_publisher]: Target: 0.5° convergence with full PID + gravity compensation
+[INFO] [1778153307.261049653] [torque_publisher]: Initial max error: 270.0000 deg > threshold 1.0000 deg
+[INFO] [1778153307.761718726] [torque_publisher]:   t=0.5s | Error: [-48.46675°, 228.61705°, 37.09719°] | Max: 228.61705°
+[INFO] [1778153308.261826197] [torque_publisher]:   t=1.0s | Error: [7.27828°, 171.32122°, -0.60483°] | Max: 171.32122°
+[INFO] [1778153308.761772295] [torque_publisher]:   t=1.5s | Error: [22.31655°, 114.02540°, -4.72351°] | Max: 114.02540°
+[INFO] [1778153309.261817398] [torque_publisher]:   t=2.0s | Error: [6.19169°, 56.72957°, -8.91604°] | Max: 56.72957°
+[INFO] [1778153309.761769527] [torque_publisher]:   t=2.5s | Error: [-2.76872°, 0.83531°, -9.42041°] | Max: 9.42041°
+[INFO] [1778153310.261990719] [torque_publisher]:   t=3.0s | Error: [-3.33787°, -7.22668°, -7.32358°] | Max: 7.32358°
+[INFO] [1778153310.762151959] [torque_publisher]:   t=3.5s | Error: [1.49646°, -2.51783°, -6.69061°] | Max: 6.69061°
+[INFO] [1778153311.262203833] [torque_publisher]:   t=4.0s | Error: [3.19692°, -3.64344°, -6.52562°] | Max: 6.52562°
+[INFO] [1778153311.762172642] [torque_publisher]:   t=4.5s | Error: [1.32264°, -3.19684°, -6.05778°] | Max: 6.05778°
+[INFO] [1778153312.262122835] [torque_publisher]:   t=5.0s | Error: [0.37936°, -3.08308°, -5.72182°] | Max: 5.72182°
+[INFO] [1778153312.761858465] [torque_publisher]:   t=5.5s | Error: [0.80936°, -2.87976°, -5.36690°] | Max: 5.36690°
+[INFO] [1778153313.261846078] [torque_publisher]:   t=6.0s | Error: [1.18164°, -2.69348°, -5.04404°] | Max: 5.04404°
+[INFO] [1778153313.761777565] [torque_publisher]:   t=6.5s | Error: [1.03355°, -2.54354°, -4.74292°] | Max: 4.74292°
+[INFO] [1778153314.262121525] [torque_publisher]:   t=7.0s | Error: [0.81139°, -2.40013°, -4.45830°] | Max: 4.45830°
+[INFO] [1778153314.762147007] [torque_publisher]:   t=7.5s | Error: [0.77188°, -2.25861°, -4.18937°] | Max: 4.18937°
+[INFO] [1778153315.262058286] [torque_publisher]:   t=8.0s | Error: [0.79703°, -2.12383°, -3.93654°] | Max: 3.93654°
+[INFO] [1778153315.761962290] [torque_publisher]:   t=8.5s | Error: [0.76903°, -1.99938°, -3.69936°] | Max: 3.69936°
+[INFO] [1778153316.262042885] [torque_publisher]:   t=9.0s | Error: [0.70913°, -1.88321°, -3.47639°] | Max: 3.47639°
+[INFO] [1778153316.761916110] [torque_publisher]:   t=9.5s | Error: [0.66518°, -1.77315°, -3.26655°] | Max: 3.26655°
+[INFO] [1778153317.261850981] [torque_publisher]:   t=10.0s | Error: [0.63837°, -1.66904°, -3.06921°] | Max: 3.06921°
+[INFO] [1778153317.762432974] [torque_publisher]:   t=10.5s | Error: [0.61093°, -1.57119°, -2.88376°] | Max: 2.88376°
+[INFO] [1778153318.262146259] [torque_publisher]:   t=11.0s | Error: [0.57890°, -1.47929°, -2.70946°] | Max: 2.70946°
+[INFO] [1778153318.762205002] [torque_publisher]:   t=11.5s | Error: [0.54804°, -1.39275°, -2.54561°] | Max: 2.54561°
+[INFO] [1778153319.262070120] [torque_publisher]:   t=12.0s | Error: [0.52087°, -1.31119°, -2.39158°] | Max: 2.39158°
+[INFO] [1778153319.762159189] [torque_publisher]:   t=12.5s | Error: [0.49564°, -1.23440°, -2.24683°] | Max: 2.24683°
+[INFO] [1778153320.261939879] [torque_publisher]:   t=13.0s | Error: [0.47098°, -1.16213°, -2.11079°] | Max: 2.11079°
+[INFO] [1778153320.761773137] [torque_publisher]:   t=13.5s | Error: [0.44719°, -1.09410°, -1.98294°] | Max: 1.98294°
+[INFO] [1778153321.262351802] [torque_publisher]:   t=14.0s | Error: [0.42478°, -1.03004°, -1.86280°] | Max: 1.86280°
+[INFO] [1778153321.762274567] [torque_publisher]:   t=14.5s | Error: [0.40367°, -0.96974°, -1.74990°] | Max: 1.74990°
+[INFO] [1778153322.262335731] [torque_publisher]:   t=15.0s | Error: [0.38356°, -0.91294°, -1.64382°] | Max: 1.64382°
+[INFO] [1778153322.762143470] [torque_publisher]:   t=15.5s | Error: [0.36439°, -0.85948°, -1.54413°] | Max: 1.54413°
+[INFO] [1778153323.261837395] [torque_publisher]:   t=16.0s | Error: [0.34618°, -0.80914°, -1.45048°] | Max: 1.45048°
+[INFO] [1778153323.761736174] [torque_publisher]:   t=16.5s | Error: [0.32890°, -0.76175°, -1.36248°] | Max: 1.36248°
+[INFO] [1778153324.261720583] [torque_publisher]:   t=17.0s | Error: [0.31250°, -0.71713°, -1.27981°] | Max: 1.27981°
+[INFO] [1778153324.761834986] [torque_publisher]:   t=17.5s | Error: [0.29690°, -0.67512°, -1.20214°] | Max: 1.20214°
+[INFO] [1778153325.262054154] [torque_publisher]:   t=18.0s | Error: [0.28207°, -0.63557°, -1.12916°] | Max: 1.12916°
+[INFO] [1778153325.761840941] [torque_publisher]:   t=18.5s | Error: [0.26799°, -0.59833°, -1.06061°] | Max: 1.06061°
+[INFO] [1778153326.262454308] [torque_publisher]:   t=19.0s | Error: [0.25462°, -0.56327°, -0.99621°] | Max: 0.99621°
+[INFO] [1778153326.762035179] [torque_publisher]:   t=19.5s | Error: [0.24191°, -0.53026°, -0.93571°] | Max: 0.93571°
+[INFO] [1778153327.262058449] [torque_publisher]:   t=20.0s | Error: [0.22983°, -0.49918°, -0.87888°] | Max: 0.87888°
+[INFO] [1778153327.761990377] [torque_publisher]:   t=20.5s | Error: [0.21836°, -0.46992°, -0.82549°] | Max: 0.82549°
+[INFO] [1778153328.261945368] [torque_publisher]:   t=21.0s | Error: [0.20746°, -0.44238°, -0.77535°] | Max: 0.77535°
+[INFO] [1778153328.762077942] [torque_publisher]:   t=21.5s | Error: [0.19711°, -0.41644°, -0.72824°] | Max: 0.72824°
+[INFO] [1778153329.262053020] [torque_publisher]:   t=22.0s | Error: [0.18727°, -0.39203°, -0.68399°] | Max: 0.68399°
+[INFO] [1778153329.762318983] [torque_publisher]:   t=22.5s | Error: [0.17792°, -0.36904°, -0.64243°] | Max: 0.64243°
+[INFO] [1778153330.262534371] [torque_publisher]:   t=23.0s | Error: [0.16904°, -0.34740°, -0.60339°] | Max: 0.60339°
+[INFO] [1778153330.761851815] [torque_publisher]:   t=23.5s | Error: [0.16060°, -0.32702°, -0.56672°] | Max: 0.56672°
+[INFO] [1778153331.262135220] [torque_publisher]:   t=24.0s | Error: [0.15259°, -0.30784°, -0.53227°] | Max: 0.53227°
+[INFO] [1778153331.761856501] [torque_publisher]:   t=24.5s | Error: [0.14497°, -0.28977°, -0.49992°] | Max: 0.49992°
+[INFO] [1778153332.261871792] [torque_publisher]:   t=25.0s | Error: [0.13774°, -0.27277°, -0.46954°] | Max: 0.46954°
+[INFO] [1778153332.761728947] [torque_publisher]:   t=25.5s | Error: [0.13086°, -0.25677°, -0.44099°] | Max: 0.44099°
+[INFO] [1778153333.261775947] [torque_publisher]:   t=26.0s | Error: [0.12433°, -0.24170°, -0.41419°] | Max: 0.41419°
+[INFO] [1778153333.761847864] [torque_publisher]:   t=26.5s | Error: [0.11812°, -0.22751°, -0.38901°] | Max: 0.38901°
+[INFO] [1778153334.262120116] [torque_publisher]:   t=27.0s | Error: [0.11223°, -0.21416°, -0.36536°] | Max: 0.36536°
+[INFO] [1778153334.761725587] [torque_publisher]:   t=27.5s | Error: [0.10663°, -0.20158°, -0.34315°] | Max: 0.34315°
+[INFO] [1778153335.261811559] [torque_publisher]:   t=28.0s | Error: [0.10131°, -0.18975°, -0.32229°] | Max: 0.32229°
+[INFO] [1778153335.761908582] [torque_publisher]:   t=28.5s | Error: [0.09625°, -0.17860°, -0.30270°] | Max: 0.30270°
+[INFO] [1778153336.261979034] [torque_publisher]:   t=29.0s | Error: [0.09145°, -0.16811°, -0.28430°] | Max: 0.28430°
+[INFO] [1778153336.761866974] [torque_publisher]:   t=29.5s | Error: [0.08688°, -0.15824°, -0.26701°] | Max: 0.26701°
+[INFO] [1778153337.262096133] [torque_publisher]:   t=30.0s | Error: [0.08255°, -0.14894°, -0.25078°] | Max: 0.25078°
+[INFO] [1778153337.762359085] [torque_publisher]:   t=30.5s | Error: [0.07843°, -0.14019°, -0.23554°] | Max: 0.23554°
+[INFO] [1778153338.262403066] [torque_publisher]:   t=31.0s | Error: [0.07451°, -0.13196°, -0.22122°] | Max: 0.22122°
+[INFO] [1778153338.762127458] [torque_publisher]:   t=31.5s | Error: [0.07079°, -0.12420°, -0.20777°] | Max: 0.20777°
+[INFO] [1778153339.261961495] [torque_publisher]:   t=32.0s | Error: [0.06726°, -0.11690°, -0.19514°] | Max: 0.19514°
+[INFO] [1778153339.762285560] [torque_publisher]:   t=32.5s | Error: [0.06390°, -0.11003°, -0.18328°] | Max: 0.18328°
+[INFO] [1778153340.261787825] [torque_publisher]:   t=33.0s | Error: [0.06071°, -0.10356°, -0.17214°] | Max: 0.17214°
+[INFO] [1778153340.761826815] [torque_publisher]:   t=33.5s | Error: [0.05768°, -0.09747°, -0.16167°] | Max: 0.16167°
+[INFO] [1778153341.261878519] [torque_publisher]:   t=34.0s | Error: [0.05481°, -0.09174°, -0.15184°] | Max: 0.15184°
+[INFO] [1778153341.761825486] [torque_publisher]:   t=34.5s | Error: [0.05207°, -0.08634°, -0.14261°] | Max: 0.14261°
+[INFO] [1778153342.261819802] [torque_publisher]:   t=35.0s | Error: [0.04947°, -0.08127°, -0.13395°] | Max: 0.13395°
+[INFO] [1778153342.761887043] [torque_publisher]:   t=35.5s | Error: [0.04700°, -0.07649°, -0.12580°] | Max: 0.12580°
+[INFO] [1778153343.261757416] [torque_publisher]:   t=36.0s | Error: [0.04466°, -0.07199°, -0.11816°] | Max: 0.11816°
+[INFO] [1778153343.761955452] [torque_publisher]:   t=36.5s | Error: [0.04243°, -0.06775°, -0.11098°] | Max: 0.11098°
+[INFO] [1778153344.261745664] [torque_publisher]:   t=37.0s | Error: [0.04031°, -0.06376°, -0.10423°] | Max: 0.10423°
+[INFO] [1778153344.761767971] [torque_publisher]:   t=37.5s | Error: [0.03830°, -0.06001°, -0.09790°] | Max: 0.09790°
+[INFO] [1778153345.261803251] [torque_publisher]:   t=38.0s | Error: [0.03639°, -0.05648°, -0.09195°] | Max: 0.09195°
+[INFO] [1778153345.761835595] [torque_publisher]:   t=38.5s | Error: [0.03457°, -0.05315°, -0.08636°] | Max: 0.08636°
+[INFO] [1778153346.262291483] [torque_publisher]:   t=39.0s | Error: [0.03285°, -0.05002°, -0.08111°] | Max: 0.08111°
+[INFO] [1778153346.762000451] [torque_publisher]:   t=39.5s | Error: [0.03121°, -0.04708°, -0.07618°] | Max: 0.07618°
+[INFO] [1778153347.262090392] [torque_publisher]:   t=40.0s | Error: [0.02965°, -0.04431°, -0.07156°] | Max: 0.07156°
+[INFO] [1778153347.762087009] [torque_publisher]:   t=40.5s | Error: [0.02817°, -0.04170°, -0.06721°] | Max: 0.06721°
+[INFO] [1778153348.262306182] [torque_publisher]:   t=41.0s | Error: [0.02676°, -0.03924°, -0.06312°] | Max: 0.06312°
+[INFO] [1778153348.762213770] [torque_publisher]:   t=41.5s | Error: [0.02543°, -0.03693°, -0.05929°] | Max: 0.05929°
+[INFO] [1778153349.262282601] [torque_publisher]:   t=42.0s | Error: [0.02416°, -0.03475°, -0.05569°] | Max: 0.05569°
+[INFO] [1778153349.761814465] [torque_publisher]:   t=42.5s | Error: [0.02295°, -0.03271°, -0.05230°] | Max: 0.05230°
+[INFO] [1778153350.121662634] [torque_publisher]: ✓ Initial position reached! Max error: 0.049996°
+[INFO] [1778153350.122070989] [torque_publisher]: Holding position for 1 second...
+[INFO] [1778153350.132963760] [torque_publisher]: ✓ Initial position reached! Max error: 0.049934°
+[INFO] [1778153350.142842151] [torque_publisher]: ✓ Initial position reached! Max error: 0.049871°
+[INFO] [1778153350.152696316] [torque_publisher]: ✓ Initial position reached! Max error: 0.049809°
+[INFO] [1778153350.162774802] [torque_publisher]: ✓ Initial position reached! Max error: 0.049747°
+[INFO] [1778153350.172921144] [torque_publisher]: ✓ Initial position reached! Max error: 0.049623°
+[INFO] [1778153350.183025097] [torque_publisher]: ✓ Initial position reached! Max error: 0.049623°
+[INFO] [1778153350.193052517] [torque_publisher]: ✓ Initial position reached! Max error: 0.049502°
+[INFO] [1778153350.203178271] [torque_publisher]: ✓ Initial position reached! Max error: 0.049502°
+[INFO] [1778153350.212718408] [torque_publisher]: ✓ Initial position reached! Max error: 0.049441°
+[INFO] [1778153350.223089502] [torque_publisher]: ✓ Initial position reached! Max error: 0.049382°
+[INFO] [1778153350.233041731] [torque_publisher]: ✓ Initial position reached! Max error: 0.049322°
+[INFO] [1778153350.243031229] [torque_publisher]: ✓ Initial position reached! Max error: 0.049264°
+[INFO] [1778153350.252833918] [torque_publisher]: ✓ Initial position reached! Max error: 0.049206°
+[INFO] [1778153350.262760559] [torque_publisher]: ✓ Initial position reached! Max error: 0.049149°
+[INFO] [1778153350.273011407] [torque_publisher]: ✓ Initial position reached! Max error: 0.049092°
+[INFO] [1778153350.282811672] [torque_publisher]: ✓ Initial position reached! Max error: 0.049036°
+[INFO] [1778153350.293344949] [torque_publisher]: ✓ Initial position reached! Max error: 0.048981°
+[INFO] [1778153350.302708114] [torque_publisher]: ✓ Initial position reached! Max error: 0.048927°
+[INFO] [1778153350.312981074] [torque_publisher]: ✓ Initial position reached! Max error: 0.048874°
+[INFO] [1778153350.322812056] [torque_publisher]: ✓ Initial position reached! Max error: 0.048821°
+[INFO] [1778153350.332614524] [torque_publisher]: ✓ Initial position reached! Max error: 0.048770°
+[INFO] [1778153350.342878407] [torque_publisher]: ✓ Initial position reached! Max error: 0.048720°
+[INFO] [1778153350.352614551] [torque_publisher]: ✓ Initial position reached! Max error: 0.048670°
+[INFO] [1778153350.362649074] [torque_publisher]: ✓ Initial position reached! Max error: 0.048622°
+[INFO] [1778153350.372677035] [torque_publisher]: ✓ Initial position reached! Max error: 0.048574°
+[INFO] [1778153350.383020166] [torque_publisher]: ✓ Initial position reached! Max error: 0.048528°
+[INFO] [1778153350.392700656] [torque_publisher]: ✓ Initial position reached! Max error: 0.048483°
+[INFO] [1778153350.402693100] [torque_publisher]: ✓ Initial position reached! Max error: 0.048439°
+[INFO] [1778153350.413212121] [torque_publisher]: ✓ Initial position reached! Max error: 0.048396°
+[INFO] [1778153350.422786983] [torque_publisher]: ✓ Initial position reached! Max error: 0.048354°
+[INFO] [1778153350.433352441] [torque_publisher]: ✓ Initial position reached! Max error: 0.048313°
+[INFO] [1778153350.442827366] [torque_publisher]: ✓ Initial position reached! Max error: 0.048274°
+[INFO] [1778153350.452721876] [torque_publisher]: ✓ Initial position reached! Max error: 0.048236°
+[INFO] [1778153350.462736903] [torque_publisher]: ✓ Initial position reached! Max error: 0.048199°
+[INFO] [1778153350.472622196] [torque_publisher]: ✓ Initial position reached! Max error: 0.048164°
+[INFO] [1778153350.483340942] [torque_publisher]: ✓ Initial position reached! Max error: 0.048130°
+[INFO] [1778153350.492870008] [torque_publisher]: ✓ Initial position reached! Max error: 0.048097°
+[INFO] [1778153350.503311413] [torque_publisher]: ✓ Initial position reached! Max error: 0.048065°
+[INFO] [1778153350.512799773] [torque_publisher]: ✓ Initial position reached! Max error: 0.048035°
+[INFO] [1778153350.523450010] [torque_publisher]: ✓ Initial position reached! Max error: 0.048006°
+[INFO] [1778153350.533049718] [torque_publisher]: ✓ Initial position reached! Max error: 0.047979°
+[INFO] [1778153350.543096865] [torque_publisher]: ✓ Initial position reached! Max error: 0.047953°
+[INFO] [1778153350.552953374] [torque_publisher]: ✓ Initial position reached! Max error: 0.047928°
+[INFO] [1778153350.562734863] [torque_publisher]: ✓ Initial position reached! Max error: 0.047905°
+[INFO] [1778153350.573303677] [torque_publisher]: ✓ Initial position reached! Max error: 0.047883°
+[INFO] [1778153350.582797367] [torque_publisher]: ✓ Initial position reached! Max error: 0.047862°
+[INFO] [1778153350.593578840] [torque_publisher]: ✓ Initial position reached! Max error: 0.047843°
+[INFO] [1778153350.602810719] [torque_publisher]: ✓ Initial position reached! Max error: 0.047825°
+[INFO] [1778153350.613203313] [torque_publisher]: ✓ Initial position reached! Max error: 0.047809°
+[INFO] [1778153350.623005110] [torque_publisher]: ✓ Initial position reached! Max error: 0.047794°
+[INFO] [1778153350.632719052] [torque_publisher]: ✓ Initial position reached! Max error: 0.047781°
+[INFO] [1778153350.642945946] [torque_publisher]: ✓ Initial position reached! Max error: 0.047769°
+[INFO] [1778153350.652709962] [torque_publisher]: ✓ Initial position reached! Max error: 0.047758°
+[INFO] [1778153350.663107706] [torque_publisher]: ✓ Initial position reached! Max error: 0.047749°
+[INFO] [1778153350.672714097] [torque_publisher]: ✓ Initial position reached! Max error: 0.047741°
+[INFO] [1778153350.682993248] [torque_publisher]: ✓ Initial position reached! Max error: 0.047734°
+[INFO] [1778153350.692867531] [torque_publisher]: ✓ Initial position reached! Max error: 0.047729°
+[INFO] [1778153350.703025736] [torque_publisher]: ✓ Initial position reached! Max error: 0.047726°
+[INFO] [1778153350.712895380] [torque_publisher]: ✓ Initial position reached! Max error: 0.047723°
+[INFO] [1778153350.722745137] [torque_publisher]: ✓ Initial position reached! Max error: 0.047722°
+[INFO] [1778153350.732985406] [torque_publisher]: ✓ Initial position reached! Max error: 0.047723°
+[INFO] [1778153350.742802762] [torque_publisher]: ✓ Initial position reached! Max error: 0.047724°
+[INFO] [1778153350.753293289] [torque_publisher]: ✓ Initial position reached! Max error: 0.047727°
+[INFO] [1778153350.762750631] [torque_publisher]: ✓ Initial position reached! Max error: 0.047732°
+[INFO] [1778153350.772894168] [torque_publisher]: ✓ Initial position reached! Max error: 0.047737°
+[INFO] [1778153350.783067762] [torque_publisher]: ✓ Initial position reached! Max error: 0.047744°
+[INFO] [1778153350.792714979] [torque_publisher]: ✓ Initial position reached! Max error: 0.047752°
+[INFO] [1778153350.803189667] [torque_publisher]: ✓ Initial position reached! Max error: 0.047762°
+[INFO] [1778153350.812829761] [torque_publisher]: ✓ Initial position reached! Max error: 0.047772°
+[INFO] [1778153350.823056675] [torque_publisher]: ✓ Initial position reached! Max error: 0.047784°
+[INFO] [1778153350.832726455] [torque_publisher]: ✓ Initial position reached! Max error: 0.047797°
+[INFO] [1778153350.843080737] [torque_publisher]: ✓ Initial position reached! Max error: 0.047811°
+[INFO] [1778153350.853232369] [torque_publisher]: ✓ Initial position reached! Max error: 0.047826°
+[INFO] [1778153350.863155233] [torque_publisher]: ✓ Initial position reached! Max error: 0.047843°
+[INFO] [1778153350.873140885] [torque_publisher]: ✓ Initial position reached! Max error: 0.047860°
+[INFO] [1778153350.882808060] [torque_publisher]: ✓ Initial position reached! Max error: 0.047879°
+[INFO] [1778153350.893201996] [torque_publisher]: ✓ Initial position reached! Max error: 0.047898°
+[INFO] [1778153350.903004925] [torque_publisher]: ✓ Initial position reached! Max error: 0.047919°
+[INFO] [1778153350.912961933] [torque_publisher]: ✓ Initial position reached! Max error: 0.047941°
+[INFO] [1778153350.922843580] [torque_publisher]: ✓ Initial position reached! Max error: 0.047963°
+[INFO] [1778153350.933035488] [torque_publisher]: ✓ Initial position reached! Max error: 0.047987°
+[INFO] [1778153350.942902096] [torque_publisher]: ✓ Initial position reached! Max error: 0.048012°
+[INFO] [1778153350.953056644] [torque_publisher]: ✓ Initial position reached! Max error: 0.048037°
+[INFO] [1778153350.963164074] [torque_publisher]: ✓ Initial position reached! Max error: 0.048063°
+[INFO] [1778153350.972863720] [torque_publisher]: ✓ Initial position reached! Max error: 0.048090°
+[INFO] [1778153350.982865010] [torque_publisher]: ✓ Initial position reached! Max error: 0.048118°
+[INFO] [1778153350.992928568] [torque_publisher]: ✓ Initial position reached! Max error: 0.048147°
+[INFO] [1778153351.002809343] [torque_publisher]: ✓ Initial position reached! Max error: 0.048177°
+[INFO] [1778153351.012787540] [torque_publisher]: ✓ Initial position reached! Max error: 0.048207°
+[INFO] [1778153351.022917863] [torque_publisher]: ✓ Initial position reached! Max error: 0.048238°
+[INFO] [1778153351.033093871] [torque_publisher]: ✓ Initial position reached! Max error: 0.048269°
+[INFO] [1778153351.042746258] [torque_publisher]: ✓ Initial position reached! Max error: 0.048301°
+[INFO] [1778153351.052885257] [torque_publisher]: ✓ Initial position reached! Max error: 0.048334°
+[INFO] [1778153351.062783906] [torque_publisher]: ✓ Initial position reached! Max error: 0.048368°
+[INFO] [1778153351.073083135] [torque_publisher]: ✓ Initial position reached! Max error: 0.048402°
+[INFO] [1778153351.082988135] [torque_publisher]: ✓ Initial position reached! Max error: 0.048436°
+[INFO] [1778153351.093404173] [torque_publisher]: ✓ Initial position reached! Max error: 0.048471°
+[INFO] [1778153351.103087478] [torque_publisher]: ✓ Initial position reached! Max error: 0.048506°
+[INFO] [1778153351.113001385] [torque_publisher]: ✓ Initial position reached! Max error: 0.048542°
+[INFO] [1778153351.122908379] [torque_publisher]: ================================================================================
+[INFO] [1778153351.123391264] [torque_publisher]: Launching data logger...
+[INFO] [1778153351.123811862] [torque_publisher]: Launching triggered logger subprocess...
+[INFO] [1778153351.450892509] [triggered_logger]: Dataset: path_677
+[INFO] [1778153351.451401643] [triggered_logger]: Log directory: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs
+[INFO] [1778153351.481229055] [triggered_logger]: ======================================================================
+[INFO] [1778153351.481706630] [triggered_logger]: TRIGGERED LOGGER - Ready for Commands
+[INFO] [1778153351.482127018] [triggered_logger]: ======================================================================
+[INFO] [1778153351.482758020] [triggered_logger]: Log file ready: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs/path_677_log_2.csv
+[INFO] [1778153351.483187214] [triggered_logger]: Test number: 2
+[INFO] [1778153351.483563048] [triggered_logger]: Waiting for /logger/start service call...
+[INFO] [1778153351.483940926] [triggered_logger]: ======================================================================
+[INFO] [1778153351.729524922] [torque_publisher]: ✓ Logger subprocess ready
+[INFO] [1778153351.730098336] [torque_publisher]: ================================================================================
+[INFO] [1778153351.730622939] [torque_publisher]: Opening local log file for computed torque data...
+[INFO] [1778153351.731157130] [torque_publisher]: ✓ Log file opened: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_677_joint_states_ctc_log_1.csv
+[INFO] [1778153351.804479274] [torque_publisher]: Published expected end-effector path (1601 points)
+[INFO] [1778153351.805015509] [torque_publisher]: ================================================================================
+[INFO] [1778153351.805391053] [torque_publisher]: PHASE 2: TRAJECTORY EXECUTION (Computed Torque Control)
+[INFO] [1778153351.805748593] [torque_publisher]: ================================================================================
+[INFO] [1778153351.806114418] [torque_publisher]: Publishing 1601 torque commands at 100Hz...
+[INFO] [1778153351.806477509] [torque_publisher]: Control law: τ_total = τ_model + τ_fb (model=True, feedback=True)
+[INFO] [1778153351.806834638] [torque_publisher]:   τ_model provides feedforward compensation for desired accelerations
+[INFO] [1778153351.807372946] [torque_publisher]:   τ_fb provides error feedback: τ_fb = Kp*e + Kd*ė + Ki*∫e
+[INFO] [1778153351.908462262] [triggered_logger]: ✓ LOGGING STARTED - Recording trajectory data at 100Hz
+[INFO] [1778153351.909569166] [torque_publisher]: ✓ Logger recording started
+[INFO] [1778153352.423155824] [torque_publisher]: t=0.5s | idx=50/1601 | τ=[-0.0, -22.0, -0.0] Nm | err=0.1°
+[INFO] [1778153352.900343317] [triggered_logger]: t=1.0s | Samples: 100 | Pos: [-0.000, 0.780, 2.356] rad
+[INFO] [1778153352.923186201] [torque_publisher]: t=1.0s | idx=100/1601 | τ=[-0.0, -22.3, -0.1] Nm | err=0.2°
+[INFO] [1778153353.422648482] [torque_publisher]: t=1.5s | idx=150/1601 | τ=[0.1, -23.0, -0.3] Nm | err=0.7°
+[INFO] [1778153353.899937624] [triggered_logger]: t=2.0s | Samples: 200 | Pos: [0.006, 0.739, 2.342] rad
+[INFO] [1778153353.923419465] [torque_publisher]: t=2.0s | idx=200/1601 | τ=[0.2, -24.0, -0.6] Nm | err=1.3°
+[INFO] [1778153354.423000498] [torque_publisher]: t=2.5s | idx=250/1601 | τ=[0.3, -25.5, -1.0] Nm | err=1.8°
+[INFO] [1778153354.900083123] [triggered_logger]: t=3.0s | Samples: 300 | Pos: [0.049, 0.631, 2.309] rad
+[INFO] [1778153354.924757369] [torque_publisher]: t=3.0s | idx=300/1601 | τ=[0.4, -27.5, -1.6] Nm | err=2.1°
+[INFO] [1778153355.422893984] [torque_publisher]: t=3.5s | idx=350/1601 | τ=[0.4, -29.8, -2.3] Nm | err=2.0°
+[INFO] [1778153355.900086815] [triggered_logger]: t=4.0s | Samples: 400 | Pos: [0.157, 0.441, 2.255] rad
+[INFO] [1778153355.923559950] [torque_publisher]: t=4.0s | idx=400/1601 | τ=[0.4, -32.4, -3.1] Nm | err=1.5°
+[INFO] [1778153356.423423722] [torque_publisher]: t=4.5s | idx=450/1601 | τ=[0.3, -34.9, -4.1] Nm | err=0.9°
+[INFO] [1778153356.900056302] [triggered_logger]: t=5.0s | Samples: 500 | Pos: [0.312, 0.172, 2.181] rad
+[INFO] [1778153356.923866097] [torque_publisher]: t=5.0s | idx=500/1601 | τ=[0.2, -37.0, -5.0] Nm | err=1.1°
+[INFO] [1778153357.422724164] [torque_publisher]: t=5.5s | idx=550/1601 | τ=[0.2, -38.4, -5.9] Nm | err=1.5°
+[INFO] [1778153357.899948753] [triggered_logger]: t=6.0s | Samples: 600 | Pos: [0.486, -0.165, 2.088] rad
+[INFO] [1778153357.923330596] [torque_publisher]: t=6.0s | idx=600/1601 | τ=[0.3, -38.7, -6.5] Nm | err=1.8°
+[INFO] [1778153358.422399267] [torque_publisher]: t=6.5s | idx=650/1601 | τ=[0.2, -37.6, -6.8] Nm | err=2.2°
+[INFO] [1778153358.899943023] [triggered_logger]: t=7.0s | Samples: 700 | Pos: [0.681, -0.551, 1.982] rad
+[INFO] [1778153358.923669382] [torque_publisher]: t=7.0s | idx=700/1601 | τ=[0.1, -34.8, -6.8] Nm | err=2.5°
+[INFO] [1778153359.422553236] [torque_publisher]: t=7.5s | idx=750/1601 | τ=[-0.0, -30.3, -6.3] Nm | err=3.0°
+[INFO] [1778153359.900000551] [triggered_logger]: t=8.0s | Samples: 800 | Pos: [0.893, -0.964, 1.870] rad
+[INFO] [1778153359.923690963] [torque_publisher]: t=8.0s | idx=800/1601 | τ=[-0.1, -24.3, -5.3] Nm | err=3.4°
+[INFO] [1778153360.422867844] [torque_publisher]: t=8.5s | idx=850/1601 | τ=[-0.2, -17.1, -4.0] Nm | err=3.9°
+[INFO] [1778153360.900150170] [triggered_logger]: t=9.0s | Samples: 900 | Pos: [1.095, -1.380, 1.762] rad
+[INFO] [1778153360.924263825] [torque_publisher]: t=9.0s | idx=900/1601 | τ=[-0.2, -9.2, -2.4] Nm | err=4.5°
+[INFO] [1778153361.423669725] [torque_publisher]: t=9.5s | idx=950/1601 | τ=[-0.2, -1.0, -0.8] Nm | err=5.2°
+[INFO] [1778153361.900061982] [triggered_logger]: t=10.0s | Samples: 1000 | Pos: [1.271, -1.774, 1.669] rad
+[INFO] [1778153361.924356966] [torque_publisher]: t=10.0s | idx=1000/1601 | τ=[-0.1, 6.8, 0.8] Nm | err=6.0°
+[INFO] [1778153362.423224367] [torque_publisher]: t=10.5s | idx=1050/1601 | τ=[-0.0, 13.8, 2.3] Nm | err=7.1°
+[INFO] [1778153362.900059223] [triggered_logger]: t=11.0s | Samples: 1100 | Pos: [1.426, -2.121, 1.601] rad
+[INFO] [1778153362.923438772] [torque_publisher]: t=11.0s | idx=1100/1601 | τ=[0.1, 19.8, 3.5] Nm | err=8.2°
+[INFO] [1778153363.423093788] [torque_publisher]: t=11.5s | idx=1150/1601 | τ=[0.0, 24.8, 4.4] Nm | err=9.3°
+[INFO] [1778153363.899930306] [triggered_logger]: t=12.0s | Samples: 1200 | Pos: [1.588, -2.400, 1.552] rad
+[INFO] [1778153363.923806356] [torque_publisher]: t=12.0s | idx=1200/1601 | τ=[-0.2, 28.6, 5.2] Nm | err=10.2°
+[INFO] [1778153364.423292935] [torque_publisher]: t=12.5s | idx=1250/1601 | τ=[-0.5, 31.4, 5.7] Nm | err=10.9°
+[INFO] [1778153364.900038062] [triggered_logger]: t=13.0s | Samples: 1300 | Pos: [1.716, -2.597, 1.511] rad
+[INFO] [1778153364.925296672] [torque_publisher]: t=13.0s | idx=1300/1601 | τ=[-0.6, 33.4, 6.1] Nm | err=11.3°
+[INFO] [1778153365.422934857] [torque_publisher]: t=13.5s | idx=1350/1601 | τ=[-0.5, 34.7, 6.3] Nm | err=11.4°
+[INFO] [1778153365.900435619] [triggered_logger]: t=14.0s | Samples: 1400 | Pos: [1.767, -2.713, 1.475] rad
+[INFO] [1778153365.923978173] [torque_publisher]: t=14.0s | idx=1400/1601 | τ=[-0.2, 35.5, 6.4] Nm | err=11.4°
+[INFO] [1778153366.423151094] [torque_publisher]: t=14.5s | idx=1450/1601 | τ=[-0.0, 36.0, 6.5] Nm | err=11.1°
+[INFO] [1778153366.900315946] [triggered_logger]: t=15.0s | Samples: 1500 | Pos: [1.785, -2.760, 1.449] rad
+[INFO] [1778153366.924466419] [torque_publisher]: t=15.0s | idx=1500/1601 | τ=[-0.0, 36.1, 6.5] Nm | err=10.8°
+[INFO] [1778153367.422705550] [torque_publisher]: t=15.5s | idx=1550/1601 | τ=[-0.1, 36.0, 6.5] Nm | err=10.2°
+[INFO] [1778153367.899878486] [triggered_logger]: t=16.0s | Samples: 1600 | Pos: [1.797, -2.760, 1.425] rad
+[INFO] [1778153367.923527139] [torque_publisher]: t=16.0s | idx=1600/1601 | τ=[-0.1, 35.8, 6.5] Nm | err=9.5°
+[INFO] [1778153367.940303184] [torque_publisher]: ================================================================================
+[INFO] [1778153367.940686793] [torque_publisher]: TRAJECTORY EXECUTION COMPLETED
+[INFO] [1778153367.941022783] [torque_publisher]: ================================================================================
+[INFO] [1778153368.042262688] [triggered_logger]: ======================================================================
+[INFO] [1778153368.042801828] [triggered_logger]: ✓ LOGGING STOPPED
+[INFO] [1778153368.043296054] [triggered_logger]: ======================================================================
+[INFO] [1778153368.043790881] [triggered_logger]: File saved: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/lib/arm_bot/logs/path_677_log_2.csv
+[INFO] [1778153368.044296178] [triggered_logger]: Total samples: 1614
+[INFO] [1778153368.044811244] [triggered_logger]: Duration: 16.134s
+[INFO] [1778153368.045308986] [triggered_logger]: Average rate: 100.0 Hz
+[INFO] [1778153368.045819533] [triggered_logger]: ======================================================================
+[INFO] [1778153368.046869470] [torque_publisher]: ✓ Logger stopped: Logged 1614 samples in 16.134s
+[INFO] [1778153368.047416756] [torque_publisher]: ✓ Log file closed: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_677_joint_states_ctc_log_1.csv
+[INFO] [1778153368.148343234] [torque_publisher]: Computed torque control publisher shutting down.
+[INFO] [1778153368.148813715] [torque_publisher]: Data logged to: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_677_joint_states_ctc_log_1.csv
+[INFO] [1778153368.149959362] [triggered_logger]: 
+Received termination signal...
+[INFO] [1778153368.313484548] [torque_publisher]: ✓ Logger subprocess terminated
+[INFO] [1778153368.314122324] [torque_publisher]: ✓ Log file closed: /home/priyankan/Desktop/FYP-Puma_560/arm_bot/src/scripts/logs/path_677_joint_states_ctc_log_1.csv

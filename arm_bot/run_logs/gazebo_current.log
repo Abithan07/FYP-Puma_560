@@ -1,0 +1,103 @@
+[INFO] [launch]: All log files can be found below /home/priyankan/.ros/log/2026-05-07-14-36-55-380713-pri-15721
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ign gazebo-1]: process started with pid [15740]
+[INFO] [parameter_bridge-2]: process started with pid [15742]
+[INFO] [robot_state_publisher-3]: process started with pid [15744]
+[INFO] [create-4]: process started with pid [15747]
+[INFO] [rviz2-5]: process started with pid [15749]
+[INFO] [line_drawer-6]: process started with pid [15751]
+[create-4] [INFO] [1778144815.730044953] [ros_gz_sim]: Requesting list of world names.
+[robot_state_publisher-3] [INFO] [1778144815.740404114] [robot_state_publisher]: got segment base_link
+[robot_state_publisher-3] [INFO] [1778144815.740493639] [robot_state_publisher]: got segment link_1
+[robot_state_publisher-3] [INFO] [1778144815.740500422] [robot_state_publisher]: got segment link_2
+[robot_state_publisher-3] [INFO] [1778144815.740504810] [robot_state_publisher]: got segment link_3
+[robot_state_publisher-3] [INFO] [1778144815.740508877] [robot_state_publisher]: got segment shoulder
+[robot_state_publisher-3] [INFO] [1778144815.740512614] [robot_state_publisher]: got segment world
+[parameter_bridge-2] [INFO] [1778144815.753873681] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)
+[rviz2-5] [INFO] [1778144816.003652561] [rviz2]: Stereo is NOT SUPPORTED
+[rviz2-5] [INFO] [1778144816.003824088] [rviz2]: OpenGl version: 4.6 (GLSL 4.6)
+[rviz2-5] [INFO] [1778144816.019675311] [rviz2]: Stereo is NOT SUPPORTED
+[create-4] [INFO] [1778144816.213987913] [ros_gz_sim]: Waiting messages on topic [robot_description].
+[create-4] [INFO] [1778144816.225276669] [ros_gz_sim]: Requested creation of entity.
+[create-4] [INFO] [1778144816.225316884] [ros_gz_sim]: OK creation of entity.
+[INFO] [create-4]: process has finished cleanly [pid 15747]
+[INFO] [spawner-7]: process started with pid [15927]
+[spawner-7] [INFO] [1778144816.601991139] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[ign gazebo-1] [INFO] [1778144817.920358048] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_state_publisher
+[ign gazebo-1] [INFO] [1778144817.920389005] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_description
+[ign gazebo-1] [INFO] [1778144818.277153133] [gz_ros2_control]: connected to service!! robot_state_publisher asking for robot_description
+[ign gazebo-1] [INFO] [1778144818.277485627] [gz_ros2_control]: Received URDF from param server
+[ign gazebo-1] [INFO] [1778144818.278120339] [gz_ros2_control]: [gz_ros2_control] Fixed joint [base_joint] (Entity=25)] is skipped
+[ign gazebo-1] [INFO] [1778144818.280189881] [gz_ros2_control]: The position_proportional_gain has been set to: 0.1
+[ign gazebo-1] [INFO] [1778144818.280221279] [gz_ros2_control]: Loading joint: joint_1
+[ign gazebo-1] [INFO] [1778144818.280227551] [gz_ros2_control]: 	State:
+[ign gazebo-1] [INFO] [1778144818.280232590] [gz_ros2_control]: 		 velocity
+[ign gazebo-1] [INFO] [1778144818.280237439] [gz_ros2_control]: 		 position
+[ign gazebo-1] [INFO] [1778144818.280242699] [gz_ros2_control]: 			 found initial value: 0.000000
+[ign gazebo-1] [INFO] [1778144818.280247638] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280251375] [gz_ros2_control]: 			 found initial value: 0.000000
+[ign gazebo-1] [INFO] [1778144818.280255362] [gz_ros2_control]: 	Command:
+[ign gazebo-1] [INFO] [1778144818.280259169] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280268136] [gz_ros2_control]: Loading joint: joint_2
+[ign gazebo-1] [INFO] [1778144818.280272243] [gz_ros2_control]: 	State:
+[ign gazebo-1] [INFO] [1778144818.280275820] [gz_ros2_control]: 		 velocity
+[ign gazebo-1] [INFO] [1778144818.280279417] [gz_ros2_control]: 		 position
+[ign gazebo-1] [INFO] [1778144818.280284666] [gz_ros2_control]: 			 found initial value: 0.785398
+[ign gazebo-1] [INFO] [1778144818.280292591] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280299384] [gz_ros2_control]: 			 found initial value: -21.838365
+[ign gazebo-1] [INFO] [1778144818.280307659] [gz_ros2_control]: 	Command:
+[ign gazebo-1] [INFO] [1778144818.280314251] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280327445] [gz_ros2_control]: Loading joint: joint_3
+[ign gazebo-1] [INFO] [1778144818.280334899] [gz_ros2_control]: 	State:
+[ign gazebo-1] [INFO] [1778144818.280341421] [gz_ros2_control]: 		 velocity
+[ign gazebo-1] [INFO] [1778144818.280346691] [gz_ros2_control]: 		 position
+[ign gazebo-1] [INFO] [1778144818.280350748] [gz_ros2_control]: 			 found initial value: 2.356194
+[ign gazebo-1] [INFO] [1778144818.280355167] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280359254] [gz_ros2_control]: 			 found initial value: 0.000000
+[ign gazebo-1] [INFO] [1778144818.280363642] [gz_ros2_control]: 	Command:
+[ign gazebo-1] [INFO] [1778144818.280367419] [gz_ros2_control]: 		 effort
+[ign gazebo-1] [INFO] [1778144818.280403295] [resource_manager]: Initialize hardware 'GazeboSimSystem' 
+[ign gazebo-1] [INFO] [1778144818.280442808] [resource_manager]: Successful initialization of hardware 'GazeboSimSystem'
+[ign gazebo-1] [INFO] [1778144818.280472002] [resource_manager]: 'configure' hardware 'GazeboSimSystem' 
+[ign gazebo-1] [INFO] [1778144818.280477202] [gz_ros2_control]: System Successfully configured!
+[ign gazebo-1] [INFO] [1778144818.280487120] [resource_manager]: Successful 'configure' of hardware 'GazeboSimSystem'
+[ign gazebo-1] [INFO] [1778144818.280491518] [resource_manager]: 'activate' hardware 'GazeboSimSystem' 
+[ign gazebo-1] [INFO] [1778144818.280494885] [resource_manager]: Successful 'activate' of hardware 'GazeboSimSystem'
+[ign gazebo-1] [INFO] [1778144818.280499102] [gz_ros2_control]: Loading controller_manager
+[ign gazebo-1] [INFO] [1778144818.356021341] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[spawner-7] [INFO] [1778144818.366399236] [spawner_joint_state_broadcaster]: [94mLoaded [1mjoint_state_broadcaster[0m
+[ign gazebo-1] [INFO] [1778144818.367321138] [controller_manager]: Configuring controller 'joint_state_broadcaster'
+[ign gazebo-1] [INFO] [1778144818.367480863] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published
+[spawner-7] [INFO] [1778144818.396189239] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mjoint_state_broadcaster[0m
+[INFO] [spawner-7]: process has finished cleanly [pid 15927]
+[INFO] [spawner-8]: process started with pid [16152]
+[INFO] [spawner-9]: process started with pid [16154]
+[INFO] [spawner-10]: process started with pid [16156]
+[spawner-8] [INFO] [1778144818.800515214] [spawner_joint_1_controller]: waiting for service /controller_manager/list_controllers to become available...
+[spawner-9] [INFO] [1778144818.805937347] [spawner_joint_2_controller]: [96mSetting controller param "params_file" to "['/home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/share/arm_bot/config/my_controllers.yaml']" for [1mjoint_2_controller[0m
+[ign gazebo-1] [INFO] [1778144818.808744221] [controller_manager]: Loading controller 'joint_2_controller'
+[spawner-10] [INFO] [1778144818.810819884] [spawner_joint_3_controller]: waiting for service /controller_manager/list_controllers to become available...
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[spawner-9] [INFO] [1778144818.826441783] [spawner_joint_2_controller]: [94mLoaded [1mjoint_2_controller[0m
+[ign gazebo-1] [INFO] [1778144818.827419599] [controller_manager]: Configuring controller 'joint_2_controller'
+[ign gazebo-1] [INFO] [1778144818.828126474] [joint_2_controller]: configure successful
+[ign gazebo-1] [INFO] [1778144818.845330365] [joint_2_controller]: activate successful
+[spawner-9] [INFO] [1778144818.856097609] [spawner_joint_2_controller]: [92mConfigured and activated [1mjoint_2_controller[0m
+[INFO] [spawner-9]: process has finished cleanly [pid 16154]
+[spawner-8] [INFO] [1778144819.055296963] [spawner_joint_1_controller]: [96mSetting controller param "params_file" to "['/home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/share/arm_bot/config/my_controllers.yaml']" for [1mjoint_1_controller[0m
+[ign gazebo-1] [INFO] [1778144819.058368578] [controller_manager]: Loading controller 'joint_1_controller'
+[spawner-8] [INFO] [1778144819.066993023] [spawner_joint_1_controller]: [94mLoaded [1mjoint_1_controller[0m
+[ign gazebo-1] [INFO] [1778144819.067703135] [controller_manager]: Configuring controller 'joint_1_controller'
+[ign gazebo-1] [INFO] [1778144819.067989264] [joint_1_controller]: configure successful
+[ign gazebo-1] [INFO] [1778144819.085818956] [joint_1_controller]: activate successful
+[spawner-8] [INFO] [1778144819.096918404] [spawner_joint_1_controller]: [92mConfigured and activated [1mjoint_1_controller[0m
+[INFO] [spawner-8]: process has finished cleanly [pid 16152]
+[spawner-10] [INFO] [1778144821.820377149] [spawner_joint_3_controller]: [96mSetting controller param "params_file" to "['/home/priyankan/Desktop/FYP-Puma_560/arm_bot/install/arm_bot/share/arm_bot/config/my_controllers.yaml']" for [1mjoint_3_controller[0m
+[ign gazebo-1] [INFO] [1778144821.823598436] [controller_manager]: Loading controller 'joint_3_controller'
+[spawner-10] [INFO] [1778144821.836912249] [spawner_joint_3_controller]: [94mLoaded [1mjoint_3_controller[0m
+[ign gazebo-1] [INFO] [1778144821.837874609] [controller_manager]: Configuring controller 'joint_3_controller'
+[ign gazebo-1] [INFO] [1778144821.838287412] [joint_3_controller]: configure successful
+[ign gazebo-1] [INFO] [1778144821.855920453] [joint_3_controller]: activate successful
+[spawner-10] [INFO] [1778144821.866646350] [spawner_joint_3_controller]: [92mConfigured and activated [1mjoint_3_controller[0m
+[INFO] [spawner-10]: process has finished cleanly [pid 16156]

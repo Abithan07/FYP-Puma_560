@@ -13,9 +13,15 @@ from typing import Tuple
 import numpy as np
 
 
-start_id = 1
+start_id = 400
 Output_dir = "/home/priyankan/Desktop/FYP-Puma_560/Test_data"
-Tracking_file = "/home/priyankan/Desktop/FYP-Puma_560/test_data_tracking.csv"
+Tracking_file = "/home/priyankan/Desktop/FYP-Puma_560/test_data_tracking_1.csv"
+
+JOINT_LIMITS = {
+    "Q1 (Base)": [(-150, 0), (0, 150)],
+    "Q2 (Shoulder)": [(-60, 45)],
+    "Q3 (Elbow)": [(0, 225)],
+}
 
 
 # ===================== SETTINGS =====================
@@ -24,13 +30,21 @@ class TrajConfig:
     """Trajectory generation configuration"""
     def __init__(self):
         self.dt = 0.01
-        self.possible_T = np.array([12, 16, 20, 24])
+        self.possible_T = np.array([12.0, 16.0, 18.0, 20.0, 24.0])
         
         self.v_max = 2.0
         self.a_max = 7.0
         
         self.q_start_deg = np.array([0.0, 45.0, 135.0])
         self.q_start = np.deg2rad(self.q_start_deg)
+
+
+def sample_integer_from_intervals(intervals) -> int:
+    """Sample one integer uniformly from one or more inclusive integer intervals."""
+    sampled = []
+    for low, high in intervals:
+        sampled.append(np.random.randint(int(low), int(high) + 1))
+    return int(sampled[np.random.randint(0, len(sampled))])
         
 
 def min_jerk_profile(t: np.ndarray, T: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -127,26 +141,19 @@ def generate_trajectories(num_paths: int, config: TrajConfig, start_id: int = No
 
         valid_path = False
         while not valid_path:
-            if np.random.rand() < 0.5:
-                q1 = 100.0 + (150.0 - 100.0) * np.random.rand()
-            else:
-                q1 = -150.0 + (-100.0 - -150.0) * np.random.rand()
+            q1 = sample_integer_from_intervals(JOINT_LIMITS["Q1 (Base)"])
+            q2 = sample_integer_from_intervals(JOINT_LIMITS["Q2 (Shoulder)"])
+            q3 = sample_integer_from_intervals(JOINT_LIMITS["Q3 (Elbow)"])
 
-            q2 = -60.0 + (15.0 - -60.0) * np.random.rand()
-
-            if np.random.rand() < 0.5:
-                q3 = 60.0 + (100.0 - 60.0) * np.random.rand()
-            else:
-                q3 = 180.0 + (225.0 - 180.0) * np.random.rand()
-
-            q_end_deg = np.round(np.array([q1, q2, q3])).astype(int)
+            q_end_deg = np.array([q1, q2, q3], dtype=int)
             q_end = np.deg2rad(q_end_deg)
             dq = np.abs(q_end - config.q_start)
 
             T_vel = np.max(1.875 * dq / config.v_max)
             T_acc = np.max(np.sqrt(5.77 * dq / config.a_max))
             T_min = max(T_vel, T_acc)
-            T_total = max(T_min, config.possible_T[np.random.randint(len(config.possible_T))])
+            T_random = float(np.random.choice(config.possible_T))
+            T_total = max(T_min, T_random)
 
             candidate = np.concatenate([q_end_deg, [T_total]])
             valid_path = is_unique_path(candidate, path_record)
