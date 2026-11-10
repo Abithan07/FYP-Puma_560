@@ -16,3 +16,5 @@ The GUI uses PID + DNN automatically; its joint-controller indicators are not al
 Source is grouped under `src/scripts/demo/`, `controllers/`, `shared/`, and `analysis/`. The only simulator entry point is `gazebo.launch.py`. Datasets and recorded results live outside the ROS package in `../data/`; checkpoints and scalers live in `../models/`.
 
 The [file-by-file code reference](../docs/CODE_REFERENCE.md) explains the launchers, GUI, controller calculations, shared helpers, robot configuration, analysis, and tests.
+
+Input datasets and trained assets are included in the publication branch. New users should start with the [clone and reproduction guide](../docs/REPRODUCIBILITY.md).

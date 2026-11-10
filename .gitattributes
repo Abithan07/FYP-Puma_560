@@ -1,0 +1,13 @@
+# Preserve published scientific artifacts byte-for-byte across checkout settings.
+/data/** -text
+/models/** -text
+/research/delan/data/** -text
+/research/notebooks/** -text
+/research/matlab/** -text
+
+# Wide signal-row datasets are numerical artifacts, not useful source diffs.
+/data/**/*.csv -diff
+/research/delan/data/**/*.csv -diff
+
+# Keep the publication index readable in reviews with consistent line endings.
+/data/DATASET_MANIFEST.csv text eol=lf diff

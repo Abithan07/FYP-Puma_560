@@ -90,4 +90,4 @@ Trajectory CSVs generally store signal labels in the first column and timesteps 
 
 `shared/project_paths.py` discovers the checkout and centralizes `data/` and `models/` paths. Source/symlink installs resolve automatically; copied installs need `PUMA_PROJECT_ROOT`. Data and results are outside the ROS installation so rebuilding does not copy datasets into the package.
 
-All 4,106 protected artifacts are recorded in [the preservation manifest](../data/MANIFEST.csv). Original local-only data remains local-only; original tracked artifacts remain tracked after relocation. Research training source, MATLAB references, and notebooks are separate under `research/`.
+All 4,106 protected artifacts are recorded in [the historical preservation manifest](../data/MANIFEST.csv). The [publication snapshot](../data/DATASET_MANIFEST.csv) now includes all retained input trajectory/dataset collections, training data, model assets, and an offline inference reference. Historical output/build logs remain local unless already tracked. Research training source, MATLAB references, and notebooks are separate under `research/`. See the [clone and reproduction guide](REPRODUCIBILITY.md).

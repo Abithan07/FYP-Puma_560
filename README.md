@@ -18,7 +18,7 @@ bash arm_bot/all.sh --check
 bash arm_bot/all.sh
 ```
 
-The batch CSVs are available in the original local checkout; a fresh clone needs those datasets separately. The launchers use the compatible `.venv-ros` runtime automatically. On a fresh checkout, run `bash arm_bot/setup_runtime.sh` first. Runtime setup and data requirements are covered in the run guide.
+The input datasets and trained assets are included in this branch. Verify them with `python3 tools/verify_data.py --datasets`. New readers should follow the [clone and reproduction guide](docs/REPRODUCIBILITY.md) to install the runtime and compare an offline inference output with the bundled reference. The launchers select the compatible `.venv-ros` runtime automatically after setup.
 
 ## Choose a workflow
 
@@ -32,6 +32,7 @@ The batch CSVs are available in the original local checkout; a fresh clone needs
 | Find logs and export tracking/torque reports | [Outputs](RUN_GUIDE.md#9-find-and-interpret-outputs), [analysis](RUN_GUIDE.md#10-plot-and-analyze-results) |
 | Explore training, MATLAB, or notebook references | [Research workflows](RUN_GUIDE.md#14-use-the-research-references) |
 | Understand each code file and its role in the project | [File-by-file code reference](docs/CODE_REFERENCE.md) |
+| Clone the published data and reproduce a numerical output | [Clone and reproduction guide](docs/REPRODUCIBILITY.md) |
 
 The GUI currently uses PID + DNN automatically. Other controllers are selected through the manual commands in the guide; `all.sh` runs all three main controllers.
 
@@ -61,6 +62,7 @@ Earlier simulator packages, numbered inference versions 1–6, experimental torq
 - [Retained source map](docs/REPOSITORY_MAP.md)
 - [Cleanup work report](docs/CLEANUP_REPORT.md)
 - [Publication notes](docs/PUBLICATION_NOTES.md)
+- [Clone and reproduction guide](docs/REPRODUCIBILITY.md)
 - [Data locations and preservation](data/README.md)
 
 ```bash
@@ -70,6 +72,7 @@ source arm_bot/scripts/runtime_environment.sh
 python3 tools/check_repository.py
 python3 -m unittest discover -s tests -v
 python3 tools/verify_data.py
+python3 tools/verify_data.py --datasets
 ```
 
 The main simulation remains at 100 Hz. The cleanup changes organization, imports, and output paths; the retained control calculations and model weights are unchanged.

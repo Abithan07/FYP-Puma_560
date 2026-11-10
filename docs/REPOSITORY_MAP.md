@@ -15,6 +15,8 @@ Use the [final run guide](../RUN_GUIDE.md) for commands.
 
 Use the [file-by-file code reference](CODE_REFERENCE.md) for each file's responsibilities, main functions, inputs/outputs, and relationship to the rest of the system, including research and test files.
 
+The [clone and reproduction guide](REPRODUCIBILITY.md) explains the bundled dataset/model snapshot, environment requirements, and numerical reproduction check.
+
 ## Final demo and required helpers
 
 | Source | Purpose |

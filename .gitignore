@@ -17,11 +17,12 @@ __pycache__/
 .DS_Store
 *~
 
-# Original tracked artifacts are explicitly retained in Git after relocation.
-# Local datasets and new experiment outputs remain local.
+# Published input files in DATASET_MANIFEST.csv are deliberately tracked.
+# Ignore additional generated inputs/results; tracked snapshots remain in Git.
 /data/**
 !/data/README.md
 !/data/MANIFEST.csv
+!/data/DATASET_MANIFEST.csv
 !/data/COLCON_IGNORE
 /research/delan/data/**
 /test_output/

@@ -1,0 +1,17 @@
+# Observed top-level versions for the CPU reproduction example on Python 3.10.
+# This pins the numerical stack; ROS/Qt/OS packages and transitive dependencies
+# are separate. It is not a container image or a complete environment lock.
+--extra-index-url https://download.pytorch.org/whl/cpu
+numpy==1.26.4
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.5.1
+sympy==1.9
+PyQt5==5.15.6
+torch==2.1.0+cpu
+jax==0.6.2
+jaxlib==0.6.2
+dm-haiku==0.0.16
+joblib==1.5.3
+dill==0.4.1
+scikit-learn==1.6.1

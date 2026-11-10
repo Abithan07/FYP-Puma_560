@@ -1,6 +1,6 @@
 # Code reference: what each file does
 
-This guide explains every retained code file in this repository: **31 Python files, eight shell scripts, three MATLAB scripts, and eight notebooks**. It also explains the build files, robot description, simulator settings, and dependency files that support them. Paths below are relative to the repository root; each file name links to its source.
+This guide explains every retained code file in this repository: **32 Python files, eight shell scripts, three MATLAB scripts, and eight notebooks**. It also explains the build files, robot description, simulator settings, and dependency files that support them. Paths below are relative to the repository root; each file name links to its source.
 
 Use the [run guide](../RUN_GUIDE.md) for setup and commands, [architecture](ARCHITECTURE.md) for the system overview, and this reference when reading or modifying the implementation. Datasets, checkpoints, meshes, and generated results are assets rather than source code; their locations are described in the [data notes](../data/README.md) and [model notes](../models/README.md).
 
@@ -304,9 +304,9 @@ It walks the checkout, excluding Git, known environments, generated ROS director
 
 ### [`tools/verify_data.py`](../tools/verify_data.py)
 
-**Role:** check that the protected artifacts still match their pre-cleanup hashes.
+**Role:** verify published inputs or the original preservation archive.
 
-It reads `data/MANIFEST.csv`, opens each selected `current_path`, computes SHA-256, and reports missing or changed files. By default it checks originally tracked artifacts; `--all` also includes the original local-only data, which must be available in the checkout. It returns a failure status for mismatches. It does not modify, restore, or assess the scientific validity of any artifact, and newly generated files are outside the original manifest.
+`verify_manifest()` checks file existence, byte counts, and SHA-256 and returns counts/failures without modifying files. `main()` selects the manifest: `--datasets` uses `data/DATASET_MANIFEST.csv` to check all published datasets, model assets, and the numerical reference in a fresh clone. With no switch it checks originally tracked artifacts from `data/MANIFEST.csv`; `--all` includes that older inventory's entire local archive, including historical outputs that are not all published. The two switches are mutually exclusive. Missing/corrupt data or an unreadable manifest produces a failure status. The tool does not restore artifacts or assess their scientific validity, and unlisted new outputs are not checked.
 
 ## 9. Research Python and MATLAB scripts
 
@@ -384,6 +384,7 @@ Tests use Python's `unittest`. Shell/process tests create isolated temporary wor
 | [`tests/test_runtime_environment.py`](../tests/test_runtime_environment.py) | Interpreter selection: project overlay by default, explicit `PUMA_PYTHON`, and fallback when no overlay exists. |
 | [`tests/test_terminal_job.py`](../tests/test_terminal_job.py) | Literal argument preservation and status reporting for success, command failure, workspace-setup failure, and missing commands. |
 | [`tests/test_trajectory_cli.py`](../tests/test_trajectory_cli.py) | Real direct/waypoint generator subprocesses, saved reference shape, finite states, increasing time, endpoints, and tracking output inside the selected directory. |
+| [`tests/test_verify_data.py`](../tests/test_verify_data.py) | Published verification includes previously untracked inputs; missing, resized, and same-size corrupted files fail. Historical manifest selection still works, and unlisted new outputs do not affect the frozen snapshot. |
 
 These tests do not establish closed-loop tracking performance, physical-arm behavior, or complete training reproducibility.
 
@@ -394,11 +395,14 @@ These tests do not establish closed-loop tracking performance, physical-arm beha
 | [`requirements/runtime.txt`](../requirements/runtime.txt) | Scientific processing, analytical dynamics, plotting, and PyQt dependencies. Pins NumPy 1.26.4 for compatibility with the retained binary stack. |
 | [`requirements/dnn.txt`](../requirements/dnn.txt) | Includes the runtime group and adds the checkpoint inference stack: PyTorch, JAX/JAXlib, Haiku, serialization, and scaler dependencies. |
 | [`requirements/ros-overlay.txt`](../requirements/ros-overlay.txt) | The focused NumPy 1.26.4 and scikit-learn 1.6.1 overrides installed by `setup_runtime.sh` into `.venv-ros/`. |
+| [`requirements/reproduce.txt`](../requirements/reproduce.txt) | Pins observed top-level CPU/scientific versions for the bundled numerical reference. OS/ROS and transitive dependencies are separate. |
 | [`requirements/delan-original.txt`](../requirements/delan-original.txt) | Preserved original training dependency snapshot, useful when reconstructing a separate research environment. It is distinct from the final ROS inference dependency group. |
 | [`.gitignore`](../.gitignore) | Excludes regenerated ROS build/install/log directories, environments, caches, editor files, and new local experiment data. Originally tracked assets remain tracked. It controls Git visibility, not data deletion. |
+| [`.gitattributes`](../.gitattributes) | Preserves scientific artifact bytes across checkout line-ending settings and treats wide numerical CSVs as binary diffs. The publication index uses consistent LF endings and readable text diffs. |
 | [`data/COLCON_IGNORE`](../data/COLCON_IGNORE) | Tells colcon to skip the data tree during workspace discovery. |
 | [`research/COLCON_IGNORE`](../research/COLCON_IGNORE) | Tells colcon to skip historical research material during workspace discovery. |
 | [`data/MANIFEST.csv`](../data/MANIFEST.csv) | Preservation index containing original/current paths, tracked status, byte count, and SHA-256. Read by `verify_data.py`; it is not a trajectory or training dataset. |
+| [`data/DATASET_MANIFEST.csv`](../data/DATASET_MANIFEST.csv) | Current published snapshot index containing data group, current path, byte count, and SHA-256. Read by `verify_data.py --datasets`; includes the offline reference described in [data/reproduction/README.md](../data/reproduction/README.md). |
 
 The dependency groups are documented in [requirements/README.md](../requirements/README.md); they are not a complete fresh-install environment lock. Robot/simulator packages and desktop tools are OS/ROS dependencies described in the run guide.
 

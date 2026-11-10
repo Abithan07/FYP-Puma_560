@@ -4,6 +4,8 @@ This guide describes the organized PUMA 560 codebase, from setup to controller s
 
 For an explanation of each source file, its main functions, inputs, outputs, and dependencies, read the separate [code reference](docs/CODE_REFERENCE.md).
 
+New readers can follow the [clone and reproduction guide](docs/REPRODUCIBILITY.md) to obtain the bundled datasets, verify their hashes, and compare a numerical inference output with the supplied reference.
+
 **Working-directory rule:** every command below starts in the **repository root**, the directory containing this file, `arm_bot/`, `models/`, and `data/`. The research section explicitly changes directory. Repeat the terminal setup whenever you open a new terminal.
 
 ## Contents
@@ -56,7 +58,7 @@ bash arm_bot/all.sh
 
 `--check` checks inputs, default model files, commands, and the numerical runtime without starting simulation. The normal run executes **DNN → CTC → PID** for each selected path. It does not select just one controller.
 
-On a fresh checkout, prepare the [runtime](#3-install-or-repair-the-runtime) first. If the original batch CSVs are unavailable, use the [self-contained batch example](#compare-a-newly-generated-trajectory).
+On a fresh checkout, verify the bundled inputs with `python3 tools/verify_data.py --datasets`, then prepare the [runtime](#3-install-or-repair-the-runtime). The original batch CSVs are included in this branch. The [self-contained batch example](#compare-a-newly-generated-trajectory) shows how to compare a newly generated reference instead.
 
 ## 2. Repository and entry points
 
@@ -132,13 +134,11 @@ If the ROS/system prerequisites are present but the Python inference packages ar
 source /opt/ros/humble/setup.bash
 source arm_bot/scripts/desktop_environment.sh
 python3 -m venv --system-site-packages .venv-ros
-.venv-ros/bin/python3 -m pip install 'torch==2.1.0' \
-  --index-url https://download.pytorch.org/whl/cpu
-.venv-ros/bin/python3 -m pip install -r requirements/dnn.txt
+.venv-ros/bin/python3 -m pip install -r requirements/reproduce.txt
 bash arm_bot/setup_runtime.sh
 ```
 
-This installs into the project environment, not into the system Python. The full requirement groups are starting constraints rather than a complete fresh-machine lockfile. The working host's two-package compatibility overlay has been tested; a fresh installation must pass the runtime check below.
+This installs into the project environment, not into the system Python. `reproduce.txt` pins observed top-level CPU/scientific versions; the other requirement groups retain their broader purposes. These are not a complete OS/transitive-dependency lock. The working host's two-package compatibility overlay has been tested; a fresh installation must pass the runtime check below.
 
 ### Runtime and Snap terminal checks
 
@@ -434,7 +434,7 @@ bash arm_bot/all.sh --check
 bash arm_bot/all.sh
 ```
 
-The default input directory is `data/trajectories/Joint_states/J/`; the default set contains the original 50 path IDs. These inputs are local-only and are not supplied by a fresh clone. Default model/scaler files remain in `models/`.
+The default input directory is `data/trajectories/Joint_states/J/`; the default set contains the original 50 path IDs. These inputs are included in this branch, together with the rest of the published snapshot. Default model/scaler files remain in `models/`.
 
 Run selected original IDs, or supply another input directory:
 
@@ -694,6 +694,7 @@ python3 tools/check_runtime.py
 python3 tools/check_repository.py
 python3 -m unittest discover -s tests -v
 python3 tools/verify_data.py
+python3 tools/verify_data.py --datasets
 ```
 
 | Check | What it establishes |
@@ -702,18 +703,19 @@ python3 tools/verify_data.py
 | `check_repository.py` | Python/shell syntax and XML/Xacro/world parsing |
 | `unittest` | Retained launcher behavior, environment selection, inference failure handling, and numerical/trajectory contracts |
 | `verify_data.py` | Hashes of the originally tracked protected research artifacts |
+| `verify_data.py --datasets` | Sizes and SHA-256 hashes of all 1,852 published dataset/model/reference files; intended for a fresh clone |
 
 Source ROS before running the full tests; the actual ROS callback tests are skipped if `rclpy` is unavailable. These checks do not start a simulated motion or establish closed-loop tracking performance.
 
-To check original local-only artifacts as well:
+To check the older complete local archive, including unpublished historical outputs:
 
 ```bash
 python3 tools/verify_data.py --all
 ```
 
-`data/MANIFEST.csv` records original/current paths, hashes, sizes, and tracked status for 4,106 protected artifacts. A fresh clone lacks the original local-only files, so `--all` is intended for the original working datasets. Deliberately modified training/reference records can differ from the baseline; inspect reported differences rather than restoring them blindly. New outputs that are absent from the manifest are not evaluated by this preservation check.
+`data/MANIFEST.csv` records original/current paths, hashes, sizes, and pre-cleanup tracked status for 4,106 protected artifacts. That historical flag does not represent current publication status. A fresh clone lacks some historical outputs in this older inventory, so `--all` is intended for the original local archive. Use the separate `data/DATASET_MANIFEST.csv` and `--datasets` to verify the published snapshot. Deliberately modified records can differ from a baseline; inspect differences rather than restoring them blindly. Unlisted new outputs are not evaluated.
 
-Originally tracked artifacts remain tracked after relocation. New data/results are ignored by Git unless deliberately added. See [data notes](data/README.md) and [publication notes](docs/PUBLICATION_NOTES.md) for reproducibility and release metadata.
+Originally tracked artifacts and the deliberately published input snapshot are retained in Git. Additional data/results are ignored unless deliberately added. See [data notes](data/README.md), the [reproduction example](docs/REPRODUCIBILITY.md#3-reproduce-a-numerical-output-without-simulated-motion), and [publication notes](docs/PUBLICATION_NOTES.md).
 
 ## 14. Use the research references
 
